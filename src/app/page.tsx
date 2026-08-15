@@ -26,9 +26,9 @@ import {
   Link2,
   Bot,
   Scale,
-  Bell,
   Settings,
 } from 'lucide-react'
+import { NotificationPanel } from '@/components/notification-panel'
 
 const sectionMeta: Record<Section, { title: string; description: string; icon: React.ElementType }> = {
   dashboard: { title: 'Dashboard', description: 'Platform overview and KPIs', icon: LayoutDashboard },
@@ -71,16 +71,14 @@ export default function Home() {
             <Icon className="size-4 text-primary shrink-0" />
             <div className="min-w-0">
               <h1 className="text-sm font-semibold truncate">{meta.title}</h1>
+              <p className="text-[10px] text-muted-foreground truncate hidden sm:block">{meta.description}</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <Badge variant="outline" className="text-[9px] border-primary/30 text-primary h-5">
               {activeRole === 'super_admin' ? 'SUPER ADMIN' : activeRole.toUpperCase()}
             </Badge>
-            <button className="relative p-1.5 rounded-md hover:bg-muted transition-colors">
-              <Bell className="size-4 text-muted-foreground" />
-              <span className="absolute top-0.5 right-0.5 size-1.5 rounded-full bg-destructive" />
-            </button>
+            <NotificationPanel />
             <button className="p-1.5 rounded-md hover:bg-muted transition-colors">
               <Settings className="size-4 text-muted-foreground" />
             </button>
@@ -91,6 +89,31 @@ export default function Home() {
         <main className="flex-1 p-4 sm:p-6 overflow-y-auto">
           <SectionContent section={activeSection} />
         </main>
+
+        {/* Sticky Footer */}
+        <footer className="mt-auto shrink-0 border-t border-border px-4 py-2">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+              <span className="font-medium text-primary/80">TOLS Platform</span>
+              <span className="hidden sm:inline">v1.0</span>
+              <span className="hidden sm:inline">© 2025 TOLS Operations</span>
+            </div>
+            <div className="flex items-center gap-3 text-[10px]">
+              <span className="flex items-center gap-1">
+                <span className="size-1.5 rounded-full bg-emerald-500" />
+                <span className="text-muted-foreground hidden sm:inline">DB</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="size-1.5 rounded-full bg-emerald-500" />
+                <span className="text-muted-foreground hidden sm:inline">API</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="size-1.5 rounded-full bg-primary" />
+                <span className="text-muted-foreground hidden sm:inline">Escrow</span>
+              </span>
+            </div>
+          </div>
+        </footer>
       </SidebarInset>
     </SidebarProvider>
   )

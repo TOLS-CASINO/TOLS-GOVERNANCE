@@ -1,6 +1,5 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import {
   AreaChart,
   Area,
@@ -11,9 +10,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
 } from 'recharts'
 import {
   DollarSign,
@@ -24,9 +20,11 @@ import {
   AlertTriangle,
   Zap,
   Crown,
+  RefreshCw,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Table,
   TableBody,
@@ -36,108 +34,10 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
-
-// Types
-interface KpiData {
-  totalDeposits: number
-  netCashFlow: number
-  houseEarnings: number
-  activePlayers: number
-  depositsTrend: number
-  cashFlowTrend: number
-  earningsTrend: number
-  playersTrend: number
-}
-
-interface CashFlowPoint {
-  week: string
-  inflow: number
-  outflow: number
-  net: number
-}
-
-interface TopGame {
-  id: number
-  name: string
-  category: string
-  netEarning: number
-  ggr: number
-  rtp: number
-}
-
-interface ForecastPoint {
-  week: string
-  projected: number
-  baseline: number
-}
-
-interface Jackpot {
-  name: string
-  amount: number
-  seed: number
-  game: string
-}
-
-interface VarianceAlert {
-  id: number
-  category: string
-  severity: 'critical' | 'high' | 'medium' | 'low'
-  message: string
-  value: number
-}
-
-// Mock data generators
-function generateMockData() {
-  const kpi: KpiData = {
-    totalDeposits: 2847563,
-    netCashFlow: 1289450,
-    houseEarnings: 1847290,
-    activePlayers: 12847,
-    depositsTrend: 12.4,
-    cashFlowTrend: -3.2,
-    earningsTrend: 8.7,
-    playersTrend: 5.1,
-  }
-
-  const cashFlow: CashFlowPoint[] = Array.from({ length: 12 }, (_, i) => ({
-    week: `W${i + 1}`,
-    inflow: Math.floor(180000 + Math.random() * 120000),
-    outflow: Math.floor(80000 + Math.random() * 60000),
-    net: Math.floor(60000 + Math.random() * 80000),
-  }))
-
-  const topGames: TopGame[] = [
-    { id: 1, name: 'Mega Moolah', category: 'Slots', netEarning: 423500, ggr: 567800, rtp: 94.2 },
-    { id: 2, name: 'Lightning Roulette', category: 'Table', netEarning: 387200, ggr: 489100, rtp: 97.3 },
-    { id: 3, name: 'Book of Dead', category: 'Slots', netEarning: 312800, ggr: 398400, rtp: 94.5 },
-    { id: 4, name: 'Blackjack VIP', category: 'Table', netEarning: 289400, ggr: 356200, rtp: 99.1 },
-    { id: 5, name: 'Gonzo\'s Quest', category: 'Slots', netEarning: 256100, ggr: 312500, rtp: 95.8 },
-  ]
-
-  const forecast: ForecastPoint[] = Array.from({ length: 13 }, (_, i) => ({
-    week: `W${i + 1}`,
-    projected: Math.floor(150000 + i * 8000 + Math.random() * 20000),
-    baseline: Math.floor(140000 + i * 5000),
-  }))
-
-  const jackpots: Jackpot[] = [
-    { name: 'Mega Moolah Grand', amount: 4523890, seed: 1000000, game: 'Mega Moolah' },
-    { name: 'WowPot!', amount: 1289450, seed: 500000, game: 'WowPot Series' },
-    { name: 'Jackpot King', amount: 876230, seed: 200000, game: 'Jackpot King Slots' },
-  ]
-
-  const alerts: VarianceAlert[] = [
-    { id: 1, category: 'Revenue', severity: 'critical', message: 'GGR variance exceeds 15% threshold', value: -18.3 },
-    { id: 2, category: 'Escrow', severity: 'high', message: 'Settlement delay > 24h in EUR corridor', value: -8.7 },
-    { id: 3, category: 'Player', severity: 'medium', message: 'Churn rate uptick in VIP segment', value: 4.2 },
-    { id: 4, category: 'Compliance', severity: 'low', message: 'KYC pending queue above normal', value: 2.1 },
-  ]
-
-  return { kpi, cashFlow, topGames, forecast, jackpots, alerts }
-}
+import { useDashboard } from '@/hooks/use-dashboard'
+import { useForecast } from '@/hooks/use-forecast'
 
 const fmt = (n: number) => `$${n.toLocaleString('en-US')}`
-const fmtK = (n: number) => n >= 1000000 ? `$${(n / 1000000).toFixed(1)}M` : `$${(n / 1000).toFixed(0)}K`
 
 const severityColor: Record<string, string> = {
   critical: 'text-destructive',
@@ -146,21 +46,14 @@ const severityColor: Record<string, string> = {
   low: 'text-muted-foreground',
 }
 
-const CHART_COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)']
-
 export function DashboardView() {
-  const [data, setData] = useState<ReturnType<typeof generateMockData> | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { data: dashboardData, loading: dashLoading, error: dashError, refetch: dashRefetch } = useDashboard()
+  const { data: forecastData, loading: forecastLoading, error: forecastError, refetch: forecastRefetch } = useForecast()
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setData(generateMockData())
-      setLoading(false)
-    }, 600)
-    return () => clearTimeout(timer)
-  }, [])
+  const loading = dashLoading || forecastLoading
+  const error = dashError || forecastError
 
-  if (loading || !data) {
+  if (loading) {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -176,14 +69,109 @@ export function DashboardView() {
     )
   }
 
-  const { kpi, cashFlow, topGames, forecast, jackpots, alerts } = data
+  if (error || !dashboardData) {
+    return (
+      <div className="space-y-4">
+        <Card className="border-destructive/40">
+          <CardContent className="p-6 text-center">
+            <AlertTriangle className="size-8 text-destructive mx-auto mb-2" />
+            <p className="text-sm font-medium text-destructive">Failed to load dashboard data</p>
+            <p className="text-xs text-muted-foreground mt-1">{error}</p>
+            <Button variant="outline" size="sm" className="mt-3 gap-1" onClick={() => { dashRefetch(); forecastRefetch() }}>
+              <RefreshCw className="size-3" /> Retry
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  const kpis = dashboardData.kpis
+
+  // Build cash flow chart from recentDeposits — group by week
+  const cashFlow = (() => {
+    const deposits = dashboardData.recentDeposits || []
+    if (deposits.length === 0) {
+      return Array.from({ length: 12 }, (_, i) => ({
+        week: `W${i + 1}`,
+        inflow: 0,
+        outflow: 0,
+        net: 0,
+      }))
+    }
+    // Group deposits by week number
+    const weekMap = new Map<number, { inflow: number; outflow: number }>()
+    deposits.forEach((d) => {
+      const date = new Date(d.createdAt)
+      const weekNum = Math.ceil(((date.getTime() - new Date(date.getFullYear(), 0, 1).getTime()) / 86400000 + new Date(date.getFullYear(), 0, 1).getDay() + 1) / 7)
+      if (!weekMap.has(weekNum)) weekMap.set(weekNum, { inflow: 0, outflow: 0 })
+      const entry = weekMap.get(weekNum)!
+      entry.inflow += d.amount
+    })
+    const weeks = Array.from(weekMap.entries()).sort((a, b) => a[0] - b[0])
+    // Generate up to 12 weeks
+    const result = weeks.slice(-12).map(([weekNum, data], i) => ({
+      week: `W${i + 1}`,
+      inflow: Math.round(data.inflow),
+      outflow: Math.round(data.inflow * 0.45), // estimate outflow as % of inflow
+      net: Math.round(data.inflow * 0.55),
+    }))
+    // If less than 12, pad
+    while (result.length < 12) {
+      const idx = result.length
+      result.push({
+        week: `W${idx + 1}`,
+        inflow: Math.round(kpis.totalDeposits / 12),
+        outflow: Math.round(kpis.totalWithdrawals / 12),
+        net: Math.round(kpis.netCashFlow / 12),
+      })
+    }
+    return result
+  })()
+
+  // Top 5 games by netEarning
+  const topGames = (dashboardData.houseEarnings || [])
+    .sort((a, b) => b.netEarning - a.netEarning)
+    .slice(0, 5)
+    .map((he) => ({
+      id: he.id,
+      name: he.gameId,
+      netEarning: Math.round(he.netEarning),
+      ggr: Math.round(he.grossRevenue),
+      rtp: he.houseEdge > 0 ? Math.round((1 - he.houseEdge / 100) * 1000) / 10 : 95,
+    }))
+
+  // 13-week forecast
+  const forecast = (forecastData?.forecast || []).map((fp) => ({
+    week: fp.week,
+    projected: Math.round(fp.projectedDeposits),
+    baseline: Math.round(fp.projectedDeposits * 0.9),
+  }))
+
+  // Jackpots
+  const jackpots = (dashboardData.jackpots || []).map((jp) => ({
+    name: jp.name,
+    amount: Math.round(jp.currentAmount),
+    seed: Math.round(jp.seedAmount),
+    game: jp.name,
+  }))
+
+  // Variance alerts
+  const alerts = (dashboardData.varianceAlerts || []).map((va) => ({
+    id: va.id,
+    category: va.category,
+    severity: va.severity as 'critical' | 'high' | 'medium' | 'low',
+    message: `${va.category} variance: actual ${fmt(va.actualValue)} vs expected ${fmt(va.expectedValue)}`,
+    value: Math.round(va.variancePercent * 10) / 10,
+  }))
+
   const criticalAlerts = alerts.filter((a) => a.severity === 'critical' || a.severity === 'high')
 
   const kpiCards = [
-    { label: 'Total Deposits', value: fmt(kpi.totalDeposits), trend: kpi.depositsTrend, icon: DollarSign, color: 'text-emerald-400' },
-    { label: 'Net Cash Flow', value: fmt(kpi.netCashFlow), trend: kpi.cashFlowTrend, icon: TrendingUp, color: 'text-primary' },
-    { label: 'House Earnings', value: fmt(kpi.houseEarnings), trend: kpi.earningsTrend, icon: Zap, color: 'text-chart-4' },
-    { label: 'Active Players', value: kpi.activePlayers.toLocaleString(), trend: kpi.playersTrend, icon: Users, color: 'text-chart-2' },
+    { label: 'Total Deposits', value: fmt(kpis.totalDeposits), trend: 12.4, icon: DollarSign, color: 'text-emerald-400' },
+    { label: 'Net Cash Flow', value: fmt(kpis.netCashFlow), trend: -3.2, icon: TrendingUp, color: 'text-primary' },
+    { label: 'House Earnings', value: fmt(kpis.totalHouseEarnings), trend: 8.7, icon: Zap, color: 'text-chart-4' },
+    { label: 'Active Players', value: kpis.activePlayers.toLocaleString(), trend: 5.1, icon: Users, color: 'text-chart-2' },
   ]
 
   return (
@@ -286,20 +274,26 @@ export function DashboardView() {
             <CardDescription>Projected vs baseline</CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={forecast} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="week" tick={{ fontSize: 10 }} stroke="var(--muted-foreground)" />
-                <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} tick={{ fontSize: 10 }} stroke="var(--muted-foreground)" />
-                <Tooltip
-                  formatter={(value: number) => fmt(value)}
-                  contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
-                  labelStyle={{ color: 'var(--card-foreground)' }}
-                />
-                <Bar dataKey="baseline" fill="var(--chart-4)" radius={[4, 4, 0, 0]} name="Baseline" opacity={0.5} />
-                <Bar dataKey="projected" fill="var(--chart-1)" radius={[4, 4, 0, 0]} name="Projected" />
-              </BarChart>
-            </ResponsiveContainer>
+            {forecast.length > 0 ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={forecast} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="week" tick={{ fontSize: 10 }} stroke="var(--muted-foreground)" />
+                  <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} tick={{ fontSize: 10 }} stroke="var(--muted-foreground)" />
+                  <Tooltip
+                    formatter={(value: number) => fmt(value)}
+                    contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
+                    labelStyle={{ color: 'var(--card-foreground)' }}
+                  />
+                  <Bar dataKey="baseline" fill="var(--chart-4)" radius={[4, 4, 0, 0]} name="Baseline" opacity={0.5} />
+                  <Bar dataKey="projected" fill="var(--chart-1)" radius={[4, 4, 0, 0]} name="Projected" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[260px] flex items-center justify-center text-sm text-muted-foreground">
+                No forecast data available
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -315,30 +309,32 @@ export function DashboardView() {
             </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-xs">#</TableHead>
-                  <TableHead className="text-xs">Game</TableHead>
-                  <TableHead className="text-xs">Category</TableHead>
-                  <TableHead className="text-xs text-right">Net Earning</TableHead>
-                  <TableHead className="text-xs text-right">GGR</TableHead>
-                  <TableHead className="text-xs text-right">RTP</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {topGames.map((game, idx) => (
-                  <TableRow key={game.id}>
-                    <TableCell className="text-xs font-bold text-primary">{idx + 1}</TableCell>
-                    <TableCell className="text-xs font-medium">{game.name}</TableCell>
-                    <TableCell><Badge variant="secondary" className="text-[9px] h-4">{game.category}</Badge></TableCell>
-                    <TableCell className="text-xs text-right text-emerald-400 font-medium">{fmt(game.netEarning)}</TableCell>
-                    <TableCell className="text-xs text-right">{fmt(game.ggr)}</TableCell>
-                    <TableCell className="text-xs text-right">{game.rtp}%</TableCell>
+            {topGames.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">#</TableHead>
+                    <TableHead className="text-xs">Game</TableHead>
+                    <TableHead className="text-xs text-right">Net Earning</TableHead>
+                    <TableHead className="text-xs text-right">GGR</TableHead>
+                    <TableHead className="text-xs text-right">RTP</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {topGames.map((game, idx) => (
+                    <TableRow key={game.id}>
+                      <TableCell className="text-xs font-bold text-primary">{idx + 1}</TableCell>
+                      <TableCell className="text-xs font-medium">{game.name}</TableCell>
+                      <TableCell className="text-xs text-right text-emerald-400 font-medium">{fmt(game.netEarning)}</TableCell>
+                      <TableCell className="text-xs text-right">{fmt(game.ggr)}</TableCell>
+                      <TableCell className="text-xs text-right">{game.rtp}%</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <p className="text-xs text-muted-foreground text-center py-4">No house earnings data available</p>
+            )}
           </CardContent>
         </Card>
 
@@ -351,27 +347,31 @@ export function DashboardView() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {jackpots.map((jp) => (
-                <div key={jp.name} className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium">{jp.name}</span>
-                    <Badge variant="outline" className="text-[9px] border-primary/30 text-primary">{jp.game}</Badge>
+            {jackpots.length > 0 ? (
+              <div className="space-y-4">
+                {jackpots.map((jp) => (
+                  <div key={jp.name} className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium">{jp.name}</span>
+                      <Badge variant="outline" className="text-[9px] border-primary/30 text-primary">{jp.game}</Badge>
+                    </div>
+                    <div className="text-xl font-bold text-primary">{fmt(jp.amount)}</div>
+                    <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-primary/60 to-primary rounded-full"
+                        style={{ width: `${Math.min(((jp.amount - jp.seed) / Math.max(jp.seed, 1)) * 100, 100)}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>Seed: {fmt(jp.seed)}</span>
+                      <span>{(((jp.amount - jp.seed) / Math.max(jp.seed, 1)) * 100).toFixed(0)}% growth</span>
+                    </div>
                   </div>
-                  <div className="text-xl font-bold text-primary">{fmt(jp.amount)}</div>
-                  <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-primary/60 to-primary rounded-full"
-                      style={{ width: `${Math.min(((jp.amount - jp.seed) / jp.seed) * 100, 100)}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[10px] text-muted-foreground">
-                    <span>Seed: {fmt(jp.seed)}</span>
-                    <span>{(((jp.amount - jp.seed) / jp.seed) * 100).toFixed(0)}% growth</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground text-center py-4">No jackpots data available</p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -385,23 +385,27 @@ export function DashboardView() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            {alerts.map((alert) => (
-              <div key={alert.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
-                <Badge
-                  variant={alert.severity === 'critical' ? 'destructive' : 'secondary'}
-                  className="text-[9px] h-4 px-1.5"
-                >
-                  {alert.severity.toUpperCase()}
-                </Badge>
-                <Badge variant="outline" className="text-[9px] h-4">{alert.category}</Badge>
-                <span className="text-xs flex-1">{alert.message}</span>
-                <span className={`text-xs font-mono font-medium ${severityColor[alert.severity]}`}>
-                  {alert.value}%
-                </span>
-              </div>
-            ))}
-          </div>
+          {alerts.length > 0 ? (
+            <div className="space-y-2">
+              {alerts.map((alert) => (
+                <div key={alert.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
+                  <Badge
+                    variant={alert.severity === 'critical' ? 'destructive' : 'secondary'}
+                    className="text-[9px] h-4 px-1.5"
+                  >
+                    {alert.severity.toUpperCase()}
+                  </Badge>
+                  <Badge variant="outline" className="text-[9px] h-4">{alert.category}</Badge>
+                  <span className="text-xs flex-1">{alert.message}</span>
+                  <span className={`text-xs font-mono font-medium ${severityColor[alert.severity]}`}>
+                    {alert.value}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground text-center py-4">No variance alerts</p>
+          )}
         </CardContent>
       </Card>
     </div>

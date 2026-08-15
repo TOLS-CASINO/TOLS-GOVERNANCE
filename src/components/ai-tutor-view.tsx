@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Bot, Send, User, Lightbulb, MessageSquare, Sparkles } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Bot, Send, User, Lightbulb, Sparkles, AlertCircle } from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -59,24 +59,7 @@ const suggestedQuestions: Record<Context, string[]> = {
   ],
 }
 
-// Simulated AI responses
-const aiResponses: Record<string, string> = {
-  'What is the current waterfall distribution?': 'The current revenue waterfall distributes gross revenue as follows:\n\n• **Payment Processing**: 3.5% ($149K)\n• **Game Providers**: 15.0% ($639K)\n• **Affiliate Commission**: 8.0% ($341K)\n• **Platform Fee**: 5.0% ($213K)\n• **Regulatory Reserve**: 4.0% ($170K)\n• **Tax Obligations**: 12.0% ($511K)\n• **Net Operator Revenue**: 52.5% ($2.24M)\n\nThe net operator revenue is tracking **2.8% below** the budgeted target for this period.',
-  'Who are the top 5 VIP players?': 'Based on LTV, the top 5 VIP players are:\n\n1. **HighRoller_X** — LTV: $42,850 | VIP 5 | Segment: VIP Elite\n2. **CasinoKing99** — LTV: $38,200 | VIP 5 | Segment: High Value\n3. **DiamondPete** — LTV: $31,400 | VIP 4 | Segment: VIP Elite\n4. **MaxBet_Mike** — LTV: $28,900 | VIP 4 | Segment: High Value\n5. **GoldRush_** — LTV: $24,600 | VIP 5 | Segment: VIP Elite\n\nAll 5 have dedicated account managers and custom RG limits.',
-  'Which promotion has the best ROI?': 'The **Welcome Bonus 100%** has the highest ROI at **285%**, with 4,520 claims and 1,890 conversions. Here\'s the full ranking:\n\n1. Welcome Bonus 100% — 285% ROI\n2. Monday Reload 50% — 120% ROI\n3. Weekend Free Spins — 142% ROI\n4. 10% Cashback VIP — 95% ROI\n\nThe Spring Frenzy 200% is scheduled and hasn\'t launched yet.',
-  'Give me a platform health summary': '🟢 **Platform Health: Good**\n\n• **Revenue**: $4.26M GGR (5.4% below budget)\n• **Active Players**: 12,847 (+5.1% trend)\n• **Escrow**: All accounts active, 2 pending settlements\n• **Critical Alerts**: 2 (GGR variance, EUR settlement delay)\n• **Affiliates**: 8 active, $165K total commissions\n• **Promotions**: 3 active, top ROI: 285%\n\n⚠️ **Action Items**: Review GGR variance, expedite EUR settlement, check VIP churn uptick.',
-}
 
-function getAIResponse(message: string): string {
-  // Check for exact matches first
-  if (aiResponses[message]) return aiResponses[message]
-  // Check for partial matches
-  for (const key of Object.keys(aiResponses)) {
-    if (message.toLowerCase().includes(key.toLowerCase().slice(0, 20))) return aiResponses[key]
-  }
-  // Default response
-  return `I've analyzed your query about "${message.slice(0, 50)}..."\n\nBased on the current platform data, here are my insights:\n\n• The relevant metrics are tracking within normal parameters\n• I recommend reviewing the detailed view in the corresponding section for more granular data\n• No immediate action items flagged for this specific area\n\nWould you like me to drill deeper into any specific aspect?`
-}
 
 export function AiTutorView() {
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -99,12 +82,15 @@ export function AiTutorView() {
     }
   }, [messages, isTyping])
 
-  const handleSend = (text?: string) => {
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSend = async (text?: string) => {
     const message = text || input.trim()
     if (!message) return
 
+    setError(null)
     const userMsg: ChatMessage = {
-      id: messages.length + 1,
+      id: Date.now(),
       role: 'user',
       content: message,
       timestamp: new Date(),
@@ -113,17 +99,38 @@ export function AiTutorView() {
     setInput('')
     setIsTyping(true)
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      const res = await fetch('/api/ai-tutor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, context }),
+      })
+
+      if (!res.ok) {
+        throw new Error(`Request failed with status ${res.status}`)
+      }
+
+      const data = await res.json()
       const aiMsg: ChatMessage = {
-        id: messages.length + 2,
+        id: Date.now() + 1,
         role: 'assistant',
-        content: getAIResponse(message),
+        content: data.response || 'I apologize, I could not process your request. Please try again.',
         timestamp: new Date(),
       }
       setMessages((prev) => [...prev, aiMsg])
+    } catch (err) {
+      console.error('AI Tutor fetch error:', err)
+      setError('Failed to get a response. Please try again.')
+      const errorMsg: ChatMessage = {
+        id: Date.now() + 1,
+        role: 'assistant',
+        content: 'I\'m sorry, I encountered an error processing your request. Please try again or ask a different question.',
+        timestamp: new Date(),
+      }
+      setMessages((prev) => [...prev, errorMsg])
+    } finally {
       setIsTyping(false)
-    }, 800 + Math.random() * 1200)
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -245,6 +252,14 @@ export function AiTutorView() {
           </CardContent>
         </ScrollArea>
       </Card>
+
+      {/* Error Display */}
+      {error && (
+        <div className="flex items-center gap-1.5 pt-1 text-destructive text-[10px]">
+          <AlertCircle className="size-3" />
+          {error}
+        </div>
+      )}
 
       {/* Input Area */}
       <div className="flex gap-2 pt-3 mt-2">

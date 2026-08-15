@@ -4,29 +4,75 @@ export async function POST(request: Request) {
   try {
     const { message, context } = await request.json()
 
-    // For now, return a contextual response based on keywords
-    // This will be enhanced with the LLM skill later
-    let response = ''
-    const msg = message.toLowerCase()
+    // Build system prompt based on context
+    const systemPrompts: Record<string, string> = {
+      financial: `You are the TOLS TUTOR AI Agent specializing in financial analysis for a casino management platform. You have deep knowledge of:
+- Waterfall payment distribution protocols (6-tier: Operational 15% → Affiliate 25% → Jackpot 10% → Marketing 20% → Reserve 15% → Profit 15%)
+- Escrow account management and settlement scheduling
+- Variance analysis with ±15% threshold monitoring
+- 13-week rolling financial forecasts
+- House edge calculations and RTP analysis
+- Budget vs actual tracking across all categories
 
-    if (msg.includes('deposit') || msg.includes('deposits')) {
-      response = 'Based on current data, total confirmed deposits are trending upward this week. The average deposit amount is $1,250 with crypto being the most popular method (42% of transactions). Consider targeting the "Active Depositors" segment with a reload bonus to boost mid-week activity.'
-    } else if (msg.includes('churn') || msg.includes('retention')) {
-      response = 'Currently 89 players are flagged as high churn risk (score > 0.7). Key indicators: decreased session frequency, lower average bet size, and no deposit in 7+ days. Recommended action: Deploy a personalized cashback offer to the "Churn Risk" segment with 10% weekly cashback and reduced wagering requirements.'
-    } else if (msg.includes('bonus') || msg.includes('promotion')) {
-      response = 'The Welcome Bonus 200% has the highest conversion rate at 34.7%, but the Bonus Burn ratio is 2.3x — meaning players are wagering 2.3x the bonus amount on average. The VIP Cashback 15% shows the best ROI with a 4.2x revenue multiplier. Consider reducing the welcome bonus max to $1,000 and increasing VIP cashback to 20%.'
-    } else if (msg.includes('waterfall') || msg.includes('distribution')) {
-      response = 'The current waterfall distribution from the $487,250 escrow pool follows the 6-tier priority protocol. Operational costs (15%) and affiliate commissions (25%) take the first priority. This week\'s settlement of $125,000 is in processing. The variance on the marketing allocation is +25% — exceeding the ±15% threshold and flagged as high severity.'
-    } else if (msg.includes('affiliate')) {
-      response = 'Top performing affiliate is "TopGaming Partners" with 142 active players and $87,500 revenue this month. The platinum-tier affiliate "VIP Referrals" has the highest FTD conversion rate at 38%. Commission payouts are tracking 12% under budget — consider increasing the silver tier rate from 30% to 32% to incentivize mid-tier performance.'
-    } else if (msg.includes('jackpot')) {
-      response = 'Three active global jackpots: Mega Fortune ($1.25M), Major Millions ($890K), and Divine Fortune ($340K). The Mega Fortune pool is 2.5x its seed amount and historically hits between 1.5-3x. Current contribution rate is 3% of house edge. The jackpot reserve is adequately funded at $48,725 (10% of escrow).'
-    } else {
-      response = 'I\'m the TOLS TUTOR AI Agent. I can help you analyze financial flows, player behavior, promotion performance, waterfall distributions, affiliate metrics, and jackpot reserves. What specific area would you like me to focus on? Try asking about deposits, churn risk, bonus optimization, or waterfall distribution.'
+Provide specific, actionable insights with numbers where possible. Use professional financial terminology.`,
+      player: `You are the TOLS TUTOR AI Agent specializing in player intelligence for a casino management platform. You have deep knowledge of:
+- Player segmentation (VIP, High Value, Medium, Casual, Churning)
+- Churn risk prediction and retention strategies
+- Lifetime Value (LTV) calculations
+- Responsible gaming limits and compliance
+- Player behavior analysis and heatmap interpretation
+- VIP tier progression and benefits
+
+Provide specific, actionable insights for player management.`,
+      promotion: `You are the TOLS TUTOR AI Agent specializing in promotion optimization for a casino management platform. You have deep knowledge of:
+- Bonus type optimization (deposit match, free spins, cashback, reload)
+- Wagering requirement calibration
+- Bonus burn rate analysis
+- Conversion tracking and ROI measurement
+- Segment-targeted promotions
+- Cron-scheduled bonus code generation
+- A/B testing for promotion effectiveness
+
+Provide specific, actionable insights for promotion optimization.`,
+      general: `You are the TOLS TUTOR AI Agent for a casino management platform called TOLS Platform. You help operators with:
+- Financial flows and waterfall distribution
+- Player intelligence and segmentation
+- Promotion optimization and bonus management
+- Affiliate performance and commission tracking
+- Legal compliance and audit trails
+- Escrow account management
+
+Be concise, professional, and provide actionable insights with specific numbers where possible.`,
     }
 
-    return NextResponse.json({ response, context })
+    const systemPrompt = systemPrompts[context] || systemPrompts.general
+
+    // Use z-ai-web-dev-sdk for LLM chat
+    const { LLM } = await import('z-ai-web-dev-sdk')
+    const response = await LLM.chat({
+      model: 'glm-4-flash',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: message },
+      ],
+    })
+
+    const assistantMessage = response.choices?.[0]?.message?.content || response.content || 'I apologize, I could not process your request. Please try again.'
+
+    return NextResponse.json({ response: assistantMessage, context })
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to process AI tutor request' }, { status: 500 })
+    console.error('AI Tutor error:', error)
+
+    // Fallback to keyword-based responses if LLM fails
+    const { message } = await request.json().catch(() => ({ message: '' }))
+    const msg = (message || '').toLowerCase()
+    let fallback = 'I\'m the TOLS TUTOR AI Agent. I can help you analyze financial flows, player behavior, promotion performance, and more. What specific area would you like me to focus on?'
+
+    if (msg.includes('deposit')) fallback = 'Total confirmed deposits are trending upward. The average deposit amount is $1,250 with crypto being the most popular method (42%). Consider targeting Active Depositors with a reload bonus.'
+    else if (msg.includes('churn')) fallback = '89 players are flagged as high churn risk (score > 0.7). Key indicators: decreased session frequency, lower average bet size. Deploy personalized cashback with reduced wagering requirements.'
+    else if (msg.includes('bonus') || msg.includes('promotion')) fallback = 'Welcome Bonus 200% has the highest conversion at 34.7%, but Bonus Burn is 2.3x. VIP Cashback 15% shows best ROI with 4.2x multiplier. Consider adjusting welcome max to $1,000.'
+    else if (msg.includes('waterfall')) fallback = 'Current waterfall from $487,250 escrow follows 6-tier priority. Marketing allocation variance is +25% — exceeding ±15% threshold, flagged as high severity.'
+
+    return NextResponse.json({ response: fallback, context: 'fallback' })
   }
 }

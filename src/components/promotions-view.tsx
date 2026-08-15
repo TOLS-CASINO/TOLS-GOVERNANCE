@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
   BarChart,
   Bar,
@@ -21,6 +21,8 @@ import {
   DollarSign,
   TrendingUp,
   Calendar,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -39,62 +41,9 @@ import {
 import { Progress } from '@/components/ui/progress'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { usePromotions } from '@/hooks/use-promotions'
 
 const fmt = (n: number) => `$${n.toLocaleString('en-US')}`
-
-interface Promotion {
-  id: number
-  name: string
-  type: 'deposit_match' | 'free_spins' | 'cashback' | 'reload'
-  status: 'active' | 'paused' | 'expired' | 'scheduled'
-  claims: number
-  conversions: number
-  roi: number
-  budget: number
-  spent: number
-  wageringReq: number
-  startDate: string
-  endDate: string
-}
-
-interface BonusCode {
-  code: string
-  promotionId: number
-  usesRemaining: number
-  maxUses: number
-  expiresAt: string
-}
-
-function getMockData() {
-  const promotions: Promotion[] = [
-    { id: 1, name: 'Welcome Bonus 100%', type: 'deposit_match', status: 'active', claims: 4520, conversions: 1890, roi: 285, budget: 50000, spent: 42300, wageringReq: 35, startDate: '2024-01-01', endDate: '2024-03-31' },
-    { id: 2, name: 'Weekend Free Spins', type: 'free_spins', status: 'active', claims: 2340, conversions: 1120, roi: 142, budget: 15000, spent: 12800, wageringReq: 25, startDate: '2024-01-06', endDate: '2024-12-31' },
-    { id: 3, name: '10% Cashback VIP', type: 'cashback', status: 'active', claims: 890, conversions: 756, roi: 95, budget: 25000, spent: 18900, wageringReq: 15, startDate: '2024-01-01', endDate: '2024-12-31' },
-    { id: 4, name: 'Monday Reload 50%', type: 'reload', status: 'paused', claims: 1560, conversions: 680, roi: 120, budget: 20000, spent: 15200, wageringReq: 30, startDate: '2024-01-01', endDate: '2024-06-30' },
-    { id: 5, name: 'Spring Frenzy 200%', type: 'deposit_match', status: 'scheduled', claims: 0, conversions: 0, roi: 0, budget: 75000, spent: 0, wageringReq: 40, startDate: '2024-03-20', endDate: '2024-04-20' },
-  ]
-
-  const bonusCodes: BonusCode[] = [
-    { code: 'WELCOME100', promotionId: 1, usesRemaining: 5480, maxUses: 10000, expiresAt: '2024-03-31' },
-    { code: 'SPINWKND', promotionId: 2, usesRemaining: 7660, maxUses: 10000, expiresAt: '2024-12-31' },
-    { code: 'VIPCB10', promotionId: 3, usesRemaining: 2110, maxUses: 3000, expiresAt: '2024-12-31' },
-    { code: 'RELOAD50', promotionId: 4, usesRemaining: 8440, maxUses: 10000, expiresAt: '2024-06-30' },
-    { code: 'SPRING200', promotionId: 5, usesRemaining: 5000, maxUses: 5000, expiresAt: '2024-04-20' },
-  ]
-
-  const cronSchedules = [
-    { task: 'Free Spins Credit', schedule: '0 10 * * 6,0', nextRun: 'Sat 10:00 AM', status: 'active' },
-    { task: 'Cashback Calculation', schedule: '0 2 * * 1', nextRun: 'Mon 2:00 AM', status: 'active' },
-    { task: 'Bonus Expiry Cleanup', schedule: '0 3 * * *', nextRun: 'Daily 3:00 AM', status: 'active' },
-    { task: 'VIP Tier Recalculation', schedule: '0 0 1 * *', nextRun: '1st of month', status: 'active' },
-  ]
-
-  const promoPerformance = promotions
-    .filter((p) => p.status === 'active')
-    .map((p) => ({ name: p.name.slice(0, 15), claims: p.claims, conversions: p.conversions }))
-
-  return { promotions, bonusCodes, cronSchedules, promoPerformance }
-}
 
 const typeBadge: Record<string, string> = {
   deposit_match: 'Match',
@@ -108,23 +57,15 @@ const statusVariant: Record<string, 'default' | 'secondary' | 'outline' | 'destr
   paused: 'secondary',
   expired: 'destructive',
   scheduled: 'outline',
+  inactive: 'secondary',
 }
 
 export function PromotionsView() {
-  const [data, setData] = useState<ReturnType<typeof getMockData> | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { data: promotionsData, loading, error, refetch } = usePromotions()
   const [newPromoName, setNewPromoName] = useState('')
   const [newPromoType, setNewPromoType] = useState('deposit_match')
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setData(getMockData())
-      setLoading(false)
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [])
-
-  if (loading || !data) {
+  if (loading) {
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -136,7 +77,67 @@ export function PromotionsView() {
     )
   }
 
-  const { promotions, bonusCodes, cronSchedules, promoPerformance } = data
+  if (error || !promotionsData) {
+    return (
+      <Card className="border-destructive/40">
+        <CardContent className="p-6 text-center">
+          <AlertCircle className="size-8 text-destructive mx-auto mb-2" />
+          <p className="text-sm font-medium text-destructive">Failed to load promotions</p>
+          <p className="text-xs text-muted-foreground mt-1">{error}</p>
+          <Button variant="outline" size="sm" className="mt-3 gap-1" onClick={refetch}>
+            <RefreshCw className="size-3" /> Retry
+          </Button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Map API data to UI format
+  const promotions = promotionsData.map((p) => {
+    // Get latest stat if available
+    const latestStat = p.stats && p.stats.length > 0 ? p.stats[p.stats.length - 1] : null
+    const claims = latestStat?.claims || 0
+    const conversions = latestStat?.conversions || 0
+    const totalBonusGiven = latestStat?.totalBonusGiven || 0
+    const revenue = latestStat?.revenue || 0
+    const roi = totalBonusGiven > 0 ? Math.round((revenue / totalBonusGiven) * 100) : 0
+    const budget = p.maxAmount || 0
+    const spent = totalBonusGiven || 0
+
+    return {
+      id: p.id,
+      name: p.name,
+      type: p.type,
+      status: p.isActive ? 'active' : 'inactive',
+      claims,
+      conversions,
+      roi,
+      budget: budget || 50000,
+      spent,
+      wageringReq: p.wageringMultiplier,
+      startDate: p.startsAt ? new Date(p.startsAt).toLocaleDateString() : '',
+      endDate: p.endsAt ? new Date(p.endsAt).toLocaleDateString() : '',
+      segmentName: p.segment?.name || null,
+    }
+  })
+
+  // Bonus codes from API
+  const bonusCodes = promotionsData
+    .flatMap((p) => (p.bonusCodes || []).map((bc) => ({
+      code: bc.code,
+      promotionId: p.id,
+      promotionName: p.name,
+      usesRemaining: (bc.maxUses || 0) - bc.currentUses,
+      maxUses: bc.maxUses || 0,
+      currentUses: bc.currentUses,
+      expiresAt: bc.expiresAt ? new Date(bc.expiresAt).toLocaleDateString() : 'Never',
+      isActive: bc.isActive,
+    })))
+
+  // Performance chart data
+  const promoPerformance = promotions
+    .filter((p) => p.status === 'active')
+    .map((p) => ({ name: p.name.slice(0, 15), claims: p.claims, conversions: p.conversions }))
 
   return (
     <div className="space-y-4">
@@ -205,8 +206,11 @@ export function PromotionsView() {
                 <div>
                   <h3 className="text-sm font-semibold">{promo.name}</h3>
                   <div className="flex items-center gap-1.5 mt-1">
-                    <Badge variant="outline" className="text-[9px] h-4">{typeBadge[promo.type]}</Badge>
-                    <Badge variant={statusVariant[promo.status]} className="text-[9px] h-4">{promo.status}</Badge>
+                    <Badge variant="outline" className="text-[9px] h-4">{typeBadge[promo.type] || promo.type}</Badge>
+                    <Badge variant={statusVariant[promo.status] || 'secondary'} className="text-[9px] h-4">{promo.status}</Badge>
+                    {promo.segmentName && (
+                      <Badge variant="secondary" className="text-[9px] h-4">{promo.segmentName}</Badge>
+                    )}
                   </div>
                 </div>
                 <Gift className="size-5 text-primary" />
@@ -233,7 +237,7 @@ export function PromotionsView() {
                   <span>Budget Used</span>
                   <span>{fmt(promo.spent)} / {fmt(promo.budget)}</span>
                 </div>
-                <Progress value={(promo.spent / promo.budget) * 100} className="h-1.5" />
+                <Progress value={promo.budget > 0 ? (promo.spent / promo.budget) * 100 : 0} className="h-1.5" />
               </div>
 
               {/* Wagering & Dates */}
@@ -257,69 +261,49 @@ export function PromotionsView() {
             </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="text-xs">Code</TableHead>
-                  <TableHead className="text-xs">Promo</TableHead>
-                  <TableHead className="text-xs">Usage</TableHead>
-                  <TableHead className="text-xs">Expires</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {bonusCodes.map((bc) => (
-                  <TableRow key={bc.code}>
-                    <TableCell className="text-xs font-mono font-bold text-primary">{bc.code}</TableCell>
-                    <TableCell className="text-xs">#{bc.promotionId}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <div className="w-16 bg-muted rounded-full h-1.5">
-                          <div className="h-full bg-primary rounded-full" style={{ width: `${((bc.maxUses - bc.usesRemaining) / bc.maxUses) * 100}%` }} />
-                        </div>
-                        <span className="text-[10px] text-muted-foreground">{bc.usesRemaining}/{bc.maxUses}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{bc.expiresAt}</TableCell>
+            {bonusCodes.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs">Code</TableHead>
+                    <TableHead className="text-xs">Promo</TableHead>
+                    <TableHead className="text-xs">Usage</TableHead>
+                    <TableHead className="text-xs">Expires</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {bonusCodes.map((bc) => (
+                    <TableRow key={bc.code}>
+                      <TableCell className="text-xs font-mono font-bold text-primary">{bc.code}</TableCell>
+                      <TableCell className="text-xs">{bc.promotionName ? bc.promotionName.slice(0, 20) : `#${bc.promotionId}`}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-16 bg-muted rounded-full h-1.5">
+                            <div className="h-full bg-primary rounded-full" style={{ width: `${bc.maxUses > 0 ? (bc.currentUses / bc.maxUses) * 100 : 0}%` }} />
+                          </div>
+                          <span className="text-[10px] text-muted-foreground">{bc.usesRemaining}/{bc.maxUses || '∞'}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{bc.expiresAt}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <p className="text-xs text-muted-foreground text-center py-4">No bonus codes available</p>
+            )}
           </CardContent>
         </Card>
 
-        {/* Cron Schedules + Performance Chart */}
-        <div className="space-y-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <div className="flex items-center gap-2">
-                <Clock className="size-4 text-chart-4" />
-                <CardTitle className="text-sm">Automated Schedules</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {cronSchedules.map((cs) => (
-                  <div key={cs.task} className="flex items-center justify-between p-2 rounded-lg bg-muted/50 text-xs">
-                    <div>
-                      <p className="font-medium">{cs.task}</p>
-                      <p className="text-[10px] text-muted-foreground font-mono">{cs.schedule}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px]">{cs.nextRun}</p>
-                      <Badge variant="default" className="text-[9px] h-3 px-1">{cs.status}</Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Promotion Performance</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={160}>
+        {/* Performance Chart */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm">Promotion Performance</CardTitle>
+            <CardDescription>Claims vs conversions for active promos</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {promoPerformance.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
                 <BarChart data={promoPerformance} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                   <XAxis dataKey="name" tick={{ fontSize: 9 }} stroke="var(--muted-foreground)" />
@@ -329,9 +313,13 @@ export function PromotionsView() {
                   <Bar dataKey="conversions" fill="var(--chart-2)" radius={[4, 4, 0, 0]} name="Conversions" />
                 </BarChart>
               </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
+            ) : (
+              <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground">
+                No active promotion data
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

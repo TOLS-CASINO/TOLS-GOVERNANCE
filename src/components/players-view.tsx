@@ -1,18 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
   Search,
   Filter,
   ChevronUp,
   ChevronDown,
-  Star,
   AlertCircle,
   ShieldCheck,
   MessageSquare,
   Clock,
   X,
   Crown,
+  RefreshCw,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -38,95 +38,77 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { Separator } from '@/components/ui/separator'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
+import { usePlayers } from '@/hooks/use-players'
 
 const fmt = (n: number) => `$${n.toLocaleString('en-US')}`
 
 type VipLevel = 1 | 2 | 3 | 4 | 5
 type PlayerStatus = 'active' | 'dormant' | 'suspended' | 'self_excluded'
 
-interface Player {
-  id: number
-  username: string
-  email: string
-  vipLevel: VipLevel
-  ltv: number
-  churnRisk: number
-  status: PlayerStatus
-  segment: string
-  totalDeposits: number
-  totalWagers: number
-  lastActive: string
-  country: string
-  rgLimits: { deposit: number; loss: number; session: number }
-  notes: string[]
-  activity: { time: string; action: string; amount?: number }[]
-}
-
-function generateMockPlayers(): Player[] {
-  const names = ['AlexM88', 'LuckyJenny', 'HighRoller_X', 'CasinoKing99', 'NightOwl42', 'SpinMaster', 'GoldRush_', 'DiamondPete', 'AceHigh77', 'PhantomBet', 'SilverFox', 'MaxBet_Mike', 'LadyLuck88', 'RollTheDice', 'BlackJackPro']
-  const segments = ['High Value', 'Medium Value', 'Casual', 'VIP Elite', 'New Player', 'Churning']
-  const countries = ['US', 'UK', 'CA', 'DE', 'AU', 'JP', 'BR', 'FR', 'NL', 'SE']
-  const statuses: PlayerStatus[] = ['active', 'active', 'active', 'active', 'dormant', 'suspended', 'self_excluded']
-  const actions = ['Deposit', 'Wager', 'Withdraw', 'Login', 'Bonus Claim', 'Game Session']
-
-  return names.map((name, i) => {
-    const vipLevel = (Math.floor(Math.random() * 5) + 1) as VipLevel
-    const ltv = Math.floor(500 + Math.random() * 45000)
-    return {
-      id: i + 1,
-      username: name,
-      email: `${name.toLowerCase()}@email.com`,
-      vipLevel,
-      ltv,
-      churnRisk: Math.floor(Math.random() * 100),
-      status: statuses[Math.floor(Math.random() * statuses.length)],
-      segment: segments[Math.floor(Math.random() * segments.length)],
-      totalDeposits: Math.floor(ltv * (0.8 + Math.random() * 0.4)),
-      totalWagers: Math.floor(ltv * (2 + Math.random() * 3)),
-      lastActive: `${Math.floor(Math.random() * 30)}d ago`,
-      country: countries[Math.floor(Math.random() * countries.length)],
-      rgLimits: {
-        deposit: [500, 1000, 2500, 5000, 10000][vipLevel - 1],
-        loss: [250, 500, 1500, 3000, 10000][vipLevel - 1],
-        session: [60, 120, 180, 240, 480][vipLevel - 1],
-      },
-      notes: vipLevel >= 4 ? ['VIP treatment approved', 'Personal manager assigned'] : [],
-      activity: Array.from({ length: 5 }, (_, j) => ({
-        time: `${j + 1}h ago`,
-        action: actions[Math.floor(Math.random() * actions.length)],
-        amount: Math.floor(Math.random() * 5000),
-      })),
-    }
-  })
-}
-
-const statusColor: Record<PlayerStatus, string> = {
+const statusColor: Record<string, string> = {
   active: 'text-emerald-400',
   dormant: 'text-yellow-400',
   suspended: 'text-destructive',
   self_excluded: 'text-muted-foreground',
+  selfexcluded: 'text-muted-foreground',
 }
 
 const vipStars = (level: number) => '★'.repeat(level)
 
+function mapVipLevel(vip: string): VipLevel {
+  const lvl = parseInt(vip, 10)
+  if (lvl >= 1 && lvl <= 5) return lvl as VipLevel
+  const lower = vip.toLowerCase()
+  if (lower.includes('elite') || lower.includes('platinum')) return 5
+  if (lower.includes('gold') || lower.includes('vip')) return 4
+  if (lower.includes('silver')) return 3
+  if (lower.includes('bronze')) return 2
+  return 1
+}
+
 export function PlayersView() {
-  const [players, setPlayers] = useState<Player[]>([])
-  const [loading, setLoading] = useState(true)
+  const { data: playersData, loading, error, refetch } = usePlayers()
+
   const [search, setSearch] = useState('')
   const [vipFilter, setVipFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [segmentFilter, setSegmentFilter] = useState('all')
-  const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null)
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
   const [sortKey, setSortKey] = useState<'ltv' | 'churnRisk' | 'totalDeposits'>('ltv')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setPlayers(generateMockPlayers())
-      setLoading(false)
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [])
+  // Map API data to UI-friendly format
+  const players = (playersData || []).map((p) => ({
+    id: p.id,
+    username: p.username,
+    email: p.email || `${p.username.toLowerCase()}@email.com`,
+    vipLevel: mapVipLevel(p.vipLevel),
+    ltv: Math.round(p.lifetimeValue),
+    churnRisk: Math.round(p.churnRisk),
+    status: (p.status === 'self_excluded' ? 'self_excluded' : p.status) as PlayerStatus,
+    segment: p.segments?.[0]?.segment?.name || 'Unassigned',
+    totalDeposits: Math.round(p.totalDeposits),
+    totalWagers: Math.round(p.totalWagers),
+    lastActive: p.lastActivityAt ? formatTimeAgo(p.lastActivityAt) : 'N/A',
+    country: p.country || 'US',
+    notes: p.notes?.map((n) => n.content) || [],
+    deposits: p.deposits || [],
+  }))
+
+  function formatTimeAgo(dateStr: string) {
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const days = Math.floor(diff / 86400000)
+    if (days > 30) return `${Math.floor(days / 30)}mo ago`
+    if (days > 0) return `${days}d ago`
+    const hours = Math.floor(diff / 3600000)
+    if (hours > 0) return `${hours}h ago`
+    return 'just now'
+  }
+
+  // Extract unique segments for filter
+  const uniqueSegments = [...new Set(players.map((p) => p.segment))].sort()
+
+  const selectedPlayer = players.find((p) => p.id === selectedPlayerId) || null
 
   const filtered = players
     .filter((p) => {
@@ -152,6 +134,21 @@ export function PlayersView() {
         <Skeleton className="h-10 w-full" />
         <Skeleton className="h-64 w-full" />
       </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <Card className="border-destructive/40">
+        <CardContent className="p-6 text-center">
+          <AlertCircle className="size-8 text-destructive mx-auto mb-2" />
+          <p className="text-sm font-medium text-destructive">Failed to load players</p>
+          <p className="text-xs text-muted-foreground mt-1">{error}</p>
+          <Button variant="outline" size="sm" className="mt-3 gap-1" onClick={refetch}>
+            <RefreshCw className="size-3" /> Retry
+          </Button>
+        </CardContent>
+      </Card>
     )
   }
 
@@ -193,7 +190,7 @@ export function PlayersView() {
               <SelectTrigger className="w-[130px] h-9 text-xs"><SelectValue placeholder="Segment" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Segments</SelectItem>
-                {['High Value', 'Medium Value', 'Casual', 'VIP Elite', 'New Player', 'Churning'].map((s) => (
+                {uniqueSegments.map((s) => (
                   <SelectItem key={s} value={s}>{s}</SelectItem>
                 ))}
               </SelectContent>
@@ -233,7 +230,7 @@ export function PlayersView() {
                   <TableRow
                     key={player.id}
                     className="cursor-pointer hover:bg-muted/80"
-                    onClick={() => setSelectedPlayer(player)}
+                    onClick={() => setSelectedPlayerId(player.id)}
                   >
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -267,7 +264,7 @@ export function PlayersView() {
                     </TableCell>
                     <TableCell><Badge variant="outline" className="text-[9px] h-4">{player.segment}</Badge></TableCell>
                     <TableCell>
-                      <span className={`text-[10px] font-medium ${statusColor[player.status]}`}>
+                      <span className={`text-[10px] font-medium ${statusColor[player.status] || 'text-muted-foreground'}`}>
                         {player.status.replace('_', ' ')}
                       </span>
                     </TableCell>
@@ -281,7 +278,7 @@ export function PlayersView() {
       </Card>
 
       {/* Player Detail Sheet */}
-      <Sheet open={!!selectedPlayer} onOpenChange={(open) => { if (!open) setSelectedPlayer(null) }}>
+      <Sheet open={!!selectedPlayer} onOpenChange={(open) => { if (!open) setSelectedPlayerId(null) }}>
         <SheetContent className="w-full sm:max-w-md overflow-y-auto">
           {selectedPlayer && (
             <>
@@ -312,18 +309,22 @@ export function PlayersView() {
 
                 <Separator />
 
-                {/* Activity Timeline */}
+                {/* Recent Deposits */}
                 <div className="space-y-2">
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                    <Clock className="size-3" /> Activity
+                    <Clock className="size-3" /> Recent Deposits
                   </h4>
-                  {selectedPlayer.activity.map((a, i) => (
-                    <div key={i} className="flex items-center gap-2 text-xs p-1.5 rounded bg-muted/30">
-                      <span className="text-muted-foreground w-14 shrink-0">{a.time}</span>
-                      <Badge variant="outline" className="text-[9px] h-4">{a.action}</Badge>
-                      {a.amount && <span className="font-mono ml-auto">{fmt(a.amount)}</span>}
-                    </div>
-                  ))}
+                  {selectedPlayer.deposits.length > 0 ? (
+                    selectedPlayer.deposits.slice(0, 5).map((d) => (
+                      <div key={d.id} className="flex items-center gap-2 text-xs p-1.5 rounded bg-muted/30">
+                        <Badge variant="outline" className="text-[9px] h-4">{d.method}</Badge>
+                        <span className="font-mono ml-auto">{fmt(d.amount)}</span>
+                        <Badge variant={d.status === 'confirmed' ? 'default' : 'secondary'} className="text-[9px] h-4 px-1">{d.status}</Badge>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No recent deposits</p>
+                  )}
                 </div>
 
                 <Separator />
@@ -334,20 +335,6 @@ export function PlayersView() {
                     <Filter className="size-3" /> Segment
                   </h4>
                   <Badge variant="secondary">{selectedPlayer.segment}</Badge>
-                </div>
-
-                <Separator />
-
-                {/* RG Limits */}
-                <div className="space-y-2">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                    <ShieldCheck className="size-3" /> Responsible Gaming Limits
-                  </h4>
-                  <div className="space-y-1.5 text-xs">
-                    <div className="flex justify-between"><span className="text-muted-foreground">Deposit Limit</span><span className="font-medium">{fmt(selectedPlayer.rgLimits.deposit)}/mo</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Loss Limit</span><span className="font-medium">{fmt(selectedPlayer.rgLimits.loss)}/mo</span></div>
-                    <div className="flex justify-between"><span className="text-muted-foreground">Session Limit</span><span className="font-medium">{selectedPlayer.rgLimits.session} min</span></div>
-                  </div>
                 </div>
 
                 <Separator />

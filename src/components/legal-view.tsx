@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import {
   FileText,
   Clock,
@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   FileSignature,
   ExternalLink,
+  RefreshCw,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -33,67 +34,11 @@ import {
 } from '@/components/ui/table'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
+import { useLegal } from '@/hooks/use-legal'
 
 type ContractStatus = 'pending' | 'sent' | 'signed' | 'expired'
 
-interface Contract {
-  id: number
-  name: string
-  counterparty: string
-  type: 'supplier' | 'affiliate' | 'regulatory' | 'employment'
-  status: ContractStatus
-  value: number
-  startDate: string
-  endDate: string
-  signedDate?: string
-}
-
-interface AuditEntry {
-  id: number
-  timestamp: string
-  user: string
-  action: string
-  category: string
-  details: string
-  ip: string
-}
-
-function getMockData() {
-  const contracts: Contract[] = [
-    { id: 1, name: 'Game Content License — Evolution', counterparty: 'Evolution Gaming', type: 'supplier', status: 'signed', value: 250000, startDate: '2024-01-01', endDate: '2025-12-31', signedDate: '2023-12-15' },
-    { id: 2, name: 'Affiliate Agreement — CasinoReviewPro', counterparty: 'CasinoReviewPro', type: 'affiliate', status: 'signed', value: 0, startDate: '2023-06-01', endDate: '2024-06-01', signedDate: '2023-05-28' },
-    { id: 3, name: 'AML/KYC Compliance Framework', counterparty: 'Regulatory Body', type: 'regulatory', status: 'signed', value: 0, startDate: '2024-01-01', endDate: '2024-12-31', signedDate: '2023-12-01' },
-    { id: 4, name: 'Payment Processing — Stripe', counterparty: 'Stripe Inc.', type: 'supplier', status: 'pending', value: 180000, startDate: '2024-02-01', endDate: '2025-01-31' },
-    { id: 5, name: 'Game Content License — Pragmatic Play', counterparty: 'Pragmatic Play', type: 'supplier', status: 'sent', value: 200000, startDate: '2024-03-01', endDate: '2025-02-28' },
-    { id: 6, name: 'Employment — CFO Contract Renewal', counterparty: 'Internal', type: 'employment', status: 'pending', value: 0, startDate: '2024-04-01', endDate: '2027-03-31' },
-    { id: 7, name: 'Data Processing Agreement', counterparty: 'AWS Cloud', type: 'supplier', status: 'signed', value: 120000, startDate: '2023-01-01', endDate: '2024-12-31', signedDate: '2022-12-20' },
-    { id: 8, name: 'Gibraltar License Renewal', counterparty: 'Gibraltar Gambling Commissioner', type: 'regulatory', status: 'sent', value: 50000, startDate: '2024-06-01', endDate: '2025-05-31' },
-  ]
-
-  const auditLog: AuditEntry[] = [
-    { id: 1, timestamp: '2024-01-16 14:32:05', user: 'admin@tols.io', action: 'CREATE', category: 'contract', details: 'Created contract: Payment Processing — Stripe', ip: '192.168.1.45' },
-    { id: 2, timestamp: '2024-01-16 13:18:22', user: 'finance@tols.io', action: 'UPDATE', category: 'escrow', details: 'Modified escrow settlement schedule for EUR corridor', ip: '192.168.1.32' },
-    { id: 3, timestamp: '2024-01-16 12:05:48', user: 'compliance@tols.io', action: 'REVIEW', category: 'kyc', details: 'Reviewed 15 pending KYC applications', ip: '10.0.0.15' },
-    { id: 4, timestamp: '2024-01-16 11:44:10', user: 'admin@tols.io', action: 'SEND', category: 'contract', details: 'Sent contract for e-signature: Gibraltar License Renewal', ip: '192.168.1.45' },
-    { id: 5, timestamp: '2024-01-16 10:22:33', user: 'affiliate@tols.io', action: 'UPDATE', category: 'affiliate', details: 'Updated commission tier for CasinoReviewPro to Platinum', ip: '10.0.0.22' },
-    { id: 6, timestamp: '2024-01-15 16:58:01', user: 'finance@tols.io', action: 'APPROVE', category: 'waterfall', details: 'Approved weekly waterfall distribution', ip: '192.168.1.32' },
-    { id: 7, timestamp: '2024-01-15 15:30:45', user: 'compliance@tols.io', action: 'FLAG', category: 'rg', details: 'Flagged player HighRoller_X for RG review', ip: '10.0.0.15' },
-    { id: 8, timestamp: '2024-01-15 14:12:09', user: 'admin@tols.io', action: 'CREATE', category: 'promotion', details: 'Created promotion: Spring Frenzy 200%', ip: '192.168.1.45' },
-    { id: 9, timestamp: '2024-01-15 09:45:22', user: 'finance@tols.io', action: 'EXECUTE', category: 'settlement', details: 'Executed escrow settlement: EUR 125,000', ip: '192.168.1.32' },
-    { id: 10, timestamp: '2024-01-14 17:20:15', user: 'compliance@tols.io', action: 'ARCHIVE', category: 'audit', details: 'Archived Q4 2023 compliance documents', ip: '10.0.0.15' },
-  ]
-
-  const docusignStatus = {
-    connected: true,
-    envelopesPending: 2,
-    envelopesCompleted: 5,
-    lastSync: '2 minutes ago',
-  }
-
-  return { contracts, auditLog, docusignStatus }
-}
-
-const statusConfig: Record<ContractStatus, { icon: React.ElementType; color: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
+const statusConfig: Record<string, { icon: React.ElementType; color: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
   pending: { icon: Clock, color: 'text-yellow-400', variant: 'secondary' },
   sent: { icon: Send, color: 'text-chart-4', variant: 'outline' },
   signed: { icon: CheckCircle2, color: 'text-emerald-400', variant: 'default' },
@@ -110,21 +55,12 @@ const typeLabels: Record<string, string> = {
 const fmt = (n: number) => n > 0 ? `$${n.toLocaleString('en-US')}` : '—'
 
 export function LegalView() {
-  const [data, setData] = useState<ReturnType<typeof getMockData> | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { data: legalData, loading, error, refetch } = useLegal()
   const [contractTypeFilter, setContractTypeFilter] = useState('all')
   const [auditCategoryFilter, setAuditCategoryFilter] = useState('all')
   const [auditSearch, setAuditSearch] = useState('')
 
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setData(getMockData())
-      setLoading(false)
-    }, 500)
-    return () => clearTimeout(timer)
-  }, [])
-
-  if (loading || !data) {
+  if (loading) {
     return (
       <div className="space-y-4">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -137,7 +73,52 @@ export function LegalView() {
     )
   }
 
-  const { contracts, auditLog, docusignStatus } = data
+  if (error || !legalData) {
+    return (
+      <Card className="border-destructive/40">
+        <CardContent className="p-6 text-center">
+          <AlertCircle className="size-8 text-destructive mx-auto mb-2" />
+          <p className="text-sm font-medium text-destructive">Failed to load legal data</p>
+          <p className="text-xs text-muted-foreground mt-1">{error}</p>
+          <Button variant="outline" size="sm" className="mt-3 gap-1" onClick={refetch}>
+            <RefreshCw className="size-3" /> Retry
+          </Button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Map API contract data to UI format
+  const contracts = legalData.contracts.map((c) => ({
+    id: c.id,
+    name: c.documentName,
+    counterparty: c.signers || 'Unknown',
+    type: c.contractType as 'supplier' | 'affiliate' | 'regulatory' | 'employment',
+    status: c.status as ContractStatus,
+    value: 0, // API doesn't include value; calculate from context
+    startDate: c.createdAt ? new Date(c.createdAt).toLocaleDateString() : '',
+    endDate: c.expiresAt ? new Date(c.expiresAt).toLocaleDateString() : '',
+    signedDate: c.signedAt ? new Date(c.signedAt).toLocaleDateString() : undefined,
+  }))
+
+  // Map API audit logs to UI format
+  const auditLog = legalData.auditLogs.map((entry) => ({
+    id: entry.id,
+    timestamp: entry.createdAt ? new Date(entry.createdAt).toLocaleString() : '',
+    user: entry.userId ? `${entry.userRole || 'user'}:${entry.userId}` : 'system',
+    action: entry.action,
+    category: entry.resource,
+    details: entry.details || '',
+    ip: entry.ipAddress || '',
+  }))
+
+  // DocuSign-like status derived from contracts
+  const docusignStatus = {
+    connected: true,
+    envelopesPending: contracts.filter((c) => c.status === 'sent' || c.status === 'pending').length,
+    envelopesCompleted: contracts.filter((c) => c.status === 'signed').length,
+    lastSync: '2 minutes ago',
+  }
 
   const filteredContracts = contractTypeFilter === 'all'
     ? contracts
@@ -155,6 +136,9 @@ export function LegalView() {
     signed: contracts.filter((c) => c.status === 'signed').length,
     expired: contracts.filter((c) => c.status === 'expired').length,
   }
+
+  // Get unique audit categories for filter
+  const auditCategories = [...new Set(auditLog.map((e) => e.category))].sort()
 
   return (
     <div className="space-y-4">
@@ -210,32 +194,36 @@ export function LegalView() {
                   <TableHead className="text-xs">Counterparty</TableHead>
                   <TableHead className="text-xs">Type</TableHead>
                   <TableHead className="text-xs">Status</TableHead>
-                  <TableHead className="text-xs text-right">Value</TableHead>
                   <TableHead className="text-xs">Period</TableHead>
                   <TableHead className="text-xs">Signed</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredContracts.map((contract) => {
-                  const config = statusConfig[contract.status]
-                  const StatusIcon = config.icon
-                  return (
-                    <TableRow key={contract.id}>
-                      <TableCell className="text-xs font-medium max-w-[200px] truncate">{contract.name}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{contract.counterparty}</TableCell>
-                      <TableCell><Badge variant="outline" className="text-[9px] h-4">{typeLabels[contract.type]}</Badge></TableCell>
-                      <TableCell>
-                        <Badge variant={config.variant} className="text-[9px] h-4 gap-1">
-                          <StatusIcon className="size-2.5" />
-                          {contract.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs text-right font-mono">{fmt(contract.value)}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{contract.startDate} → {contract.endDate}</TableCell>
-                      <TableCell className="text-xs text-muted-foreground">{contract.signedDate || '—'}</TableCell>
-                    </TableRow>
-                  )
-                })}
+                {filteredContracts.length > 0 ? (
+                  filteredContracts.map((contract) => {
+                    const config = statusConfig[contract.status] || statusConfig.pending
+                    const StatusIcon = config.icon
+                    return (
+                      <TableRow key={contract.id}>
+                        <TableCell className="text-xs font-medium max-w-[200px] truncate">{contract.name}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{contract.counterparty}</TableCell>
+                        <TableCell><Badge variant="outline" className="text-[9px] h-4">{typeLabels[contract.type] || contract.type}</Badge></TableCell>
+                        <TableCell>
+                          <Badge variant={config.variant} className="text-[9px] h-4 gap-1">
+                            <StatusIcon className="size-2.5" />
+                            {contract.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{contract.startDate} → {contract.endDate}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{contract.signedDate || '—'}</TableCell>
+                      </TableRow>
+                    )
+                  })
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-xs text-muted-foreground text-center py-4">No contracts found</TableCell>
+                  </TableRow>
+                )}
               </TableBody>
             </Table>
           </div>
@@ -258,14 +246,9 @@ export function LegalView() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="contract">Contract</SelectItem>
-                    <SelectItem value="escrow">Escrow</SelectItem>
-                    <SelectItem value="kyc">KYC</SelectItem>
-                    <SelectItem value="affiliate">Affiliate</SelectItem>
-                    <SelectItem value="waterfall">Waterfall</SelectItem>
-                    <SelectItem value="rg">RG</SelectItem>
-                    <SelectItem value="promotion">Promotion</SelectItem>
-                    <SelectItem value="settlement">Settlement</SelectItem>
+                    {auditCategories.map((cat) => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <div className="relative">
@@ -292,16 +275,22 @@ export function LegalView() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredAudit.map((entry) => (
-                    <TableRow key={entry.id}>
-                      <TableCell className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">{entry.timestamp}</TableCell>
-                      <TableCell className="text-xs">{entry.user}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-[9px] h-4">{entry.action}</Badge>
-                      </TableCell>
-                      <TableCell className="text-xs max-w-[250px] truncate">{entry.details}</TableCell>
+                  {filteredAudit.length > 0 ? (
+                    filteredAudit.map((entry) => (
+                      <TableRow key={entry.id}>
+                        <TableCell className="text-[10px] font-mono text-muted-foreground whitespace-nowrap">{entry.timestamp}</TableCell>
+                        <TableCell className="text-xs">{entry.user}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-[9px] h-4">{entry.action}</Badge>
+                        </TableCell>
+                        <TableCell className="text-xs max-w-[250px] truncate">{entry.details}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-xs text-muted-foreground text-center py-4">No audit entries found</TableCell>
                     </TableRow>
-                  ))}
+                  )}
                 </TableBody>
               </Table>
             </div>
@@ -345,13 +334,13 @@ export function LegalView() {
               <Separator />
 
               <div className="space-y-2">
-                {contracts.filter((c) => c.status === 'sent').map((c) => (
+                {contracts.filter((c) => c.status === 'sent' || c.status === 'pending').map((c) => (
                   <div key={c.id} className="p-2 rounded-lg bg-muted/50 text-xs">
                     <p className="font-medium truncate">{c.name}</p>
                     <p className="text-[10px] text-muted-foreground">→ {c.counterparty}</p>
                   </div>
                 ))}
-                {contracts.filter((c) => c.status === 'sent').length === 0 && (
+                {contracts.filter((c) => c.status === 'sent' || c.status === 'pending').length === 0 && (
                   <p className="text-xs text-muted-foreground text-center py-2">No pending envelopes</p>
                 )}
               </div>
