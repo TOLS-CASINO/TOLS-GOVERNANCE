@@ -4,10 +4,14 @@ import { useAppStore, type Section } from '@/lib/store'
 import { AppSidebar } from '@/components/app-sidebar'
 import { DashboardView } from '@/components/dashboard-view'
 import { FinancialView } from '@/components/financial-view'
+import { LiveMapView } from '@/components/live-map-view'
+import { LivePlayersView } from '@/components/live-players-view'
 import { PlayersView } from '@/components/players-view'
 import { SegmentsView } from '@/components/segments-view'
 import { PromotionsView } from '@/components/promotions-view'
 import { AffiliatesView } from '@/components/affiliates-view'
+import { WalletsView } from '@/components/wallets-view'
+import { PaymentsView } from '@/components/payments-view'
 import { AiTutorView } from '@/components/ai-tutor-view'
 import { LegalView } from '@/components/legal-view'
 import {
@@ -20,10 +24,14 @@ import { Badge } from '@/components/ui/badge'
 import {
   LayoutDashboard,
   DollarSign,
+  Globe,
+  Activity,
   Users,
   PieChart,
   Gift,
   Link2,
+  Wallet,
+  CreditCard,
   Bot,
   Scale,
   Settings,
@@ -33,10 +41,14 @@ import { NotificationPanel } from '@/components/notification-panel'
 const sectionMeta: Record<Section, { title: string; description: string; icon: React.ElementType }> = {
   dashboard: { title: 'Dashboard', description: 'Platform overview and KPIs', icon: LayoutDashboard },
   financial: { title: 'Financial', description: 'Revenue, escrow, waterfall & ledger', icon: DollarSign },
+  'live-map': { title: 'Live Map', description: 'Real-time world map & player activity', icon: Globe },
+  'live-players': { title: 'Live Players', description: 'Real-time player tracking & activity', icon: Activity },
   players: { title: 'Player Intelligence', description: 'Search, analyze & manage players', icon: Users },
   segments: { title: 'Segments', description: 'Player segmentation & rules', icon: PieChart },
   promotions: { title: 'Promotion Builder', description: 'Bonuses, codes & campaigns', icon: Gift },
   affiliates: { title: 'Affiliates', description: 'Partner management & commissions', icon: Link2 },
+  wallets: { title: 'Wallets', description: 'Multi-currency wallets & transactions', icon: Wallet },
+  payments: { title: 'Payments', description: 'Deposits, withdrawals & providers', icon: CreditCard },
   'ai-tutor': { title: 'AI Tutor', description: 'Intelligent assistant for operators', icon: Bot },
   legal: { title: 'Legal', description: 'Contracts, audit & compliance', icon: Scale },
 }
@@ -45,10 +57,14 @@ function SectionContent({ section }: { section: Section }) {
   switch (section) {
     case 'dashboard': return <DashboardView />
     case 'financial': return <FinancialView />
+    case 'live-map': return <LiveMapView />
+    case 'live-players': return <LivePlayersView />
     case 'players': return <PlayersView />
     case 'segments': return <SegmentsView />
     case 'promotions': return <PromotionsView />
     case 'affiliates': return <AffiliatesView />
+    case 'wallets': return <WalletsView />
+    case 'payments': return <PaymentsView />
     case 'ai-tutor': return <AiTutorView />
     case 'legal': return <LegalView />
   }
@@ -95,7 +111,7 @@ export default function Home() {
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
               <span className="font-medium text-primary/80">TOLS Platform</span>
-              <span className="hidden sm:inline">v1.0</span>
+              <span className="hidden sm:inline">v2.0</span>
               <span className="hidden sm:inline">© 2025 TOLS Operations</span>
             </div>
             <div className="flex items-center gap-3 text-[10px]">
@@ -106,6 +122,10 @@ export default function Home() {
               <span className="flex items-center gap-1">
                 <span className="size-1.5 rounded-full bg-emerald-500" />
                 <span className="text-muted-foreground hidden sm:inline">API</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-muted-foreground hidden sm:inline">Live</span>
               </span>
               <span className="flex items-center gap-1">
                 <span className="size-1.5 rounded-full bg-primary" />

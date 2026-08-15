@@ -153,6 +153,11 @@ model PlayerProfile {
   segments      PlayerSegmentAssignment[]
   timeline      PlayerTimeline[]
   bonusHistory  PlayerBonusHistory[]
+  wallets       Wallet[]
+  paymentMethods PaymentMethod[]
+  depositRequests DepositRequest[]
+  withdrawalRequests WithdrawalRequest[]
+  sessions      PlayerSession[]
 }
 
 model GameControl {
@@ -459,4 +464,215 @@ model AIModelMetric {
   successRate   Float?
   periodDate    DateTime @default(now())
   createdAt     DateTime @default(now())
+}
+
+// ============================================
+// MODULO WALLET & PAYMENTS (7 tabelle)
+// ============================================
+
+model Wallet {
+  id            String   @id @default(cuid())
+  playerId      String
+  currency      String   // USD, EUR, GBP, BTC, ETH, USDT, USDC, LTC, BNB, SOL
+  balance       Float    @default(0)
+  availableBalance Float @default(0)
+  lockedBalance Float    @default(0) // bonus-locked, wagering-locked
+  bonusBalance  Float    @default(0) // bonus funds separate
+  isPrimary     Boolean  @default(false)
+  status        String   @default("active") // active, frozen, closed
+  lastDepositAt DateTime?
+  lastWithdrawAt DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  transactions  WalletTransaction[]
+  player        PlayerProfile @relation(fields: [playerId], references: [id])
+}
+
+model WalletTransaction {
+  id            String   @id @default(cuid())
+  walletId      String
+  type          String   // deposit, withdrawal, bet, win, bonus, cashback, transfer, fee, exchange
+  amount        Float
+  balanceBefore Float
+  balanceAfter  Float
+  currency      String
+  status        String   @default("completed") // pending, completed, failed, cancelled, reversed
+  reference     String?  // external tx id
+  gameId        String?
+  gameName      String?
+  promotionId   String?
+  metadata      String?  // JSON
+  createdAt     DateTime @default(now())
+  wallet        Wallet @relation(fields: [walletId], references: [id])
+}
+
+model PaymentMethod {
+  id            String   @id @default(cuid())
+  playerId      String
+  type          String   // visa, mastercard, bank_transfer, crypto_wallet, e_wallet, prepaid
+  provider      String   // stripe, coinbase, moonpay, netseller, skrill, paypal
+  label         String   // "Visa ****4242", "BTC Wallet"
+  identifier    String?  // last 4 digits or wallet address (masked)
+  isDefault     Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  currency      String   @default("USD")
+  metadata      String?  // JSON (encrypted details)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  player        PlayerProfile @relation(fields: [playerId], references: [id])
+}
+
+model PaymentProvider {
+  id            String   @id @default(cuid())
+  name          String   // Stripe, Coinbase Commerce, MoonPay, etc.
+  type          String   // fiat, crypto, hybrid
+  isActive      Boolean  @default(true)
+  minDeposit    Float    @default(10)
+  maxDeposit    Float    @default(50000)
+  minWithdrawal Float    @default(20)
+  maxWithdrawal Float    @default(100000)
+  feePercent    Float    @default(0)
+  feeFixed      Float    @default(0)
+  processingTime String  @default("instant") // instant, 1-3_days, 3-5_days
+  supportedCurrencies String // JSON array
+  logo          String?  // URL
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model DepositRequest {
+  id            String   @id @default(cuid())
+  playerId      String
+  walletId      String
+  amount        Float
+  currency      String
+  method        String   // card, crypto, bank_transfer, e_wallet
+  provider      String
+  status        String   @default("pending") // pending, processing, confirmed, failed, expired
+  txHash        String?  // blockchain hash
+  feeAmount     Float    @default(0)
+  netAmount     Float    // amount - fee
+  paymentMethodId String?
+  metadata      String?  // JSON
+  confirmedAt   DateTime?
+  expiresAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  player        PlayerProfile @relation(fields: [playerId], references: [id])
+}
+
+model WithdrawalRequest {
+  id            String   @id @default(cuid())
+  playerId      String
+  walletId      String
+  amount        Float
+  currency      String
+  method        String
+  provider      String
+  status        String   @default("pending") // pending, under_review, approved, processing, completed, rejected, cancelled
+  approvedBy    String?
+  approvedAt    DateTime?
+  txHash        String?
+  feeAmount     Float    @default(0)
+  netAmount     Float
+  paymentMethodId String?
+  rejectionReason String?
+  metadata      String?
+  processedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  player        PlayerProfile @relation(fields: [playerId], references: [id])
+}
+
+model CurrencyRate {
+  id            String   @id @default(cuid())
+  fromCurrency  String
+  toCurrency    String
+  rate          Float
+  source        String   @default("api") // api, manual
+  updatedAt     DateTime @updatedAt
+}
+
+// ============================================
+// MODULO LIVE TRACKING & GEO (4 tabelle)
+// ============================================
+
+model PlayerSession {
+  id            String   @id @default(cuid())
+  playerId      String
+  gameId        String
+  gameName      String
+  ipAddress     String?
+  country       String?
+  city          String?
+  latitude      Float?
+  longitude     Float?
+  deviceType    String?  // desktop, mobile, tablet
+  browser       String?
+  os            String?
+  entryPoint    String?  // homepage, direct, affiliate, promotion
+  wagerAmount   Float    @default(0)
+  winAmount     Float    @default(0)
+  spinsPlayed   Int      @default(0)
+  startedAt     DateTime @default(now())
+  lastActivityAt DateTime @default(now())
+  endedAt       DateTime?
+  status        String   @default("active") // active, idle, ended
+  player        PlayerProfile @relation(fields: [playerId], references: [id])
+}
+
+model GeoLocation {
+  id            String   @id @default(cuid())
+  playerId      String
+  country       String
+  countryCode   String   // ISO 2-letter
+  city          String?
+  region        String?
+  latitude      Float
+  longitude     Float
+  timezone      String?
+  isp           String?
+  isVpn         Boolean  @default(false)
+  isProxy       Boolean  @default(false)
+  isTor         Boolean  @default(false)
+  detectedAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model LiveEvent {
+  id            String   @id @default(cuid())
+  eventType     String   // player_login, game_start, big_win, jackpot_win, deposit, withdrawal, bonus_claim, level_up, tournament_join, chat_message
+  playerId      String?
+  playerName    String?
+  gameId        String?
+  gameName      String?
+  amount        Float?
+  currency      String?
+  country       String?
+  countryCode   String?
+  city          String?
+  latitude      Float?
+  longitude     Float?
+  metadata      String?  // JSON
+  createdAt     DateTime @default(now())
+}
+
+model ServerNode {
+  id            String   @id @default(cuid())
+  name          String   // EU-West, US-East, Asia-Pacific
+  region        String
+  countryCode   String
+  latitude      Float
+  longitude     Float
+  status        String   @default("online") // online, degraded, offline, maintenance
+  activePlayers Int      @default(0)
+  maxPlayers    Int      @default(10000)
+  cpuLoad       Float    @default(0)
+  memoryLoad    Float    @default(0)
+  latencyMs     Float    @default(0)
+  uptime        Float    @default(99.9)
+  lastHeartbeat DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

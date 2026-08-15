@@ -56,4 +56,16 @@ export const api = {
         body: JSON.stringify({ message, context }),
       }),
   },
+  liveMap: {
+    get: () => request<import('@/types').LiveMapData>('/api/live-map'),
+  },
+  livePlayers: {
+    get: () => request<any>('/api/live-players'),
+  },
+  payments: {
+    get: () => request<any>('/api/payments'),
+  },
+  wallets: {
+    get: () => request<import('@/types').WalletsData>('/api/wallets'),
+  },
 }

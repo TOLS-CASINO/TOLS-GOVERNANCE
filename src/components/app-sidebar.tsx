@@ -3,10 +3,14 @@
 import {
   LayoutDashboard,
   DollarSign,
+  Globe,
+  Activity,
   Users,
   PieChart,
   Gift,
   Link2,
+  Wallet,
+  CreditCard,
   Bot,
   Scale,
   Shield,
@@ -31,15 +35,46 @@ import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 
-const navItems: { section: Section; label: string; icon: React.ElementType; badge?: string }[] = [
+interface NavItem {
+  section: Section
+  label: string
+  icon: React.ElementType
+  badge?: string
+}
+
+const coreItems: NavItem[] = [
   { section: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { section: 'financial', label: 'Financial', icon: DollarSign, badge: 'PRO' },
+]
+
+const liveItems: NavItem[] = [
+  { section: 'live-map', label: 'Live Map', icon: Globe, badge: 'LIVE' },
+  { section: 'live-players', label: 'Live Players', icon: Activity, badge: 'LIVE' },
   { section: 'players', label: 'Players', icon: Users },
+]
+
+const marketingItems: NavItem[] = [
   { section: 'segments', label: 'Segments', icon: PieChart },
   { section: 'promotions', label: 'Promotions', icon: Gift },
   { section: 'affiliates', label: 'Affiliates', icon: Link2 },
+]
+
+const financeItems: NavItem[] = [
+  { section: 'wallets', label: 'Wallets', icon: Wallet },
+  { section: 'payments', label: 'Payments', icon: CreditCard },
+]
+
+const systemItems: NavItem[] = [
   { section: 'ai-tutor', label: 'AI Tutor', icon: Bot, badge: 'AI' },
   { section: 'legal', label: 'Legal', icon: Scale },
+]
+
+const navGroups: { label: string; items: NavItem[] }[] = [
+  { label: 'Core', items: coreItems },
+  { label: 'Live & Players', items: liveItems },
+  { label: 'Marketing', items: marketingItems },
+  { label: 'Wallet & Payments', items: financeItems },
+  { label: 'System', items: systemItems },
 ]
 
 export function AppSidebar() {
@@ -62,34 +97,38 @@ export function AppSidebar() {
       <SidebarSeparator />
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navItems.map((item) => (
-                <SidebarMenuItem key={item.section}>
-                  <SidebarMenuButton
-                    isActive={activeSection === item.section}
-                    onClick={() => setActiveSection(item.section)}
-                    tooltip={item.label}
-                    className="gap-3"
-                  >
-                    <item.icon className="size-4 shrink-0" />
-                    <span className="flex-1">{item.label}</span>
-                    {item.badge && (
-                      <Badge
-                        variant="secondary"
-                        className="h-4 px-1 text-[9px] font-bold group-data-[collapsible=icon]:hidden"
-                      >
-                        {item.badge}
-                      </Badge>
-                    )}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {navGroups.map((group) => (
+          <SidebarGroup key={group.label}>
+            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {group.items.map((item) => (
+                  <SidebarMenuItem key={item.section}>
+                    <SidebarMenuButton
+                      isActive={activeSection === item.section}
+                      onClick={() => setActiveSection(item.section)}
+                      tooltip={item.label}
+                      className="gap-3"
+                    >
+                      <item.icon className="size-4 shrink-0" />
+                      <span className="flex-1">{item.label}</span>
+                      {item.badge && (
+                        <Badge
+                          variant="secondary"
+                          className={`h-4 px-1 text-[9px] font-bold group-data-[collapsible=icon]:hidden ${
+                            item.badge === 'LIVE' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : ''
+                          }`}
+                        >
+                          {item.badge}
+                        </Badge>
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
 
       <SidebarFooter>
