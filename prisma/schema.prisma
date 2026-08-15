@@ -1,0 +1,462 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// MODULO FINANZIARIO (10 tabelle)
+// ============================================
+
+model CasinoDeposit {
+  id            String   @id @default(cuid())
+  playerId      String
+  amount        Float
+  currency      String   @default("USD")
+  method        String   // crypto, card, bank_transfer
+  txHash        String?  // blockchain hash for crypto
+  status        String   @default("pending") // pending, confirmed, failed
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  player        PlayerProfile @relation(fields: [playerId], references: [id])
+}
+
+model TotalWithdrawal {
+  id            String   @id @default(cuid())
+  playerId      String
+  amount        Float
+  currency      String   @default("USD")
+  method        String
+  status        String   @default("pending") // pending, approved, completed, rejected
+  approvedBy    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  player        PlayerProfile @relation(fields: [playerId], references: [id])
+}
+
+model HouseEarning {
+  id            String   @id @default(cuid())
+  gameId        String
+  grossRevenue  Float
+  playerPayout  Float
+  houseEdge     Float    // percentage
+  netEarning    Float
+  periodStart   DateTime
+  periodEnd     DateTime
+  createdAt     DateTime @default(now())
+}
+
+model CommissionLog {
+  id            String   @id @default(cuid())
+  affiliateId   String
+  playerId      String
+  amount        Float
+  tier          String   // bronze, silver, gold, platinum
+  rate          Float    // commission percentage
+  createdAt     DateTime @default(now())
+  affiliate     AffiliateProfile @relation(fields: [affiliateId], references: [id])
+}
+
+model GlobalJackpot {
+  id            String   @id @default(cuid())
+  name          String
+  currentAmount Float
+  seedAmount    Float
+  contributionRate Float
+  lastWonAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model InternalLedger {
+  id            String   @id @default(cuid())
+  category      String   // operational, marketing, affiliate, jackpot, reserve
+  description   String
+  amount        Float
+  type          String   // debit, credit
+  periodWeek    String   // ISO week format
+  reference     String?
+  createdAt     DateTime @default(now())
+}
+
+model EscrowAccount {
+  id            String   @id @default(cuid())
+  totalBalance  Float
+  pendingSettlement Float
+  lastSettlement DateTime?
+  settlementFrequency String @default("weekly")
+  status        String   @default("active")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  settlements   SettlementLog[]
+}
+
+model SettlementLog {
+  id            String   @id @default(cuid())
+  escrowId      String
+  amount        Float
+  recipients    String   // JSON array of recipients
+  status        String   @default("processing") // processing, completed, failed
+  settledAt     DateTime @default(now())
+  escrow        EscrowAccount @relation(fields: [escrowId], references: [id])
+}
+
+model BudgetTarget {
+  id            String   @id @default(cuid())
+  category      String
+  targetAmount  Float
+  actualAmount  Float
+  variance      Float    // percentage
+  periodWeek    String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model VarianceAlert {
+  id            String   @id @default(cuid())
+  category      String
+  expectedValue Float
+  actualValue   Float
+  variancePercent Float
+  threshold     Float    @default(15.0)
+  severity      String   // low, medium, high, critical
+  isRead        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+}
+
+// ============================================
+// MODULO PLAYER INTELLIGENCE (8 tabelle)
+// ============================================
+
+model PlayerProfile {
+  id            String   @id @default(cuid())
+  username      String   @unique
+  email         String?
+  vipLevel      String   @default("bronze") // bronze, silver, gold, platinum, diamond
+  totalDeposits Float    @default(0)
+  totalWagers   Float    @default(0)
+  totalWins     Float    @default(0)
+  lifetimeValue Float    @default(0)
+  churnRisk     Float    @default(0) // 0-1 score
+  status        String   @default("active") // active, inactive, suspended, self_excluded
+  country       String?
+  registeredAt  DateTime @default(now())
+  lastActivityAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deposits      CasinoDeposit[]
+  withdrawals   TotalWithdrawal[]
+  notes         PlayerNote[]
+  segments      PlayerSegmentAssignment[]
+  timeline      PlayerTimeline[]
+  bonusHistory  PlayerBonusHistory[]
+}
+
+model GameControl {
+  id            String   @id @default(cuid())
+  playerId      String
+  gameId        String
+  gameName      String
+  sessions      Int      @default(0)
+  totalWagered  Float    @default(0)
+  totalWon      Float    @default(0)
+  avgSessionDuration Float @default(0) // minutes
+  lastPlayedAt  DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model ResponsibleLimit {
+  id            String   @id @default(cuid())
+  playerId      String
+  dailyDepositLimit Float?
+  weeklyDepositLimit Float?
+  monthlyDepositLimit Float?
+  sessionTimeLimit Float?  // minutes
+  lossLimit     Float?
+  selfExclusionEnd DateTime?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model PlayerNote {
+  id            String   @id @default(cuid())
+  playerId      String
+  authorRole    String   // finance, controller, support
+  content       String
+  isInternal    Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  player        PlayerProfile @relation(fields: [playerId], references: [id])
+}
+
+model PlayerSegmentAssignment {
+  id            String   @id @default(cuid())
+  playerId      String
+  segmentId     String
+  assignedAt    DateTime @default(now())
+  player        PlayerProfile @relation(fields: [playerId], references: [id])
+  segment       Segment @relation(fields: [segmentId], references: [id])
+}
+
+model PlayerTimeline {
+  id            String   @id @default(cuid())
+  playerId      String
+  eventType     String   // deposit, withdrawal, game_session, bonus_claim, limit_change
+  description   String
+  metadata      String?  // JSON
+  createdAt     DateTime @default(now())
+  player        PlayerProfile @relation(fields: [playerId], references: [id])
+}
+
+model PlayerHeatmap {
+  id            String   @id @default(cuid())
+  playerId      String
+  gameId        String
+  dayOfWeek     Int      // 0-6
+  hourOfDay     Int      // 0-23
+  intensity     Float    // normalized 0-1
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model PlayerBonusHistory {
+  id            String   @id @default(cuid())
+  playerId      String
+  promotionId   String?
+  bonusCode     String?
+  amount        Float
+  wageringRequired Float
+  wageringCompleted Float @default(0)
+  status        String   @default("active") // active, completed, expired, forfeited
+  claimedAt     DateTime @default(now())
+  expiresAt     DateTime?
+  player        PlayerProfile @relation(fields: [playerId], references: [id])
+}
+
+// ============================================
+// MODULO MARKETING & CRM (7 tabelle)
+// ============================================
+
+model Segment {
+  id            String   @id @default(cuid())
+  name          String
+  description   String?
+  rules         String   // JSON filter rules
+  playerCount   Int      @default(0)
+  isDynamic     Boolean  @default(true)
+  color         String   @default("#10b981")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  players       PlayerSegmentAssignment[]
+  promotions    Promotion[]
+}
+
+model Promotion {
+  id            String   @id @default(cuid())
+  name          String
+  type          String   // deposit_match, free_spins, cashback, no_deposit, loyalty
+  segmentId     String?
+  bonusPercent  Float?
+  maxAmount     Float?
+  freeSpins     Int?
+  wageringMultiplier Float @default(30)
+  minDeposit    Float?
+  isActive      Boolean  @default(true)
+  startsAt      DateTime
+  endsAt        DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  segment       Segment? @relation(fields: [segmentId], references: [id])
+  stats         PromotionStat[]
+  bonusCodes    BonusCode[]
+}
+
+model PromotionStat {
+  id            String   @id @default(cuid())
+  promotionId   String
+  claims        Int      @default(0)
+  conversions   Int      @default(0)
+  totalBonusGiven Float  @default(0)
+  totalWagered  Float    @default(0)
+  revenue       Float    @default(0)
+  periodDate    DateTime @default(now())
+  promotion     Promotion @relation(fields: [promotionId], references: [id])
+}
+
+model BonusCode {
+  id            String   @id @default(cuid())
+  promotionId   String
+  code          String   @unique
+  maxUses       Int?
+  currentUses   Int      @default(0)
+  isActive      Boolean  @default(true)
+  expiresAt     DateTime?
+  createdAt     DateTime @default(now())
+  promotion     Promotion @relation(fields: [promotionId], references: [id])
+}
+
+model WageringRequirement {
+  id            String   @id @default(cuid())
+  playerBonusId String
+  totalRequired Float
+  totalCompleted Float @default(0)
+  remaining     Float
+  gamesContrib  String?  // JSON game contribution rates
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model ConversionTracking {
+  id            String   @id @default(cuid())
+  promotionId   String?
+  playerId      String
+  eventType     String   // view, click, claim, convert, expire
+  value         Float?
+  createdAt     DateTime @default(now())
+}
+
+model CronSchedule {
+  id            String   @id @default(cuid())
+  name          String
+  taskType      String   // bonus_code_generation, segment_refresh, report_generation
+  cronExpression String
+  isActive      Boolean  @default(true)
+  lastRunAt     DateTime?
+  nextRunAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ============================================
+// MODULO AFFILIATI (4 tabelle)
+// ============================================
+
+model AffiliateProfile {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  website       String?
+  tier          String   @default("bronze") // bronze, silver, gold, platinum
+  commissionRate Float  @default(25)
+  totalEarnings Float    @default(0)
+  activePlayers Int      @default(0)
+  status        String   @default("active") // active, suspended, terminated
+  joinedAt      DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  commissions   CommissionLog[]
+  performance   AffiliatePerformance[]
+}
+
+model AffiliatePerformance {
+  id            String   @id @default(cuid())
+  affiliateId   String
+  period        String   // month/week
+  clicks        Int      @default(0)
+  signups       Int      @default(0)
+  ftd           Int      @default(0) // first time deposits
+  revenue       Float    @default(0)
+  createdAt     DateTime @default(now())
+  affiliate     AffiliateProfile @relation(fields: [affiliateId], references: [id])
+}
+
+model AffiliateCommission {
+  id            String   @id @default(cuid())
+  affiliateId   String
+  amount        Float
+  source        String   // revenue_share, cpa, hybrid
+  periodMonth   String
+  isPaid        Boolean  @default(false)
+  paidAt        DateTime?
+  createdAt     DateTime @default(now())
+}
+
+model AffiliateTier {
+  id            String   @id @default(cuid())
+  name          String   // bronze, silver, gold, platinum
+  minFtd        Int
+  minRevenue    Float
+  commissionRate Float
+  bonusRate     Float    @default(0)
+  createdAt     DateTime @default(now())
+}
+
+// ============================================
+// MODULO LEGALE & SICUREZZA (4 tabelle)
+// ============================================
+
+model ContractSignature {
+  id            String   @id @default(cuid())
+  contractType  String   // operator_agreement, affiliate_terms, nda
+  documentName  String
+  documentUrl   String?
+  docusignId    String?
+  signers       String   // JSON array
+  status        String   @default("pending") // pending, sent, signed, expired
+  expiresAt     DateTime?
+  signedAt      DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  userId        String?
+  userRole      String?
+  action        String
+  resource      String
+  resourceId    String?
+  details       String?  // JSON
+  ipAddress     String?
+  createdAt     DateTime @default(now())
+}
+
+model UserRole {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  role          String   // super_admin, finance, controller, support, affiliate
+  permissions   String   // JSON array
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model AITutorInstance {
+  id            String   @id @default(cuid())
+  userId        String
+  contextType   String   // financial, player, promotion, general
+  contextId     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ============================================
+// MODULO AI & ANALYTICS (2 tabelle)
+// ============================================
+
+model AILog {
+  id            String   @id @default(cuid())
+  model         String
+  prompt        String
+  response      String
+  tokensUsed    Int?
+  latencyMs     Int?
+  tutorInstanceId String?
+  createdAt     DateTime @default(now())
+}
+
+model AIModelMetric {
+  id            String   @id @default(cuid())
+  modelName     String
+  version       String
+  accuracy      Float?
+  avgLatencyMs Float?
+  totalRequests Int      @default(0)
+  successRate   Float?
+  periodDate    DateTime @default(now())
+  createdAt     DateTime @default(now())
+}
