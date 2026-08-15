@@ -237,7 +237,7 @@ export function ApiHubView() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-5 h-9">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-9">
           <TabsTrigger value="overview" className="text-xs gap-1">
             <Activity className="size-3" /> Overview
           </TabsTrigger>
@@ -290,7 +290,7 @@ function OverviewTab({ data }: { data: ApiHubData }) {
   return (
     <div className="space-y-4">
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {kpis.map((kpi) => (
           <Card key={kpi.label} className="bg-card/50">
             <CardContent className="p-4">
@@ -339,7 +339,7 @@ function OverviewTab({ data }: { data: ApiHubData }) {
           <CardTitle className="text-sm">Integration Status</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
             {data.integrations.map((intg) => (
               <div key={intg.id} className="flex items-center gap-2 p-2.5 rounded-lg border border-border/50 bg-muted/20">
                 <StatusDot status={intg.status} />
@@ -1027,7 +1027,7 @@ function IntegrationsTab({ integrations }: { integrations: Integration[] }) {
 
               <Separator className="opacity-50" />
 
-              <div className="grid grid-cols-2 gap-2 text-[10px]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]">
                 <div>
                   <p className="text-muted-foreground">Last Sync</p>
                   <p className="font-medium">{timeAgo(intg.lastSyncAt)}</p>
@@ -1227,7 +1227,7 @@ function LoadingSkeleton() {
         <Skeleton className="h-5 w-24" />
       </div>
       <Skeleton className="h-9 w-full" />
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {Array.from({ length: 6 }).map((_, i) => (
           <Skeleton key={i} className="h-20 rounded-lg" />
         ))}

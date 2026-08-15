@@ -477,7 +477,7 @@ export function NotificationsView() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="bg-card border-border">
           <CardContent className="p-3 text-center">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total</p>
@@ -606,7 +606,7 @@ export function NotificationsView() {
             <div className="space-y-2 pr-1">
               {paged.length === 0 ? (
                 <Card className="bg-card border-border">
-                  <CardContent className="p-8 text-center">
+                  <CardContent className="p-4 sm:p-8 text-center">
                     <BellOff className="size-8 text-muted-foreground mx-auto mb-2" />
                     <p className="text-sm text-muted-foreground">No notifications match your filters</p>
                   </CardContent>

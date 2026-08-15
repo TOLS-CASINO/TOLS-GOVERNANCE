@@ -718,7 +718,7 @@ export function BlockchainView() {
                         className="border-gray-700 bg-[#12141a] text-white placeholder:text-gray-500"
                       />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-2">
                         <Label className="text-gray-300">Network</Label>
                         <Select value={newWalletNetwork} onValueChange={setNewWalletNetwork}>
@@ -1207,7 +1207,7 @@ export function BlockchainView() {
                             </Button>
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div>
                             <p className="mb-1 text-xs font-medium text-gray-500">Network</p>
                             <NetworkBadge network={contract.network} />

@@ -1,0 +1,731 @@
+     1→'use client'
+     2→
+     3→import { useState } from 'react'
+     4→import {
+     5→  AreaChart,
+     6→  Area,
+     7→  PieChart,
+     8→  Pie,
+     9→  Cell,
+    10→  BarChart,
+    11→  Bar,
+    12→  XAxis,
+    13→  YAxis,
+    14→  Tooltip,
+    15→  ResponsiveContainer,
+    16→  CartesianGrid,
+    17→  Legend,
+    18→} from 'recharts'
+    19→import {
+    20→  ArrowDownLeft,
+    21→  ArrowUpRight,
+    22→  CreditCard,
+    23→  Building2,
+    24→  Smartphone,
+    25→  Bitcoin,
+    26→  Clock,
+    27→  CheckCircle,
+    28→  XCircle,
+    29→  AlertCircle,
+    30→  Loader2,
+    31→  RefreshCw,
+    32→  Search,
+    33→  Shield,
+    34→  DollarSign,
+    35→  Percent,
+    36→  Timer,
+    37→  Globe,
+    38→} from 'lucide-react'
+    39→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    40→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    41→import {
+    42→  Table,
+    43→  TableBody,
+    44→  TableCell,
+    45→  TableHead,
+    46→  TableHeader,
+    47→  TableRow,
+    48→} from '@/components/ui/table'
+    49→import { Badge } from '@/components/ui/badge'
+    50→import { Button } from '@/components/ui/button'
+    51→import { ScrollArea } from '@/components/ui/scroll-area'
+    52→import { Skeleton } from '@/components/ui/skeleton'
+    53→import { Input } from '@/components/ui/input'
+    54→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    55→import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+    56→import { useApi } from '@/hooks/use-api'
+    57→import { api } from '@/services/api'
+    58→
+    59→/* ─── helpers ─── */
+    60→
+    61→const CURRENCY_SYMBOLS: Record<string, string> = {
+    62→  USD: '$', EUR: '€', GBP: '£', CAD: 'C$', AUD: 'A$',
+    63→  BTC: '₿', ETH: 'Ξ', USDC: 'USDC', USDT: 'USDT',
+    64→}
+    65→
+    66→const fmtAmount = (amount: number, currency: string) => {
+    67→  const sym = CURRENCY_SYMBOLS[currency] || currency
+    68→  const isCrypto = ['BTC', 'ETH', 'USDC', 'USDT'].includes(currency)
+    69→  if (isCrypto) return `${sym}${amount.toFixed(isCrypto && currency === 'BTC' ? 4 : 3)}`
+    70→  return `${sym}${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    71→}
+    72→
+    73→const fmtUsd = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    74→
+    75→function timeAgo(iso: string): string {
+    76→  if (!iso) return '—'
+    77→  const diff = Date.now() - new Date(iso).getTime()
+    78→  const mins = Math.floor(diff / 60000)
+    79→  if (mins < 1) return 'just now'
+    80→  if (mins < 60) return `${mins} min ago`
+    81→  const hrs = Math.floor(mins / 60)
+    82→  if (hrs < 24) return `${hrs} hour${hrs > 1 ? 's' : ''} ago`
+    83→  const days = Math.floor(hrs / 24)
+    84→  return `${days} day${days > 1 ? 's' : ''} ago`
+    85→}
+    86→
+    87→const METHOD_ICONS: Record<string, string> = {
+    88→  card: '💳',
+    89→  crypto: '₿',
+    90→  bank_transfer: '🏦',
+    91→  e_wallet: '📱',
+    92→}
+    93→
+    94→const PROVIDER_ICONS: Record<string, string> = {
+    95→  Stripe: '💳',
+    96→  Coinbase: '₿',
+    97→  MoonPay: '🌙',
+    98→  Neteller: '🟢',
+    99→  Skrill: '💜',
+   100→  PayPal: '🅿️',
+   101→}
+   102→
+   103→const CHART_COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6', '#06b6d4']
+   104→
+   105→/* ─── deposit status badge ─── */
+   106→
+   107→function DepositStatusBadge({ status }: { status: string }) {
+   108→  const cfg: Record<string, { cls: string; pulse?: boolean }> = {
+   109→    pending: { cls: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30', pulse: true },
+   110→    processing: { cls: 'bg-blue-500/20 text-blue-400 border-blue-500/30', pulse: true },
+   111→    confirmed: { cls: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+   112→    failed: { cls: 'bg-red-500/20 text-red-400 border-red-500/30' },
+   113→    expired: { cls: 'bg-gray-500/20 text-gray-400 border-gray-500/30' },
+   114→  }
+   115→  const c = cfg[status] || cfg.pending
+   116→  return (
+   117→    <Badge variant="outline" className={`${c.cls} ${c.pulse ? 'animate-pulse' : ''}`}>
+   118→      {status}
+   119→    </Badge>
+   120→  )
+   121→}
+   122→
+   123→/* ─── withdrawal status badge ─── */
+   124→
+   125→function WithdrawalStatusBadge({ status }: { status: string }) {
+   126→  const cfg: Record<string, { cls: string; pulse?: boolean }> = {
+   127→    pending: { cls: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' },
+   128→    under_review: { cls: 'bg-orange-500/20 text-orange-400 border-orange-500/30', pulse: true },
+   129→    approved: { cls: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+   130→    processing: { cls: 'bg-blue-500/20 text-blue-400 border-blue-500/30', pulse: true },
+   131→    completed: { cls: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+   132→    rejected: { cls: 'bg-red-500/20 text-red-400 border-red-500/30' },
+   133→    cancelled: { cls: 'bg-gray-500/20 text-gray-400 border-gray-500/30' },
+   134→  }
+   135→  const c = cfg[status] || cfg.pending
+   136→  return (
+   137→    <Badge variant="outline" className={`${c.cls} ${c.pulse ? 'animate-pulse' : ''}`}>
+   138→      {status.replace('_', ' ')}
+   139→    </Badge>
+   140→  )
+   141→}
+   142→
+   143→/* ─── KPI card ─── */
+   144→
+   145→function KpiCard({ icon: Icon, label, value, color, sub }: {
+   146→  icon: React.ElementType; label: string; value: string; color: string; sub?: string
+   147→}) {
+   148→  return (
+   149→    <Card className="bg-card/60 border-border/50">
+   150→      <CardContent className="p-4">
+   151→        <div className="flex items-center gap-3">
+   152→          <div className={`flex size-9 items-center justify-center rounded-lg ${color}`}>
+   153→            <Icon className="size-4" />
+   154→          </div>
+   155→          <div className="min-w-0 flex-1">
+   156→            <p className="text-[11px] text-muted-foreground truncate">{label}</p>
+   157→            <p className="text-lg font-bold truncate">{value}</p>
+   158→            {sub && <p className="text-[10px] text-muted-foreground">{sub}</p>}
+   159→          </div>
+   160→        </div>
+   161→      </CardContent>
+   162→    </Card>
+   163→  )
+   164→}
+   165→
+   166→/* ─── type badge for provider ─── */
+   167→
+   168→function TypeBadge({ type }: { type: string }) {
+   169→  const cls = type === 'crypto' ? 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+   170→    : type === 'hybrid' ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+   171→    : 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+   172→  return <Badge variant="outline" className={cls}>{type}</Badge>
+   173→}
+   174→
+   175→/* ═══════════════════════════════════════════════════════════════
+   176→   Main Component
+   177→   ═══════════════════════════════════════════════════════════════ */
+   178→
+   179→export function PaymentsView() {
+   180→  const { data, loading, error, refetch } = useApi(() => api.payments.get())
+   181→
+   182→  /* filters */
+   183→  const [depStatusFilter, setDepStatusFilter] = useState('all')
+   184→  const [depMethodFilter, setDepMethodFilter] = useState('all')
+   185→  const [depProviderFilter, setDepProviderFilter] = useState('all')
+   186→  const [depCurrencyFilter, setDepCurrencyFilter] = useState('all')
+   187→  const [depSearch, setDepSearch] = useState('')
+   188→
+   189→  const [wdStatusFilter, setWdStatusFilter] = useState('all')
+   190→  const [wdMethodFilter, setWdMethodFilter] = useState('all')
+   191→  const [wdSearch, setWdSearch] = useState('')
+   192→
+   193→  /* selected deposit for detail dialog */
+   194→  const [selectedDeposit, setSelectedDeposit] = useState<any>(null)
+   195→  const [selectedWithdrawal, setSelectedWithdrawal] = useState<any>(null)
+   196→
+   197→  /* ─── loading / error ─── */
+   198→
+   199→  if (loading) {
+   200→    return (
+   201→      <div className="space-y-4">
+   202→        <Skeleton className="h-10 w-full max-w-md" />
+   203→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   204→          {Array.from({ length: 8 }).map((_, i) => (
+   205→            <Card key={i}><CardContent className="p-6"><Skeleton className="h-16 w-full" /></CardContent></Card>
+   206→          ))}
+   207→        </div>
+   208→      </div>
+   209→    )
+   210→  }
+   211→
+   212→  if (error) {
+   213→    return (
+   214→      <Card className="border-destructive/40">
+   215→        <CardContent className="p-6 text-center">
+   216→          <AlertCircle className="size-8 text-destructive mx-auto mb-2" />
+   217→          <p className="text-sm font-medium text-destructive">Failed to load payment data</p>
+   218→          <p className="text-xs text-muted-foreground mt-1">{error}</p>
+   219→          <Button variant="outline" size="sm" className="mt-3 gap-1" onClick={refetch}>
+   220→            <RefreshCw className="size-3" /> Retry
+   221→          </Button>
+   222→        </CardContent>
+   223→      </Card>
+   224→    )
+   225→  }
+   226→
+   227→  const { deposits, withdrawals, providers, stats } = data as any
+   228→
+   229→  /* ─── filtered data ─── */
+   230→
+   231→  const filteredDeposits = (deposits || []).filter((d: any) => {
+   232→    if (depStatusFilter !== 'all' && d.status !== depStatusFilter) return false
+   233→    if (depMethodFilter !== 'all' && d.method !== depMethodFilter) return false
+   234→    if (depProviderFilter !== 'all' && d.provider !== depProviderFilter) return false
+   235→    if (depCurrencyFilter !== 'all' && d.currency !== depCurrencyFilter) return false
+   236→    if (depSearch && !d.playerName.toLowerCase().includes(depSearch.toLowerCase()) && !d.id.toLowerCase().includes(depSearch.toLowerCase())) return false
+   237→    return true
+   238→  })
+   239→
+   240→  const filteredWithdrawals = (withdrawals || []).filter((w: any) => {
+   241→    if (wdStatusFilter !== 'all' && w.status !== wdStatusFilter) return false
+   242→    if (wdMethodFilter !== 'all' && w.method !== wdMethodFilter) return false
+   243→    if (wdSearch && !w.playerName.toLowerCase().includes(wdSearch.toLowerCase()) && !w.id.toLowerCase().includes(wdSearch.toLowerCase())) return false
+   244→    return true
+   245→  })
+   246→
+   247→  /* ─── chart data ─── */
+   248→
+   249→  const trendData = [
+   250→    { hour: '00:00', deposits: 1200, withdrawals: 800 },
+   251→    { hour: '04:00', deposits: 600, withdrawals: 300 },
+   252→    { hour: '08:00', deposits: 2800, withdrawals: 1500 },
+   253→    { hour: '12:00', deposits: 4200, withdrawals: 2100 },
+   254→    { hour: '16:00', deposits: 3800, withdrawals: 2600 },
+   255→    { hour: '20:00', deposits: 5100, withdrawals: 3200 },
+   256→    { hour: 'Now', deposits: stats?.totalDeposits || 0, withdrawals: stats?.totalWithdrawals || 0 },
+   257→  ]
+   258→
+   259→  const methodData = Object.entries(stats?.byMethod || {}).map(([name, val]: [string, any]) => ({
+   260→    name, value: val.total, count: val.count,
+   261→  }))
+   262→
+   263→  const providerData = Object.entries(stats?.byProvider || {}).map(([name, val]: [string, any]) => ({
+   264→    name, volume: val.total, count: val.count,
+   265→  }))
+   266→
+   267→  /* unique values for filter dropdowns */
+   268→  const allMethods = [...new Set((deposits || []).map((d: any) => d.method))]
+   269→  const allProviders = [...new Set((deposits || []).map((d: any) => d.provider))]
+   270→  const allCurrencies = [...new Set((deposits || []).map((d: any) => d.currency))]
+   271→  const allDepStatuses = [...new Set((deposits || []).map((d: any) => d.status))]
+   272→  const allWdStatuses = [...new Set((withdrawals || []).map((w: any) => w.status))]
+   273→  const allWdMethods = [...new Set((withdrawals || []).map((w: any) => w.method))]
+   274→
+   275→  /* ─── action handlers (mock) ─── */
+   276→
+   277→  const handleConfirmDeposit = (dep: any) => {
+   278→    alert(`Deposit ${dep.id} confirmed!`)
+   279→    refetch()
+   280→  }
+   281→
+   282→  const handleApproveWithdrawal = (wd: any) => {
+   283→    alert(`Withdrawal ${wd.id} approved!`)
+   284→    refetch()
+   285→  }
+   286→
+   287→  const handleRejectWithdrawal = (wd: any) => {
+   288→    alert(`Withdrawal ${wd.id} rejected!`)
+   289→    refetch()
+   290→  }
+   291→
+   292→  /* ═══════════════════════════════════════════════════════════════
+   293→     Render
+   294→     ═══════════════════════════════════════════════════════════════ */
+   295→
+   296→  return (
+   297→    <Tabs defaultValue="overview" className="space-y-4">
+   298→      <div className="flex items-center justify-between gap-2 flex-wrap">
+   299→        <TabsList className="bg-muted/50">
+   300→          <TabsTrigger value="overview">Overview</TabsTrigger>
+   301→          <TabsTrigger value="deposits">Deposits</TabsTrigger>
+   302→          <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
+   303→          <TabsTrigger value="providers">Providers</TabsTrigger>
+   304→        </TabsList>
+   305→        <Button variant="outline" size="sm" className="gap-1" onClick={refetch}>
+   306→          <RefreshCw className="size-3" /> Refresh
+   307→        </Button>
+   308→      </div>
+   309→
+   310→      {/* ────────── Overview ────────── */}
+   311→      <TabsContent value="overview" className="space-y-4">
+   312→        {/* KPI Cards */}
+   313→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   314→          <KpiCard icon={ArrowDownLeft} label="Total Deposits" value={fmtUsd(stats?.totalDeposits || 0)} color="bg-emerald-500/20 text-emerald-400" />
+   315→          <KpiCard icon={ArrowUpRight} label="Total Withdrawals" value={fmtUsd(stats?.totalWithdrawals || 0)} color="bg-blue-500/20 text-blue-400" />
+   316→          <KpiCard icon={Clock} label="Pending Deposits" value={String(stats?.pendingDeposits || 0)} color="bg-yellow-500/20 text-yellow-400" sub="Requires confirmation" />
+   317→          <KpiCard icon={AlertCircle} label="Pending Withdrawals" value={String(stats?.pendingWithdrawals || 0)} color="bg-orange-500/20 text-orange-400" sub="Awaiting processing" />
+   318→          <KpiCard icon={Shield} label="Approval Queue" value={String(stats?.approvalQueue || 0)} color="bg-red-500/20 text-red-400" sub="Needs manual review" />
+   319→          <KpiCard icon={DollarSign} label="Total Fees" value={fmtUsd(stats?.totalFees || 0)} color="bg-amber-500/20 text-amber-400" />
+   320→          <KpiCard icon={Percent} label="Success Rate" value={`${stats?.successRate || 0}%`} color="bg-emerald-500/20 text-emerald-400" />
+   321→          <KpiCard icon={Timer} label="Avg Processing" value={`${stats?.avgProcessingTime || 0} min`} color="bg-blue-500/20 text-blue-400" />
+   322→        </div>
+   323→
+   324→        {/* Charts Row */}
+   325→        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   326→          {/* Deposit vs Withdrawal Trend */}
+   327→          <Card className="bg-card/60 border-border/50">
+   328→            <CardHeader className="pb-2">
+   329→              <CardTitle className="text-sm">Deposit vs Withdrawal Trend</CardTitle>
+   330→            </CardHeader>
+   331→            <CardContent>
+   332→              <ResponsiveContainer width="100%" height={260}>
+   333→                <AreaChart data={trendData}>
+   334→                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+   335→                  <XAxis dataKey="hour" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+   336→                  <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+   337→                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
+   338→                  <Legend wrapperStyle={{ fontSize: 11 }} />
+   339→                  <Area type="monotone" dataKey="deposits" name="Deposits" stroke="#10b981" fill="#10b981" fillOpacity={0.15} strokeWidth={2} />
+   340→                  <Area type="monotone" dataKey="withdrawals" name="Withdrawals" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.15} strokeWidth={2} />
+   341→                </AreaChart>
+   342→              </ResponsiveContainer>
+   343→            </CardContent>
+   344→          </Card>
+   345→
+   346→          {/* Method Distribution */}
+   347→          <Card className="bg-card/60 border-border/50">
+   348→            <CardHeader className="pb-2">
+   349→              <CardTitle className="text-sm">Payment Method Distribution</CardTitle>
+   350→            </CardHeader>
+   351→            <CardContent>
+   352→              <ResponsiveContainer width="100%" height={260}>
+   353→                <PieChart>
+   354→                  <Pie data={methodData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} innerRadius={50} paddingAngle={2} label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}>
+   355→                    {methodData.map((_, i) => (
+   356→                      <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+   357→                    ))}
+   358→                  </Pie>
+   359→                  <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
+   360→                </PieChart>
+   361→              </ResponsiveContainer>
+   362→            </CardContent>
+   363→          </Card>
+   364→        </div>
+   365→
+   366→        {/* Provider Volume Chart */}
+   367→        <Card className="bg-card/60 border-border/50">
+   368→          <CardHeader className="pb-2">
+   369→            <CardTitle className="text-sm">Provider Volume</CardTitle>
+   370→          </CardHeader>
+   371→          <CardContent>
+   372→            <ResponsiveContainer width="100%" height={240}>
+   373→              <BarChart data={providerData}>
+   374→                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+   375→                <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+   376→                <YAxis tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+   377→                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
+   378→                <Bar dataKey="volume" name="Volume ($)" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+   379→              </BarChart>
+   380→            </ResponsiveContainer>
+   381→          </CardContent>
+   382→        </Card>
+   383→      </TabsContent>
+   384→
+   385→      {/* ────────── Deposits ────────── */}
+   386→      <TabsContent value="deposits" className="space-y-4">
+   387→        {/* Filters */}
+   388→        <div className="flex flex-wrap items-center gap-2">
+   389→          <div className="relative flex-1 min-w-[180px] max-w-xs">
+   390→            <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+   391→            <Input placeholder="Search player or ID..." value={depSearch} onChange={(e) => setDepSearch(e.target.value)} className="pl-8 h-8 text-xs" />
+   392→          </div>
+   393→          <Select value={depStatusFilter} onValueChange={setDepStatusFilter}>
+   394→            <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+   395→            <SelectContent>
+   396→              <SelectItem value="all">All Status</SelectItem>
+   397→              {allDepStatuses.map((s: string) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+   398→            </SelectContent>
+   399→          </Select>
+   400→          <Select value={depMethodFilter} onValueChange={setDepMethodFilter}>
+   401→            <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue placeholder="Method" /></SelectTrigger>
+   402→            <SelectContent>
+   403→              <SelectItem value="all">All Methods</SelectItem>
+   404→              {allMethods.map((m: string) => <SelectItem key={m} value={m}>{m.replace('_', ' ')}</SelectItem>)}
+   405→            </SelectContent>
+   406→          </Select>
+   407→          <Select value={depProviderFilter} onValueChange={setDepProviderFilter}>
+   408→            <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue placeholder="Provider" /></SelectTrigger>
+   409→            <SelectContent>
+   410→              <SelectItem value="all">All Providers</SelectItem>
+   411→              {allProviders.map((p: string) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+   412→            </SelectContent>
+   413→          </Select>
+   414→          <Select value={depCurrencyFilter} onValueChange={setDepCurrencyFilter}>
+   415→            <SelectTrigger className="w-[110px] h-8 text-xs"><SelectValue placeholder="Currency" /></SelectTrigger>
+   416→            <SelectContent>
+   417→              <SelectItem value="all">All Currencies</SelectItem>
+   418→              {allCurrencies.map((c: string) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+   419→            </SelectContent>
+   420→          </Select>
+   421→        </div>
+   422→
+   423→        {/* Table */}
+   424→        <Card className="bg-card/60 border-border/50">
+   425→          <CardContent className="p-0">
+   426→            <ScrollArea className="max-h-[520px]">
+   427→              <Table>
+   428→                <TableHeader>
+   429→                  <TableRow>
+   430→                    <TableHead className="text-[11px]">Time</TableHead>
+   431→                    <TableHead className="text-[11px]">Player</TableHead>
+   432→                    <TableHead className="text-[11px] text-right">Amount</TableHead>
+   433→                    <TableHead className="text-[11px]">Currency</TableHead>
+   434→                    <TableHead className="text-[11px]">Method</TableHead>
+   435→                    <TableHead className="text-[11px]">Provider</TableHead>
+   436→                    <TableHead className="text-[11px] text-right">Fee</TableHead>
+   437→                    <TableHead className="text-[11px] text-right">Net</TableHead>
+   438→                    <TableHead className="text-[11px]">Status</TableHead>
+   439→                    <TableHead className="text-[11px]">TX Hash</TableHead>
+   440→                    <TableHead className="text-[11px]">Action</TableHead>
+   441→                  </TableRow>
+   442→                </TableHeader>
+   443→                <TableBody>
+   444→                  {filteredDeposits.length === 0 && (
+   445→                    <TableRow>
+   446→                      <TableCell colSpan={11} className="text-center text-muted-foreground py-8">No deposits found</TableCell>
+   447→                    </TableRow>
+   448→                  )}
+   449→                  {filteredDeposits.map((d: any) => (
+   450→                    <TableRow key={d.id} className="cursor-pointer hover:bg-muted/30" onClick={() => setSelectedDeposit(d)}>
+   451→                      <TableCell className="text-xs whitespace-nowrap">{timeAgo(d.createdAt)}</TableCell>
+   452→                      <TableCell className="text-xs font-medium">{d.playerName}</TableCell>
+   453→                      <TableCell className="text-xs text-right font-mono">{fmtAmount(d.amount, d.currency)}</TableCell>
+   454→                      <TableCell className="text-xs"><Badge variant="secondary" className="text-[9px]">{d.currency}</Badge></TableCell>
+   455→                      <TableCell className="text-xs">{METHOD_ICONS[d.method] || '💰'} {d.method.replace('_', ' ')}</TableCell>
+   456→                      <TableCell className="text-xs">{PROVIDER_ICONS[d.provider] || ''} {d.provider}</TableCell>
+   457→                      <TableCell className="text-xs text-right font-mono text-muted-foreground">{fmtAmount(d.feeAmount, d.currency)}</TableCell>
+   458→                      <TableCell className="text-xs text-right font-mono">{fmtAmount(d.netAmount, d.currency)}</TableCell>
+   459→                      <TableCell><DepositStatusBadge status={d.status} /></TableCell>
+   460→                      <TableCell className="text-xs font-mono max-w-[80px] truncate">{d.txHash ? `${d.txHash.slice(0, 10)}...` : '—'}</TableCell>
+   461→                      <TableCell>
+   462→                        {d.status === 'pending' && (
+   463→                          <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10" onClick={(e) => { e.stopPropagation(); handleConfirmDeposit(d) }}>
+   464→                            <CheckCircle className="size-3" /> Confirm
+   465→                          </Button>
+   466→                        )}
+   467→                      </TableCell>
+   468→                    </TableRow>
+   469→                  ))}
+   470→                </TableBody>
+   471→              </Table>
+   472→            </ScrollArea>
+   473→          </CardContent>
+   474→        </Card>
+   475→
+   476→        {/* Deposit Detail Dialog */}
+   477→        <Dialog open={!!selectedDeposit} onOpenChange={(open) => !open && setSelectedDeposit(null)}>
+   478→          <DialogContent className="max-w-lg">
+   479→            <DialogHeader>
+   480→              <DialogTitle className="flex items-center gap-2">
+   481→                <ArrowDownLeft className="size-4 text-emerald-400" />
+   482→                Deposit Details
+   483→              </DialogTitle>
+   484→            </DialogHeader>
+   485→            {selectedDeposit && (
+   486→              <div className="space-y-3 text-sm">
+   487→                <div className="grid grid-cols-2 gap-2">
+   488→                  <div><span className="text-muted-foreground text-xs">ID</span><p className="font-mono text-xs">{selectedDeposit.id}</p></div>
+   489→                  <div><span className="text-muted-foreground text-xs">Player</span><p className="font-medium">{selectedDeposit.playerName}</p></div>
+   490→                  <div><span className="text-muted-foreground text-xs">Amount</span><p className="font-mono">{fmtAmount(selectedDeposit.amount, selectedDeposit.currency)}</p></div>
+   491→                  <div><span className="text-muted-foreground text-xs">Currency</span><p>{selectedDeposit.currency}</p></div>
+   492→                  <div><span className="text-muted-foreground text-xs">Method</span><p>{METHOD_ICONS[selectedDeposit.method]} {selectedDeposit.method.replace('_', ' ')}</p></div>
+   493→                  <div><span className="text-muted-foreground text-xs">Provider</span><p>{PROVIDER_ICONS[selectedDeposit.provider]} {selectedDeposit.provider}</p></div>
+   494→                  <div><span className="text-muted-foreground text-xs">Fee</span><p className="font-mono">{fmtAmount(selectedDeposit.feeAmount, selectedDeposit.currency)}</p></div>
+   495→                  <div><span className="text-muted-foreground text-xs">Net Amount</span><p className="font-mono">{fmtAmount(selectedDeposit.netAmount, selectedDeposit.currency)}</p></div>
+   496→                  <div><span className="text-muted-foreground text-xs">Status</span><p><DepositStatusBadge status={selectedDeposit.status} /></p></div>
+   497→                  <div><span className="text-muted-foreground text-xs">TX Hash</span><p className="font-mono text-xs break-all">{selectedDeposit.txHash || '—'}</p></div>
+   498→                  <div><span className="text-muted-foreground text-xs">Created</span><p className="text-xs">{new Date(selectedDeposit.createdAt).toLocaleString()}</p></div>
+   499→                  <div><span className="text-muted-foreground text-xs">Expires</span><p className="text-xs">{selectedDeposit.expiresAt ? new Date(selectedDeposit.expiresAt).toLocaleString() : '—'}</p></div>
+   500→                </div>
+   501→                {selectedDeposit.status === 'pending' && (
+   502→                  <Button className="w-full gap-1" onClick={() => { handleConfirmDeposit(selectedDeposit); setSelectedDeposit(null) }}>
+   503→                    <CheckCircle className="size-4" /> Confirm Deposit
+   504→                  </Button>
+   505→                )}
+   506→              </div>
+   507→            )}
+   508→          </DialogContent>
+   509→        </Dialog>
+   510→      </TabsContent>
+   511→
+   512→      {/* ────────── Withdrawals ────────── */}
+   513→      <TabsContent value="withdrawals" className="space-y-4">
+   514→        {/* Filters */}
+   515→        <div className="flex flex-wrap items-center gap-2">
+   516→          <div className="relative flex-1 min-w-[180px] max-w-xs">
+   517→            <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+   518→            <Input placeholder="Search player or ID..." value={wdSearch} onChange={(e) => setWdSearch(e.target.value)} className="pl-8 h-8 text-xs" />
+   519→          </div>
+   520→          <Select value={wdStatusFilter} onValueChange={setWdStatusFilter}>
+   521→            <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+   522→            <SelectContent>
+   523→              <SelectItem value="all">All Status</SelectItem>
+   524→              {allWdStatuses.map((s: string) => <SelectItem key={s} value={s}>{s.replace('_', ' ')}</SelectItem>)}
+   525→            </SelectContent>
+   526→          </Select>
+   527→          <Select value={wdMethodFilter} onValueChange={setWdMethodFilter}>
+   528→            <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue placeholder="Method" /></SelectTrigger>
+   529→            <SelectContent>
+   530→              <SelectItem value="all">All Methods</SelectItem>
+   531→              {allWdMethods.map((m: string) => <SelectItem key={m} value={m}>{m.replace('_', ' ')}</SelectItem>)}
+   532→            </SelectContent>
+   533→          </Select>
+   534→        </div>
+   535→
+   536→        {/* Table */}
+   537→        <Card className="bg-card/60 border-border/50">
+   538→          <CardContent className="p-0">
+   539→            <ScrollArea className="max-h-[520px]">
+   540→              <Table>
+   541→                <TableHeader>
+   542→                  <TableRow>
+   543→                    <TableHead className="text-[11px]">Time</TableHead>
+   544→                    <TableHead className="text-[11px]">Player</TableHead>
+   545→                    <TableHead className="text-[11px] text-right">Amount</TableHead>
+   546→                    <TableHead className="text-[11px]">Currency</TableHead>
+   547→                    <TableHead className="text-[11px]">Method</TableHead>
+   548→                    <TableHead className="text-[11px] text-right">Fee</TableHead>
+   549→                    <TableHead className="text-[11px] text-right">Net</TableHead>
+   550→                    <TableHead className="text-[11px]">Status</TableHead>
+   551→                    <TableHead className="text-[11px]">Approved By</TableHead>
+   552→                    <TableHead className="text-[11px]">TX Hash</TableHead>
+   553→                    <TableHead className="text-[11px]">Actions</TableHead>
+   554→                  </TableRow>
+   555→                </TableHeader>
+   556→                <TableBody>
+   557→                  {filteredWithdrawals.length === 0 && (
+   558→                    <TableRow>
+   559→                      <TableCell colSpan={11} className="text-center text-muted-foreground py-8">No withdrawals found</TableCell>
+   560→                    </TableRow>
+   561→                  )}
+   562→                  {filteredWithdrawals.map((w: any) => (
+   563→                    <TableRow key={w.id} className="cursor-pointer hover:bg-muted/30" onClick={() => setSelectedWithdrawal(w)}>
+   564→                      <TableCell className="text-xs whitespace-nowrap">{timeAgo(w.createdAt)}</TableCell>
+   565→                      <TableCell className="text-xs font-medium">{w.playerName}</TableCell>
+   566→                      <TableCell className="text-xs text-right font-mono">{fmtAmount(w.amount, w.currency)}</TableCell>
+   567→                      <TableCell className="text-xs"><Badge variant="secondary" className="text-[9px]">{w.currency}</Badge></TableCell>
+   568→                      <TableCell className="text-xs">{METHOD_ICONS[w.method] || '💰'} {w.method.replace('_', ' ')}</TableCell>
+   569→                      <TableCell className="text-xs text-right font-mono text-muted-foreground">{fmtAmount(w.feeAmount, w.currency)}</TableCell>
+   570→                      <TableCell className="text-xs text-right font-mono">{fmtAmount(w.netAmount, w.currency)}</TableCell>
+   571→                      <TableCell><WithdrawalStatusBadge status={w.status} /></TableCell>
+   572→                      <TableCell className="text-xs">{w.approvedBy || '—'}</TableCell>
+   573→                      <TableCell className="text-xs font-mono max-w-[80px] truncate">{w.txHash ? `${w.txHash.slice(0, 10)}...` : '—'}</TableCell>
+   574→                      <TableCell>
+   575→                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+   576→                          {(w.status === 'pending' || w.status === 'under_review') && (
+   577→                            <>
+   578→                              <Button size="sm" variant="outline" className="h-6 text-[10px] gap-0.5 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10" onClick={() => handleApproveWithdrawal(w)}>
+   579→                                <CheckCircle className="size-3" /> Approve
+   580→                              </Button>
+   581→                              <Button size="sm" variant="outline" className="h-6 text-[10px] gap-0.5 text-red-400 border-red-500/30 hover:bg-red-500/10" onClick={() => handleRejectWithdrawal(w)}>
+   582→                                <XCircle className="size-3" /> Reject
+   583→                              </Button>
+   584→                            </>
+   585→                          )}
+   586→                          {w.status === 'rejected' && w.rejectionReason && (
+   587→                            <Badge variant="outline" className="text-[9px] border-red-500/30 text-red-400 max-w-[120px] truncate">{w.rejectionReason}</Badge>
+   588→                          )}
+   589→                        </div>
+   590→                      </TableCell>
+   591→                    </TableRow>
+   592→                  ))}
+   593→                </TableBody>
+   594→              </Table>
+   595→            </ScrollArea>
+   596→          </CardContent>
+   597→        </Card>
+   598→
+   599→        {/* Withdrawal Detail Dialog */}
+   600→        <Dialog open={!!selectedWithdrawal} onOpenChange={(open) => !open && setSelectedWithdrawal(null)}>
+   601→          <DialogContent className="max-w-lg">
+   602→            <DialogHeader>
+   603→              <DialogTitle className="flex items-center gap-2">
+   604→                <ArrowUpRight className="size-4 text-blue-400" />
+   605→                Withdrawal Details
+   606→              </DialogTitle>
+   607→            </DialogHeader>
+   608→            {selectedWithdrawal && (
+   609→              <div className="space-y-3 text-sm">
+   610→                <div className="grid grid-cols-2 gap-2">
+   611→                  <div><span className="text-muted-foreground text-xs">ID</span><p className="font-mono text-xs">{selectedWithdrawal.id}</p></div>
+   612→                  <div><span className="text-muted-foreground text-xs">Player</span><p className="font-medium">{selectedWithdrawal.playerName}</p></div>
+   613→                  <div><span className="text-muted-foreground text-xs">Amount</span><p className="font-mono">{fmtAmount(selectedWithdrawal.amount, selectedWithdrawal.currency)}</p></div>
+   614→                  <div><span className="text-muted-foreground text-xs">Currency</span><p>{selectedWithdrawal.currency}</p></div>
+   615→                  <div><span className="text-muted-foreground text-xs">Method</span><p>{METHOD_ICONS[selectedWithdrawal.method]} {selectedWithdrawal.method.replace('_', ' ')}</p></div>
+   616→                  <div><span className="text-muted-foreground text-xs">Provider</span><p>{PROVIDER_ICONS[selectedWithdrawal.provider] || ''} {selectedWithdrawal.provider}</p></div>
+   617→                  <div><span className="text-muted-foreground text-xs">Fee</span><p className="font-mono">{fmtAmount(selectedWithdrawal.feeAmount, selectedWithdrawal.currency)}</p></div>
+   618→                  <div><span className="text-muted-foreground text-xs">Net Amount</span><p className="font-mono">{fmtAmount(selectedWithdrawal.netAmount, selectedWithdrawal.currency)}</p></div>
+   619→                  <div><span className="text-muted-foreground text-xs">Status</span><p><WithdrawalStatusBadge status={selectedWithdrawal.status} /></p></div>
+   620→                  <div><span className="text-muted-foreground text-xs">Approved By</span><p>{selectedWithdrawal.approvedBy || '—'}</p></div>
+   621→                  <div><span className="text-muted-foreground text-xs">TX Hash</span><p className="font-mono text-xs break-all">{selectedWithdrawal.txHash || '—'}</p></div>
+   622→                  <div><span className="text-muted-foreground text-xs">Created</span><p className="text-xs">{new Date(selectedWithdrawal.createdAt).toLocaleString()}</p></div>
+   623→                  <div><span className="text-muted-foreground text-xs">Processed</span><p className="text-xs">{selectedWithdrawal.processedAt ? new Date(selectedWithdrawal.processedAt).toLocaleString() : '—'}</p></div>
+   624→                  <div><span className="text-muted-foreground text-xs">Approved At</span><p className="text-xs">{selectedWithdrawal.approvedAt ? new Date(selectedWithdrawal.approvedAt).toLocaleString() : '—'}</p></div>
+   625→                </div>
+   626→                {selectedWithdrawal.rejectionReason && (
+   627→                  <div className="rounded-md border border-red-500/30 bg-red-500/10 p-3">
+   628→                    <p className="text-xs text-red-400 font-medium">Rejection Reason</p>
+   629→                    <p className="text-xs text-red-300 mt-1">{selectedWithdrawal.rejectionReason}</p>
+   630→                  </div>
+   631→                )}
+   632→                {(selectedWithdrawal.status === 'pending' || selectedWithdrawal.status === 'under_review') && (
+   633→                  <div className="flex gap-2">
+   634→                    <Button className="flex-1 gap-1" onClick={() => { handleApproveWithdrawal(selectedWithdrawal); setSelectedWithdrawal(null) }}>
+   635→                      <CheckCircle className="size-4" /> Approve
+   636→                    </Button>
+   637→                    <Button variant="destructive" className="flex-1 gap-1" onClick={() => { handleRejectWithdrawal(selectedWithdrawal); setSelectedWithdrawal(null) }}>
+   638→                      <XCircle className="size-4" /> Reject
+   639→                    </Button>
+   640→                  </div>
+   641→                )}
+   642→              </div>
+   643→            )}
+   644→          </DialogContent>
+   645→        </Dialog>
+   646→      </TabsContent>
+   647→
+   648→      {/* ────────── Providers ────────── */}
+   649→      <TabsContent value="providers" className="space-y-4">
+   650→        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+   651→          {(providers || []).map((p: any) => (
+   652→            <Card key={p.id} className={`bg-card/60 border-border/50 ${!p.isActive ? 'opacity-60' : ''}`}>
+   653→              <CardHeader className="pb-3">
+   654→                <div className="flex items-center justify-between">
+   655→                  <CardTitle className="text-sm flex items-center gap-2">
+   656→                    <span className="text-lg">{PROVIDER_ICONS[p.name] || p.logo || '💰'}</span>
+   657→                    {p.name}
+   658→                  </CardTitle>
+   659→                  <div className="flex items-center gap-2">
+   660→                    <TypeBadge type={p.type} />
+   661→                    <span className={`size-2.5 rounded-full ${p.isActive ? 'bg-emerald-500' : 'bg-gray-500'}`} />
+   662→                  </div>
+   663→                </div>
+   664→              </CardHeader>
+   665→              <CardContent className="space-y-3">
+   666→                {/* Active toggle */}
+   667→                <div className="flex items-center justify-between">
+   668→                  <span className="text-xs text-muted-foreground">Status</span>
+   669→                  <Badge variant={p.isActive ? 'default' : 'secondary'} className={`text-[10px] ${p.isActive ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-gray-500/20 text-gray-400 border-gray-500/30'}`}>
+   670→                    {p.isActive ? 'Active' : 'Inactive'}
+   671→                  </Badge>
+   672→                </div>
+   673→
+   674→                {/* Deposit limits */}
+   675→                <div className="space-y-1">
+   676→                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Deposit Limits</p>
+   677→                  <div className="flex items-center justify-between text-xs">
+   678→                    <span className="text-muted-foreground">Min</span>
+   679→                    <span className="font-mono">{fmtAmount(p.minDeposit, p.supportedCurrencies?.[0] || 'USD')}</span>
+   680→                  </div>
+   681→                  <div className="flex items-center justify-between text-xs">
+   682→                    <span className="text-muted-foreground">Max</span>
+   683→                    <span className="font-mono">{fmtAmount(p.maxDeposit, p.supportedCurrencies?.[0] || 'USD')}</span>
+   684→                  </div>
+   685→                </div>
+   686→
+   687→                {/* Withdrawal limits */}
+   688→                <div className="space-y-1">
+   689→                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Withdrawal Limits</p>
+   690→                  <div className="flex items-center justify-between text-xs">
+   691→                    <span className="text-muted-foreground">Min</span>
+   692→                    <span className="font-mono">{fmtAmount(p.minWithdrawal, p.supportedCurrencies?.[0] || 'USD')}</span>
+   693→                  </div>
+   694→                  <div className="flex items-center justify-between text-xs">
+   695→                    <span className="text-muted-foreground">Max</span>
+   696→                    <span className="font-mono">{fmtAmount(p.maxWithdrawal, p.supportedCurrencies?.[0] || 'USD')}</span>
+   697→                  </div>
+   698→                </div>
+   699→
+   700→                {/* Fees */}
+   701→                <div className="flex items-center justify-between text-xs">
+   702→                  <span className="text-muted-foreground flex items-center gap-1"><Percent className="size-3" /> Fees</span>
+   703→                  <span className="font-mono text-amber-400">{p.feePercent}% + {fmtAmount(p.feeFixed, p.supportedCurrencies?.[0] || 'USD')}</span>
+   704→                </div>
+   705→
+   706→                {/* Processing time */}
+   707→                <div className="flex items-center justify-between text-xs">
+   708→                  <span className="text-muted-foreground flex items-center gap-1"><Clock className="size-3" /> Processing</span>
+   709→                  <span>{p.processingTime}</span>
+   710→                </div>
+   711→
+   712→                {/* Supported currencies */}
+   713→                <div className="space-y-1">
+   714→                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider flex items-center gap-1">
+   715→                    <Globe className="size-3" /> Currencies
+   716→                  </p>
+   717→                  <div className="flex flex-wrap gap-1">
+   718→                    {(p.supportedCurrencies || []).map((c: string) => (
+   719→                      <Badge key={c} variant="secondary" className="text-[9px]">{c}</Badge>
+   720→                    ))}
+   721→                  </div>
+   722→                </div>
+   723→              </CardContent>
+   724→            </Card>
+   725→          ))}
+   726→        </div>
+   727→      </TabsContent>
+   728→    </Tabs>
+   729→  )
+   730→}
+   731→

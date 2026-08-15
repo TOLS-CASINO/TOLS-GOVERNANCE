@@ -368,7 +368,7 @@ export function AuthView() {
 
       {/* Main Tabs */}
       <Tabs defaultValue="users" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
           <TabsTrigger value="users" className="text-xs gap-1">
             <Users className="size-3" /> Users
           </TabsTrigger>
@@ -628,7 +628,7 @@ export function AuthView() {
             </CardHeader>
             <CardContent>
               <ScrollArea className="w-full">
-                <div className="min-w-[800px]">
+                <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>

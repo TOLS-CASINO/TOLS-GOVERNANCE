@@ -126,7 +126,7 @@ export default function Home() {
               {activeRole === 'super_admin' ? 'SUPER ADMIN' : activeRole.toUpperCase()}
             </Badge>
             <NotificationPanel />
-            <button className="p-1.5 rounded-md hover:bg-muted transition-colors">
+            <button className="p-2.5 rounded-md hover:bg-muted transition-colors">
               <Settings className="size-4 text-muted-foreground" />
             </button>
           </div>

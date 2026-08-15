@@ -180,7 +180,7 @@ export function AffiliatesView() {
   return (
     <div className="space-y-4">
       {/* Performance Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label: 'Total Clicks', value: metrics.totalClicks.toLocaleString(), icon: MousePointerClick, color: 'text-chart-4' },
           { label: 'Signups', value: metrics.totalSignups.toLocaleString(), icon: Users, color: 'text-chart-2' },

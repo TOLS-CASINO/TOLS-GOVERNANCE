@@ -255,7 +255,7 @@ export function LivePlayersView() {
 
       {/* Main Tabs */}
       <Tabs defaultValue="sessions" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 h-9">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-9">
           <TabsTrigger value="sessions" className="text-xs gap-1">
             <Users className="size-3" /> Sessions
           </TabsTrigger>
@@ -402,7 +402,7 @@ export function LivePlayersView() {
                       <h4 className="text-xs font-semibold text-primary">Session Details — {session.playerName}</h4>
                       <Badge variant="outline" className="text-[9px] h-4">{session.id}</Badge>
                     </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 text-xs">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                       <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">Player ID</span><br /><span className="font-medium">{session.playerId}</span></div>
                       <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">City</span><br /><span className="font-medium">{session.city}, {session.country}</span></div>
                       <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">Browser</span><br /><span className="font-medium">{session.browser}</span></div>
@@ -501,7 +501,7 @@ export function LivePlayersView() {
             </CardHeader>
             <CardContent>
               {stats ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                   {stats.byCountry.slice(0, 10).map((item, index) => {
                     const maxCount = stats.byCountry[0]?.count || 1
                     const intensity = Math.max(0.15, item.count / maxCount)
@@ -549,7 +549,7 @@ export function LivePlayersView() {
         {/* Tab 4: Session Analytics */}
         <TabsContent value="analytics" className="mt-4 space-y-4">
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-1">

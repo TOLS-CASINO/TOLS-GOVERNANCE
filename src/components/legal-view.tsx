@@ -264,7 +264,7 @@ export function LegalView() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="max-h-[400px] overflow-y-auto">
+            <div className="max-h-[400px] overflow-auto">
               <Table>
                 <TableHeader>
                   <TableRow>

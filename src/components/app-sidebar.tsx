@@ -36,6 +36,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
   SidebarSeparator,
+  useSidebar,
 } from '@/components/ui/sidebar'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
@@ -93,6 +94,12 @@ const navGroups: { label: string; items: NavItem[] }[] = [
 
 export function AppSidebar() {
   const { activeSection, setActiveSection, activeRole, setActiveRole } = useAppStore()
+  const { isMobile, setOpenMobile } = useSidebar()
+
+  const handleSectionClick = (section: Section) => {
+    setActiveSection(section)
+    if (isMobile) setOpenMobile(false)
+  }
 
   return (
     <Sidebar collapsible="icon">
@@ -120,7 +127,7 @@ export function AppSidebar() {
                   <SidebarMenuItem key={item.section}>
                     <SidebarMenuButton
                       isActive={activeSection === item.section}
-                      onClick={() => setActiveSection(item.section)}
+                      onClick={() => handleSectionClick(item.section)}
                       tooltip={item.label}
                       className="gap-3"
                     >

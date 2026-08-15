@@ -327,6 +327,7 @@ export function FinancialView() {
             </CardHeader>
             <CardContent>
               {settlements.length > 0 ? (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -351,6 +352,7 @@ export function FinancialView() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               ) : (
                 <p className="text-xs text-muted-foreground text-center py-4">No settlements</p>
               )}
@@ -419,6 +421,7 @@ export function FinancialView() {
                 </div>
 
                 {/* Detail Table */}
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -443,6 +446,7 @@ export function FinancialView() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </>
             ) : (
               <p className="text-xs text-muted-foreground text-center py-8">No waterfall data available</p>
@@ -477,6 +481,7 @@ export function FinancialView() {
           </CardHeader>
           <CardContent>
             {filteredLedger.length > 0 ? (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -505,6 +510,7 @@ export function FinancialView() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             ) : (
               <p className="text-xs text-muted-foreground text-center py-4">No ledger entries</p>
             )}

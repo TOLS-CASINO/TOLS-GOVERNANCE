@@ -1,0 +1,929 @@
+     1→'use client'
+     2→
+     3→import { useState } from 'react'
+     4→import {
+     5→  CreditCard,
+     6→  Receipt,
+     7→  Crown,
+     8→  Zap,
+     9→  CheckCircle,
+    10→  Plus,
+    11→  Download,
+    12→  Star,
+    13→  TrendingUp,
+    14→  AlertTriangle,
+    15→  ExternalLink,
+    16→  Settings,
+    17→  RefreshCw,
+    18→} from 'lucide-react'
+    19→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    20→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    21→import {
+    22→  Table,
+    23→  TableBody,
+    24→  TableCell,
+    25→  TableHead,
+    26→  TableHeader,
+    27→  TableRow,
+    28→} from '@/components/ui/table'
+    29→import { Badge } from '@/components/ui/badge'
+    30→import { Button } from '@/components/ui/button'
+    31→import {
+    32→  Dialog,
+    33→  DialogContent,
+    34→  DialogHeader,
+    35→  DialogTitle,
+    36→  DialogTrigger,
+    37→} from '@/components/ui/dialog'
+    38→import { Input } from '@/components/ui/input'
+    39→import {
+    40→  Select,
+    41→  SelectContent,
+    42→  SelectItem,
+    43→  SelectTrigger,
+    44→  SelectValue,
+    45→} from '@/components/ui/select'
+    46→import { Switch } from '@/components/ui/switch'
+    47→import { Label } from '@/components/ui/label'
+    48→import { ScrollArea } from '@/components/ui/scroll-area'
+    49→import { Skeleton } from '@/components/ui/skeleton'
+    50→import { Separator } from '@/components/ui/separator'
+    51→import { Progress } from '@/components/ui/progress'
+    52→import { useApi } from '@/hooks/use-api'
+    53→import { api } from '@/services/api'
+    54→
+    55→/* ─── Types ─── */
+    56→
+    57→interface Plan {
+    58→  id: string
+    59→  name: string
+    60→  price: string
+    61→  priceValue: number
+    62→  period: string
+    63→  features: string[]
+    64→  highlight: string[]
+    65→  icon: React.ElementType
+    66→  color: string
+    67→  badge?: string
+    68→}
+    69→
+    70→interface Invoice {
+    71→  id: string
+    72→  date: string
+    73→  description: string
+    74→  amount: string
+    75→  status: 'paid' | 'open' | 'void'
+    76→}
+    77→
+    78→interface PaymentMethod {
+    79→  id: string
+    80→  type: 'card' | 'bank' | 'crypto'
+    81→  label: string
+    82→  detail: string
+    83→  icon: React.ElementType
+    84→  isDefault: boolean
+    85→  expiry?: string
+    86→}
+    87→
+    88→interface UsageMeter {
+    89→  label: string
+    90→  used: number
+    91→  limit: number
+    92→  unit: string
+    93→}
+    94→
+    95→/* ─── Mock Data ─── */
+    96→
+    97→const PLANS: Plan[] = [
+    98→  {
+    99→    id: 'starter',
+   100→    name: 'Starter',
+   101→    price: '$499',
+   102→    priceValue: 499,
+   103→    period: '/mo',
+   104→    features: [
+   105→      'Dashboard base',
+   106→      'Financial management',
+   107→      'Up to 1,000 players',
+   108→      'Standard reports',
+   109→      'Email support',
+   110→    ],
+   111→    highlight: [],
+   112→    icon: Star,
+   113→    color: 'emerald',
+   114→    badge: undefined,
+   115→  },
+   116→  {
+   117→    id: 'professional',
+   118→    name: 'Professional',
+   119→    price: '$1,499',
+   120→    priceValue: 1499,
+   121→    period: '/mo',
+   122→    features: [
+   123→      'Everything in Starter',
+   124→      'AI Governance',
+   125→      'Revenue Optimizer',
+   126→      'Player Intelligence',
+   127→      'Up to 10,000 players',
+   128→      'Priority support',
+   129→    ],
+   130→    highlight: ['AI Governance', 'Revenue Optimizer', 'Player Intelligence'],
+   131→    icon: Zap,
+   132→    color: 'amber',
+   133→    badge: 'POPULAR',
+   134→  },
+   135→  {
+   136→    id: 'enterprise',
+   137→    name: 'Enterprise',
+   138→    price: 'Custom',
+   139→    priceValue: 0,
+   140→    period: '',
+   141→    features: [
+   142→      'Everything in Professional',
+   143→      'Advanced AI Tutor',
+   144→      'Blockchain integration',
+   145→      'Automated compliance',
+   146→      'Unlimited players',
+   147→      '24/7 dedicated support',
+   148→    ],
+   149→    highlight: ['Advanced AI Tutor', 'Blockchain integration', 'Automated compliance'],
+   150→    icon: Crown,
+   151→    color: 'red',
+   152→    badge: 'CUSTOM',
+   153→  },
+   154→]
+   155→
+   156→const MOCK_INVOICES: Invoice[] = [
+   157→  { id: 'INV-2025-001', date: '2025-03-01', description: 'Professional Plan - March 2025', amount: '$1,499.00', status: 'paid' },
+   158→  { id: 'INV-2025-002', date: '2025-02-01', description: 'Professional Plan - February 2025', amount: '$1,499.00', status: 'paid' },
+   159→  { id: 'INV-2025-003', date: '2025-01-01', description: 'Professional Plan - January 2025', amount: '$1,499.00', status: 'paid' },
+   160→  { id: 'INV-2024-012', date: '2024-12-01', description: 'Professional Plan - December 2024', amount: '$1,499.00', status: 'paid' },
+   161→  { id: 'INV-2024-011', date: '2024-11-01', description: 'Professional Plan - November 2024', amount: '$1,499.00', status: 'paid' },
+   162→  { id: 'INV-2024-010', date: '2024-10-01', description: 'Starter Plan - October 2024', amount: '$499.00', status: 'paid' },
+   163→  { id: 'INV-2024-009', date: '2024-09-15', description: 'Plan Upgrade Fee (Starter → Professional)', amount: '$1,000.00', status: 'paid' },
+   164→  { id: 'INV-2024-008', date: '2024-09-01', description: 'Starter Plan - September 2024', amount: '$499.00', status: 'void' },
+   165→]
+   166→
+   167→const MOCK_PAYMENT_METHODS: PaymentMethod[] = [
+   168→  {
+   169→    id: 'pm-1',
+   170→    type: 'card',
+   171→    label: 'Visa',
+   172→    detail: '•••• •••• •••• 4242',
+   173→    icon: CreditCard,
+   174→    isDefault: true,
+   175→    expiry: '12/2027',
+   176→  },
+   177→  {
+   178→    id: 'pm-2',
+   179→    type: 'bank',
+   180→    label: 'Bank Account',
+   181→    detail: 'Chase •••• 7831',
+   182→    icon: CreditCard,
+   183→    isDefault: false,
+   184→  },
+   185→  {
+   186→    id: 'pm-3',
+   187→    type: 'crypto',
+   188→    label: 'Crypto Wallet',
+   189→    detail: '0x71C7...3F4e',
+   190→    icon: CreditCard,
+   191→    isDefault: false,
+   192→  },
+   193→]
+   194→
+   195→const USAGE_METERS: UsageMeter[] = [
+   196→  { label: 'Players', used: 4287, limit: 10000, unit: 'players' },
+   197→  { label: 'API Calls', used: 782400, limit: 1000000, unit: 'calls' },
+   198→  { label: 'Storage', used: 42, limit: 100, unit: 'GB' },
+   199→]
+   200→
+   201→/* ─── Helpers ─── */
+   202→
+   203→const statusColor: Record<string, string> = {
+   204→  paid: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+   205→  open: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+   206→  void: 'bg-red-500/20 text-red-400 border-red-500/30',
+   207→}
+   208→
+   209→const planColorMap: Record<string, { border: string; bg: string; text: string; glow: string }> = {
+   210→  emerald: {
+   211→    border: 'border-emerald-500/30',
+   212→    bg: 'bg-emerald-500/10',
+   213→    text: 'text-emerald-400',
+   214→    glow: 'shadow-emerald-500/10',
+   215→  },
+   216→  amber: {
+   217→    border: 'border-amber-500/30',
+   218→    bg: 'bg-amber-500/10',
+   219→    text: 'text-amber-400',
+   220→    glow: 'shadow-amber-500/10',
+   221→  },
+   222→  red: {
+   223→    border: 'border-red-500/30',
+   224→    bg: 'bg-red-500/10',
+   225→    text: 'text-red-400',
+   226→    glow: 'shadow-red-500/10',
+   227→  },
+   228→}
+   229→
+   230→function formatNumber(n: number): string {
+   231→  return n.toLocaleString('en-US')
+   232→}
+   233→
+   234→/* ─── Sub-Components ─── */
+   235→
+   236→function PlanCard({
+   237→  plan,
+   238→  isCurrent,
+   239→  onUpgrade,
+   240→  onDowngrade,
+   241→}: {
+   242→  plan: Plan
+   243→  isCurrent: boolean
+   244→  onUpgrade: () => void
+   245→  onDowngrade: () => void
+   246→}) {
+   247→  const colors = planColorMap[plan.color]
+   248→  const PlanIcon = plan.icon
+   249→
+   250→  return (
+   251→    <Card
+   252→      className={`relative overflow-hidden transition-all duration-200 hover:scale-[1.02] ${
+   253→        isCurrent
+   254→          ? `${colors.border} ${colors.glow} shadow-lg`
+   255→          : 'border-border hover:border-primary/30'
+   256→      }`}
+   257→    >
+   258→      {isCurrent && (
+   259→        <div className={`absolute top-0 left-0 right-0 h-1 ${colors.bg}`} />
+   260→      )}
+   261→      <CardHeader className="pb-3">
+   262→        <div className="flex items-center justify-between">
+   263→          <div className="flex items-center gap-2">
+   264→            <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${colors.bg}`}>
+   265→              <PlanIcon className={`size-4 ${colors.text}`} />
+   266→            </div>
+   267→            <div>
+   268→              <CardTitle className="text-sm font-semibold text-primary">
+   269→                {plan.name}
+   270→              </CardTitle>
+   271→              {plan.badge && (
+   272→                <Badge
+   273→                  variant="secondary"
+   274→                  className={`mt-0.5 h-4 px-1.5 text-[9px] font-bold ${colors.bg} ${colors.text} border ${colors.border}`}
+   275→                >
+   276→                  {plan.badge}
+   277→                </Badge>
+   278→              )}
+   279→            </div>
+   280→          </div>
+   281→          {isCurrent && (
+   282→            <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px]">
+   283→              CURRENT
+   284→            </Badge>
+   285→          )}
+   286→        </div>
+   287→      </CardHeader>
+   288→      <CardContent className="space-y-4">
+   289→        {/* Price */}
+   290→        <div className="flex items-baseline gap-1">
+   291→          <span className="text-2xl font-bold text-primary">{plan.price}</span>
+   292→          {plan.period && (
+   293→            <span className="text-xs text-muted-foreground">{plan.period}</span>
+   294→          )}
+   295→        </div>
+   296→
+   297→        {/* Features */}
+   298→        <ul className="space-y-1.5">
+   299→          {plan.features.map((feature, i) => {
+   300→            const isHighlight = plan.highlight.includes(feature)
+   301→            return (
+   302→              <li key={i} className="flex items-start gap-2 text-xs">
+   303→                <CheckCircle
+   304→                  className={`size-3 mt-0.5 shrink-0 ${
+   305→                    isHighlight ? colors.text : 'text-muted-foreground'
+   306→                  }`}
+   307→                />
+   308→                <span className={isHighlight ? `font-medium ${colors.text}` : 'text-muted-foreground'}>
+   309→                  {feature}
+   310→                </span>
+   311→              </li>
+   312→            )
+   313→          })}
+   314→        </ul>
+   315→
+   316→        <Separator className="opacity-50" />
+   317→
+   318→        {/* Action */}
+   319→        {isCurrent ? (
+   320→          <div className="flex items-center gap-2">
+   321→            <Button variant="outline" size="sm" className="flex-1 gap-1 text-xs" disabled>
+   322→              <CheckCircle className="size-3" /> Active Plan
+   323→            </Button>
+   324→          </div>
+   325→        ) : plan.priceValue > 1499 || plan.priceValue === 0 ? (
+   326→          <Button
+   327→            size="sm"
+   328→            className={`flex-1 gap-1 text-xs ${colors.bg} ${colors.text} hover:opacity-80 border ${colors.border}`}
+   329→            variant="outline"
+   330→            onClick={onUpgrade}
+   331→          >
+   332→            <ExternalLink className="size-3" /> Contact Sales
+   333→          </Button>
+   334→        ) : plan.priceValue > 499 ? (
+   335→          <Button
+   336→            size="sm"
+   337→            className="flex-1 gap-1 text-xs bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:opacity-80"
+   338→            variant="outline"
+   339→            onClick={onUpgrade}
+   340→          >
+   341→            <TrendingUp className="size-3" /> Upgrade
+   342→          </Button>
+   343→        ) : (
+   344→          <Button
+   345→            size="sm"
+   346→            variant="outline"
+   347→            className="flex-1 gap-1 text-xs"
+   348→            onClick={onDowngrade}
+   349→          >
+   350→            Downgrade
+   351→          </Button>
+   352→        )}
+   353→      </CardContent>
+   354→    </Card>
+   355→  )
+   356→}
+   357→
+   358→function AddPaymentMethodDialog({ onAdd }: { onAdd: (method: PaymentMethod) => void }) {
+   359→  const [type, setType] = useState<'card' | 'bank' | 'crypto'>('card')
+   360→  const [label, setLabel] = useState('')
+   361→  const [detail, setDetail] = useState('')
+   362→  const [open, setOpen] = useState(false)
+   363→
+   364→  const handleAdd = () => {
+   365→    if (!label || !detail) return
+   366→    const newMethod: PaymentMethod = {
+   367→      id: `pm-${Date.now()}`,
+   368→      type,
+   369→      label,
+   370→      detail,
+   371→      icon: CreditCard,
+   372→      isDefault: false,
+   373→    }
+   374→    onAdd(newMethod)
+   375→    setLabel('')
+   376→    setDetail('')
+   377→    setOpen(false)
+   378→  }
+   379→
+   380→  return (
+   381→    <Dialog open={open} onOpenChange={setOpen}>
+   382→      <DialogTrigger asChild>
+   383→        <Button size="sm" className="gap-1 text-xs">
+   384→          <Plus className="size-3" /> Add Method
+   385→        </Button>
+   386→      </DialogTrigger>
+   387→      <DialogContent className="sm:max-w-md">
+   388→        <DialogHeader>
+   389→          <DialogTitle className="text-primary">Add Payment Method</DialogTitle>
+   390→        </DialogHeader>
+   391→        <div className="space-y-4 pt-2">
+   392→          <div className="space-y-2">
+   393→            <Label className="text-xs text-muted-foreground">Type</Label>
+   394→            <Select value={type} onValueChange={(v) => setType(v as 'card' | 'bank' | 'crypto')}>
+   395→              <SelectTrigger className="text-xs">
+   396→                <SelectValue />
+   397→              </SelectTrigger>
+   398→              <SelectContent>
+   399→                <SelectItem value="card">Credit / Debit Card</SelectItem>
+   400→                <SelectItem value="bank">Bank Account</SelectItem>
+   401→                <SelectItem value="crypto">Crypto Wallet</SelectItem>
+   402→              </SelectContent>
+   403→            </Select>
+   404→          </div>
+   405→          <div className="space-y-2">
+   406→            <Label className="text-xs text-muted-foreground">Label</Label>
+   407→            <Input
+   408→              placeholder={type === 'card' ? 'Visa' : type === 'bank' ? 'Chase' : 'MetaMask'}
+   409→              value={label}
+   410→              onChange={(e) => setLabel(e.target.value)}
+   411→              className="text-xs"
+   412→            />
+   413→          </div>
+   414→          <div className="space-y-2">
+   415→            <Label className="text-xs text-muted-foreground">
+   416→              {type === 'card' ? 'Card Number' : type === 'bank' ? 'Account Number' : 'Wallet Address'}
+   417→            </Label>
+   418→            <Input
+   419→              placeholder={type === 'card' ? '4242 4242 4242 4242' : type === 'bank' ? '0000 0000' : '0x...'}
+   420→              value={detail}
+   421→              onChange={(e) => setDetail(e.target.value)}
+   422→              className="text-xs"
+   423→            />
+   424→          </div>
+   425→          <Button onClick={handleAdd} className="w-full gap-1 text-xs" disabled={!label || !detail}>
+   426→            <Plus className="size-3" /> Add Payment Method
+   427→          </Button>
+   428→        </div>
+   429→      </DialogContent>
+   430→    </Dialog>
+   431→  )
+   432→}
+   433→
+   434→/* ─── Main Component ─── */
+   435→
+   436→export function BillingView() {
+   437→  const [currentPlan, setCurrentPlan] = useState<string>('professional')
+   438→  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>(MOCK_PAYMENT_METHODS)
+   439→  const [autoRenew, setAutoRenew] = useState(true)
+   440→  const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false)
+   441→  const [targetPlan, setTargetPlan] = useState<string>('')
+   442→
+   443→  const { data: billingData, loading, error, refetch } = useApi(
+   444→    () => api.billing.get(),
+   445→    []
+   446→  )
+   447→
+   448→  const handleUpgrade = (planId: string) => {
+   449→    setTargetPlan(planId)
+   450→    setUpgradeDialogOpen(true)
+   451→  }
+   452→
+   453→  const handleDowngrade = (planId: string) => {
+   454→    setTargetPlan(planId)
+   455→    setUpgradeDialogOpen(true)
+   456→  }
+   457→
+   458→  const confirmPlanChange = () => {
+   459→    setCurrentPlan(targetPlan)
+   460→    setUpgradeDialogOpen(false)
+   461→    setTargetPlan('')
+   462→  }
+   463→
+   464→  const handleAddPaymentMethod = (method: PaymentMethod) => {
+   465→    setPaymentMethods((prev) => [...prev, method])
+   466→  }
+   467→
+   468→  const handleSetDefault = (id: string) => {
+   469→    setPaymentMethods((prev) =>
+   470→      prev.map((m) => ({ ...m, isDefault: m.id === id }))
+   471→    )
+   472→  }
+   473→
+   474→  const handleRemovePaymentMethod = (id: string) => {
+   475→    setPaymentMethods((prev) => {
+   476→      const filtered = prev.filter((m) => m.id !== id)
+   477→      if (filtered.length > 0 && !filtered.some((m) => m.isDefault)) {
+   478→        filtered[0].isDefault = true
+   479→      }
+   480→      return filtered
+   481→    })
+   482→  }
+   483→
+   484→  if (loading) {
+   485→    return (
+   486→      <div className="space-y-4">
+   487→        <Skeleton className="h-10 w-full max-w-md" />
+   488→        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   489→          {Array.from({ length: 3 }).map((_, i) => (
+   490→            <Card key={i}>
+   491→              <CardContent className="p-6">
+   492→                <Skeleton className="h-32 w-full" />
+   493→              </CardContent>
+   494→            </Card>
+   495→          ))}
+   496→        </div>
+   497→      </div>
+   498→    )
+   499→  }
+   500→
+   501→  if (error) {
+   502→    return (
+   503→      <Card className="border-destructive/40">
+   504→        <CardContent className="p-6 text-center">
+   505→          <AlertTriangle className="size-8 text-destructive mx-auto mb-2" />
+   506→          <p className="text-sm font-medium text-destructive">Failed to load billing data</p>
+   507→          <p className="text-xs text-muted-foreground mt-1">{error}</p>
+   508→          <Button variant="outline" size="sm" className="mt-3 gap-1" onClick={refetch}>
+   509→            <RefreshCw className="size-3" /> Retry
+   510→          </Button>
+   511→        </CardContent>
+   512→      </Card>
+   513→    )
+   514→  }
+   515→
+   516→  const currentPlanData = PLANS.find((p) => p.id === currentPlan)
+   517→  const usagePercent = (used: number, limit: number) => Math.min(Math.round((used / limit) * 100), 100)
+   518→
+   519→  return (
+   520→    <div className="space-y-4">
+   521→      {/* Header */}
+   522→      <div className="flex items-center justify-between">
+   523→        <div className="flex items-center gap-2">
+   524→          <Receipt className="size-5 text-primary" />
+   525→          <h2 className="text-lg font-semibold text-primary">Billing & Subscription</h2>
+   526→        </div>
+   527→        <div className="flex items-center gap-2">
+   528→          <Badge variant="outline" className="text-[9px] border-emerald-500/30 text-emerald-400">
+   529→            ACTIVE
+   530→          </Badge>
+   531→          <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={refetch}>
+   532→            <RefreshCw className="size-3" /> Refresh
+   533→          </Button>
+   534→        </div>
+   535→      </div>
+   536→
+   537→      {/* Tabs */}
+   538→      <Tabs defaultValue="plans" className="space-y-4">
+   539→        <TabsList className="bg-muted/50">
+   540→          <TabsTrigger value="plans" className="text-xs gap-1">
+   541→            <Star className="size-3" /> Plans
+   542→          </TabsTrigger>
+   543→          <TabsTrigger value="subscription" className="text-xs gap-1">
+   544→            <Settings className="size-3" /> Subscription
+   545→          </TabsTrigger>
+   546→          <TabsTrigger value="invoices" className="text-xs gap-1">
+   547→            <Receipt className="size-3" /> Invoices
+   548→          </TabsTrigger>
+   549→          <TabsTrigger value="payment" className="text-xs gap-1">
+   550→            <CreditCard className="size-3" /> Payment
+   551→          </TabsTrigger>
+   552→        </TabsList>
+   553→
+   554→        {/* ─── Tab 1: Plans ─── */}
+   555→        <TabsContent value="plans">
+   556→          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+   557→            {PLANS.map((plan) => (
+   558→              <PlanCard
+   559→                key={plan.id}
+   560→                plan={plan}
+   561→                isCurrent={currentPlan === plan.id}
+   562→                onUpgrade={() => handleUpgrade(plan.id)}
+   563→                onDowngrade={() => handleDowngrade(plan.id)}
+   564→              />
+   565→            ))}
+   566→          </div>
+   567→
+   568→          {/* Comparison note */}
+   569→          <Card className="mt-4 border-primary/20">
+   570→            <CardContent className="p-4">
+   571→              <div className="flex items-start gap-2">
+   572→                <Zap className="size-4 text-amber-400 mt-0.5 shrink-0" />
+   573→                <div>
+   574→                  <p className="text-xs font-medium text-primary">Need more power?</p>
+   575→                  <p className="text-xs text-muted-foreground mt-0.5">
+   576→                    All plans include core platform access. Upgrade anytime — prorated billing applied automatically.
+   577→                    Enterprise plans include dedicated infrastructure and custom SLAs.
+   578→                  </p>
+   579→                </div>
+   580→              </div>
+   581→            </CardContent>
+   582→          </Card>
+   583→        </TabsContent>
+   584→
+   585→        {/* ─── Tab 2: Subscription ─── */}
+   586→        <TabsContent value="subscription">
+   587→          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   588→            {/* Subscription Details */}
+   589→            <Card className="border-primary/20">
+   590→              <CardHeader className="pb-3">
+   591→                <CardTitle className="text-sm font-semibold text-primary flex items-center gap-2">
+   592→                  <Crown className="size-4 text-amber-400" />
+   593→                  Current Subscription
+   594→                </CardTitle>
+   595→              </CardHeader>
+   596→              <CardContent className="space-y-3">
+   597→                <div className="grid grid-cols-2 gap-3">
+   598→                  <div className="space-y-1">
+   599→                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Plan</p>
+   600→                    <p className="text-sm font-medium text-primary">{currentPlanData?.name ?? '—'}</p>
+   601→                  </div>
+   602→                  <div className="space-y-1">
+   603→                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Status</p>
+   604→                    <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px]">
+   605→                      Active
+   606→                    </Badge>
+   607→                  </div>
+   608→                  <div className="space-y-1">
+   609→                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Billing Period</p>
+   610→                    <p className="text-xs font-medium text-muted-foreground">Monthly</p>
+   611→                  </div>
+   612→                  <div className="space-y-1">
+   613→                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Next Billing</p>
+   614→                    <p className="text-xs font-medium text-muted-foreground">April 1, 2025</p>
+   615→                  </div>
+   616→                  <div className="space-y-1">
+   617→                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Trial Status</p>
+   618→                    <Badge variant="outline" className="text-[10px] border-muted text-muted-foreground">
+   619→                      No Trial
+   620→                    </Badge>
+   621→                  </div>
+   622→                  <div className="space-y-1">
+   623→                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Amount</p>
+   624→                    <p className="text-sm font-bold text-primary">{currentPlanData?.price}{currentPlanData?.period}</p>
+   625→                  </div>
+   626→                </div>
+   627→
+   628→                <Separator className="opacity-50" />
+   629→
+   630→                {/* Auto-renew toggle */}
+   631→                <div className="flex items-center justify-between">
+   632→                  <div className="flex items-center gap-2">
+   633→                    <RefreshCw className="size-3 text-muted-foreground" />
+   634→                    <Label className="text-xs text-muted-foreground">Auto-renew</Label>
+   635→                  </div>
+   636→                  <Switch checked={autoRenew} onCheckedChange={setAutoRenew} />
+   637→                </div>
+   638→              </CardContent>
+   639→            </Card>
+   640→
+   641→            {/* Usage Meters */}
+   642→            <Card className="border-primary/20">
+   643→              <CardHeader className="pb-3">
+   644→                <CardTitle className="text-sm font-semibold text-primary flex items-center gap-2">
+   645→                  <TrendingUp className="size-4 text-emerald-400" />
+   646→                  Usage Overview
+   647→                </CardTitle>
+   648→              </CardHeader>
+   649→              <CardContent className="space-y-5">
+   650→                {USAGE_METERS.map((meter) => {
+   651→                  const pct = usagePercent(meter.used, meter.limit)
+   652→                  const isHigh = pct > 80
+   653→                  const isWarning = pct > 60 && pct <= 80
+   654→                  return (
+   655→                    <div key={meter.label} className="space-y-2">
+   656→                      <div className="flex items-center justify-between">
+   657→                        <div className="flex items-center gap-2">
+   658→                          <span className="text-xs font-medium text-primary">{meter.label}</span>
+   659→                          {isHigh && (
+   660→                            <Badge className="bg-red-500/20 text-red-400 border border-red-500/30 text-[9px]">
+   661→                              HIGH
+   662→                            </Badge>
+   663→                          )}
+   664→                          {isWarning && (
+   665→                            <Badge className="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[9px]">
+   666→                              MODERATE
+   667→                            </Badge>
+   668→                          )}
+   669→                        </div>
+   670→                        <span className="text-xs text-muted-foreground">
+   671→                          {formatNumber(meter.used)} / {formatNumber(meter.limit)} {meter.unit}
+   672→                        </span>
+   673→                      </div>
+   674→                      <Progress
+   675→                        value={pct}
+   676→                        className={`h-2 ${isHigh ? '[&>div]:bg-red-500' : isWarning ? '[&>div]:bg-amber-500' : '[&>div]:bg-emerald-500'}`}
+   677→                      />
+   678→                      <p className="text-[10px] text-muted-foreground">{pct}% utilized</p>
+   679→                    </div>
+   680→                  )
+   681→                })}
+   682→              </CardContent>
+   683→            </Card>
+   684→          </div>
+   685→
+   686→          {/* Quick actions */}
+   687→          <div className="flex flex-wrap gap-2 mt-4">
+   688→            <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => handleUpgrade('enterprise')}>
+   689→              <Crown className="size-3 text-red-400" /> Upgrade to Enterprise
+   690→            </Button>
+   691→            <Button variant="outline" size="sm" className="gap-1 text-xs">
+   692→              <Download className="size-3" /> Export Usage Report
+   693→            </Button>
+   694→          </div>
+   695→        </TabsContent>
+   696→
+   697→        {/* ─── Tab 3: Invoices ─── */}
+   698→        <TabsContent value="invoices">
+   699→          <Card className="border-primary/20">
+   700→            <CardHeader className="pb-3">
+   701→              <div className="flex items-center justify-between">
+   702→                <CardTitle className="text-sm font-semibold text-primary flex items-center gap-2">
+   703→                  <Receipt className="size-4 text-primary" />
+   704→                  Invoice History
+   705→                </CardTitle>
+   706→                <Badge variant="outline" className="text-[9px] border-muted text-muted-foreground">
+   707→                  {MOCK_INVOICES.length} invoices
+   708→                </Badge>
+   709→              </div>
+   710→            </CardHeader>
+   711→            <CardContent className="p-0">
+   712→              <ScrollArea className="max-h-96">
+   713→                <Table>
+   714→                  <TableHeader>
+   715→                    <TableRow className="hover:bg-transparent">
+   716→                      <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground">Date</TableHead>
+   717→                      <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground">Invoice</TableHead>
+   718→                      <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground">Description</TableHead>
+   719→                      <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground text-right">Amount</TableHead>
+   720→                      <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground">Status</TableHead>
+   721→                      <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground text-right">PDF</TableHead>
+   722→                    </TableRow>
+   723→                  </TableHeader>
+   724→                  <TableBody>
+   725→                    {MOCK_INVOICES.map((inv) => (
+   726→                      <TableRow key={inv.id} className="group">
+   727→                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+   728→                          {new Date(inv.date).toLocaleDateString('en-US', {
+   729→                            year: 'numeric',
+   730→                            month: 'short',
+   731→                            day: 'numeric',
+   732→                          })}
+   733→                        </TableCell>
+   734→                        <TableCell className="text-xs font-mono text-primary">{inv.id}</TableCell>
+   735→                        <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+   736→                          {inv.description}
+   737→                        </TableCell>
+   738→                        <TableCell className="text-xs font-medium text-primary text-right">
+   739→                          {inv.amount}
+   740→                        </TableCell>
+   741→                        <TableCell>
+   742→                          <Badge
+   743→                            className={`text-[9px] border ${statusColor[inv.status]}`}
+   744→                            variant="secondary"
+   745→                          >
+   746→                            {inv.status.toUpperCase()}
+   747→                          </Badge>
+   748→                        </TableCell>
+   749→                        <TableCell className="text-right">
+   750→                          {inv.status !== 'void' ? (
+   751→                            <Button
+   752→                              variant="ghost"
+   753→                              size="sm"
+   754→                              className="size-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+   755→                            >
+   756→                              <Download className="size-3 text-muted-foreground" />
+   757→                            </Button>
+   758→                          ) : (
+   759→                            <span className="text-[10px] text-muted-foreground">—</span>
+   760→                          )}
+   761→                        </TableCell>
+   762→                      </TableRow>
+   763→                    ))}
+   764→                  </TableBody>
+   765→                </Table>
+   766→              </ScrollArea>
+   767→            </CardContent>
+   768→          </Card>
+   769→        </TabsContent>
+   770→
+   771→        {/* ─── Tab 4: Payment Methods ─── */}
+   772→        <TabsContent value="payment">
+   773→          <div className="space-y-4">
+   774→            {/* Header with Add button */}
+   775→            <div className="flex items-center justify-between">
+   776→              <p className="text-xs text-muted-foreground">
+   777→                Manage your payment methods and billing preferences
+   778→              </p>
+   779→              <AddPaymentMethodDialog onAdd={handleAddPaymentMethod} />
+   780→            </div>
+   781→
+   782→            {/* Payment method cards */}
+   783→            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   784→              {paymentMethods.map((method) => {
+   785→                const MethodIcon = method.icon
+   786→                const typeColors: Record<string, string> = {
+   787→                  card: 'border-emerald-500/30',
+   788→                  bank: 'border-amber-500/30',
+   789→                  crypto: 'border-red-500/30',
+   790→                }
+   791→                const typeIconColors: Record<string, string> = {
+   792→                  card: 'text-emerald-400 bg-emerald-500/10',
+   793→                  bank: 'text-amber-400 bg-amber-500/10',
+   794→                  crypto: 'text-red-400 bg-red-500/10',
+   795→                }
+   796→
+   797→                return (
+   798→                  <Card key={method.id} className={`${typeColors[method.type]} transition-all hover:scale-[1.01]`}>
+   799→                    <CardContent className="p-4 space-y-3">
+   800→                      <div className="flex items-center justify-between">
+   801→                        <div className="flex items-center gap-2">
+   802→                          <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${typeIconColors[method.type]}`}>
+   803→                            <MethodIcon className="size-4" />
+   804→                          </div>
+   805→                          <div>
+   806→                            <p className="text-sm font-medium text-primary">{method.label}</p>
+   807→                            <p className="text-xs text-muted-foreground font-mono">{method.detail}</p>
+   808→                          </div>
+   809→                        </div>
+   810→                        {method.isDefault && (
+   811→                          <Badge className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px]">
+   812→                            DEFAULT
+   813→                          </Badge>
+   814→                        )}
+   815→                      </div>
+   816→
+   817→                      {method.expiry && (
+   818→                        <p className="text-[10px] text-muted-foreground">
+   819→                          Expires: {method.expiry}
+   820→                        </p>
+   821→                      )}
+   822→
+   823→                      <Separator className="opacity-50" />
+   824→
+   825→                      <div className="flex items-center gap-2">
+   826→                        {!method.isDefault && (
+   827→                          <Button
+   828→                            variant="outline"
+   829→                            size="sm"
+   830→                            className="flex-1 text-[10px] gap-1"
+   831→                            onClick={() => handleSetDefault(method.id)}
+   832→                          >
+   833→                            <Star className="size-3" /> Set Default
+   834→                          </Button>
+   835→                        )}
+   836→                        {paymentMethods.length > 1 && (
+   837→                          <Button
+   838→                            variant="outline"
+   839→                            size="sm"
+   840→                            className="text-[10px] gap-1 text-red-400 border-red-500/30 hover:bg-red-500/10"
+   841→                            onClick={() => handleRemovePaymentMethod(method.id)}
+   842→                          >
+   843→                            Remove
+   844→                          </Button>
+   845→                        )}
+   846→                      </div>
+   847→                    </CardContent>
+   848→                  </Card>
+   849→                )
+   850→              })}
+   851→            </div>
+   852→
+   853→            {/* Billing preferences */}
+   854→            <Card className="border-primary/20">
+   855→              <CardHeader className="pb-3">
+   856→                <CardTitle className="text-sm font-semibold text-primary flex items-center gap-2">
+   857→                  <Settings className="size-4 text-primary" />
+   858→                  Billing Preferences
+   859→                </CardTitle>
+   860→              </CardHeader>
+   861→              <CardContent className="space-y-3">
+   862→                <div className="flex items-center justify-between">
+   863→                  <div className="space-y-0.5">
+   864→                    <Label className="text-xs font-medium text-primary">Email invoices</Label>
+   865→                    <p className="text-[10px] text-muted-foreground">Receive invoice PDFs via email</p>
+   866→                  </div>
+   867→                  <Switch defaultChecked />
+   868→                </div>
+   869→                <Separator className="opacity-50" />
+   870→                <div className="flex items-center justify-between">
+   871→                  <div className="space-y-0.5">
+   872→                    <Label className="text-xs font-medium text-primary">Usage alerts</Label>
+   873→                    <p className="text-[10px] text-muted-foreground">Notify when usage exceeds 80%</p>
+   874→                  </div>
+   875→                  <Switch defaultChecked />
+   876→                </div>
+   877→                <Separator className="opacity-50" />
+   878→                <div className="flex items-center justify-between">
+   879→                  <div className="space-y-0.5">
+   880→                    <Label className="text-xs font-medium text-primary">Crypto payments</Label>
+   881→                    <p className="text-[10px] text-muted-foreground">Enable stablecoin / crypto settlements</p>
+   882→                  </div>
+   883→                  <Switch />
+   884→                </div>
+   885→              </CardContent>
+   886→            </Card>
+   887→          </div>
+   888→        </TabsContent>
+   889→      </Tabs>
+   890→
+   891→      {/* Plan Change Confirmation Dialog */}
+   892→      <Dialog open={upgradeDialogOpen} onOpenChange={setUpgradeDialogOpen}>
+   893→        <DialogContent className="sm:max-w-md">
+   894→          <DialogHeader>
+   895→            <DialogTitle className="text-primary">Confirm Plan Change</DialogTitle>
+   896→          </DialogHeader>
+   897→          <div className="space-y-4 pt-2">
+   898→            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+   899→              <AlertTriangle className="size-5 text-amber-400 shrink-0" />
+   900→              <div>
+   901→                <p className="text-xs font-medium text-primary">
+   902→                  Changing from {currentPlanData?.name} to {PLANS.find((p) => p.id === targetPlan)?.name}
+   903→                </p>
+   904→                <p className="text-[10px] text-muted-foreground mt-0.5">
+   905→                  {PLANS.find((p) => p.id === targetPlan)?.priceValue > (currentPlanData?.priceValue ?? 0)
+   906→                    ? 'Prorated upgrade charges will apply immediately.'
+   907→                    : 'Downgrade takes effect at the end of the current billing period.'}
+   908→                </p>
+   909→              </div>
+   910→            </div>
+   911→            <div className="flex items-center gap-2">
+   912→              <Button onClick={confirmPlanChange} className="flex-1 text-xs gap-1">
+   913→                <CheckCircle className="size-3" /> Confirm Change
+   914→              </Button>
+   915→              <Button
+   916→                variant="outline"
+   917→                onClick={() => setUpgradeDialogOpen(false)}
+   918→                className="flex-1 text-xs"
+   919→              >
+   920→                Cancel
+   921→              </Button>
+   922→            </div>
+   923→          </div>
+   924→        </DialogContent>
+   925→      </Dialog>
+   926→    </div>
+   927→  )
+   928→}
+   929→

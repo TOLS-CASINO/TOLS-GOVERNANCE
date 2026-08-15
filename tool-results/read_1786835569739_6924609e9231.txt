@@ -1,0 +1,823 @@
+     1→'use client'
+     2→
+     3→import { useState } from 'react'
+     4→import { Rocket, Building2, UserPlus, Puzzle, CheckCircle, ArrowRight, ArrowLeft, Globe, Wallet, Bot, Activity, Server, Shield } from 'lucide-react'
+     5→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+     6→import { Badge } from '@/components/ui/badge'
+     7→import { Button } from '@/components/ui/button'
+     8→import { Input } from '@/components/ui/input'
+     9→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    10→import { Switch } from '@/components/ui/switch'
+    11→import { Label } from '@/components/ui/label'
+    12→import { Separator } from '@/components/ui/separator'
+    13→import { Progress } from '@/components/ui/progress'
+    14→import { Textarea } from '@/components/ui/textarea'
+    15→import { Checkbox } from '@/components/ui/checkbox'
+    16→import { useAppStore } from '@/lib/store'
+    17→
+    18→// ─── Types ───────────────────────────────────────────────────────────────────
+    19→
+    20→interface FormData {
+    21→  casinoName: string
+    22→  brandLogoUrl: string
+    23→  primaryCurrency: string
+    24→  primaryLanguage: string
+    25→  timezone: string
+    26→  domain: string
+    27→  adminFullName: string
+    28→  adminEmail: string
+    29→  adminPassword: string
+    30→  adminConfirmPassword: string
+    31→  adminRole: string
+    32→  inviteEmails: string
+    33→  providers: Record<string, boolean>
+    34→  enableBlockchain: boolean
+    35→  enableAiTutor: boolean
+    36→  enableLiveTracking: boolean
+    37→}
+    38→
+    39→const INITIAL_FORM_DATA: FormData = {
+    40→  casinoName: '',
+    41→  brandLogoUrl: '',
+    42→  primaryCurrency: '',
+    43→  primaryLanguage: '',
+    44→  timezone: '',
+    45→  domain: '',
+    46→  adminFullName: '',
+    47→  adminEmail: '',
+    48→  adminPassword: '',
+    49→  adminConfirmPassword: '',
+    50→  adminRole: 'Admin',
+    51→  inviteEmails: '',
+    52→  providers: {
+    53→    'Evolution Gaming': false,
+    54→    'Pragmatic Play': false,
+    55→    'NetEnt': false,
+    56→    'Microgaming': false,
+    57→    "Play'n GO": false,
+    58→  },
+    59→  enableBlockchain: false,
+    60→  enableAiTutor: false,
+    61→  enableLiveTracking: false,
+    62→}
+    63→
+    64→const STEP_META = [
+    65→  { label: 'Welcome', icon: Rocket },
+    66→  { label: 'Casino Setup', icon: Building2 },
+    67→  { label: 'User Setup', icon: UserPlus },
+    68→  { label: 'Integrations', icon: Puzzle },
+    69→  { label: 'Complete', icon: CheckCircle },
+    70→] as const
+    71→
+    72→const CURRENCIES = ['USD', 'EUR', 'GBP', 'BTC', 'ETH', 'USDT', 'CAD', 'AUD']
+    73→const LANGUAGES = ['English', 'Spanish', 'French', 'German', 'Portuguese', 'Russian', 'Japanese', 'Chinese (Simplified)', 'Chinese (Traditional)', 'Korean', 'Arabic', 'Hindi']
+    74→const TIMEZONES = [
+    75→  'UTC',
+    76→  'America/New_York',
+    77→  'America/Chicago',
+    78→  'America/Denver',
+    79→  'America/Los_Angeles',
+    80→  'Europe/London',
+    81→  'Europe/Berlin',
+    82→  'Europe/Paris',
+    83→  'Asia/Tokyo',
+    84→  'Asia/Shanghai',
+    85→  'Asia/Hong_Kong',
+    86→  'Asia/Singapore',
+    87→  'Australia/Sydney',
+    88→  'Pacific/Auckland',
+    89→]
+    90→
+    91→const PROVIDER_ICONS: Record<string, typeof Server> = {
+    92→  'Evolution Gaming': Server,
+    93→  'Pragmatic Play': Globe,
+    94→  'NetEnt': Shield,
+    95→  'Microgaming': Wallet,
+    96→  "Play'n GO": Activity,
+    97→}
+    98→
+    99→// ─── Step Validation ─────────────────────────────────────────────────────────
+   100→
+   101→function isStepValid(step: number, data: FormData): boolean {
+   102→  switch (step) {
+   103→    case 0:
+   104→      return data.casinoName.trim().length >= 2
+   105→    case 1:
+   106→      return (
+   107→        data.casinoName.trim().length >= 2 &&
+   108→        data.primaryCurrency !== '' &&
+   109→        data.primaryLanguage !== '' &&
+   110→        data.timezone !== ''
+   111→      )
+   112→    case 2:
+   113→      return (
+   114→        data.adminFullName.trim().length >= 2 &&
+   115→        data.adminEmail.trim().length >= 5 &&
+   116→        data.adminEmail.includes('@') &&
+   117→        data.adminPassword.length >= 6 &&
+   118→        data.adminPassword === data.adminConfirmPassword
+   119→      )
+   120→    case 3:
+   121→      return true // integrations are optional
+   122→    case 4:
+   123→      return true
+   124→    default:
+   125→      return false
+   126→  }
+   127→}
+   128→
+   129→// ─── Component ───────────────────────────────────────────────────────────────
+   130→
+   131→export function OnboardingView() {
+   132→  const [currentStep, setCurrentStep] = useState(0)
+   133→  const [formData, setFormData] = useState<FormData>(INITIAL_FORM_DATA)
+   134→  const { setOnboardingComplete, setActiveSection } = useAppStore()
+   135→
+   136→  const totalSteps = STEP_META.length
+   137→  const progressPercent = ((currentStep + 1) / totalSteps) * 100
+   138→  const canProceed = isStepValid(currentStep, formData)
+   139→
+   140→  // ── Helpers ──────────────────────────────────────────────────────────────
+   141→
+   142→  function updateField<K extends keyof FormData>(key: K, value: FormData[K]) {
+   143→    setFormData((prev) => ({ ...prev, [key]: value }))
+   144→  }
+   145→
+   146→  function toggleProvider(name: string) {
+   147→    setFormData((prev) => ({
+   148→      ...prev,
+   149→      providers: { ...prev.providers, [name]: !prev.providers[name] },
+   150→    }))
+   151→  }
+   152→
+   153→  function goNext() {
+   154→    if (canProceed && currentStep < totalSteps - 1) {
+   155→      setCurrentStep((s) => s + 1)
+   156→    }
+   157→  }
+   158→
+   159→  function goBack() {
+   160→    if (currentStep > 0) {
+   161→      setCurrentStep((s) => s - 1)
+   162→    }
+   163→  }
+   164→
+   165→  function handleFinish() {
+   166→    setOnboardingComplete(true)
+   167→    setActiveSection('dashboard')
+   168→  }
+   169→
+   170→  // ── Render ───────────────────────────────────────────────────────────────
+   171→
+   172→  return (
+   173→    <div className="min-h-screen flex flex-col items-center justify-start bg-background p-4 sm:p-6 md:p-8">
+   174→      {/* ── Header ────────────────────────────────────────────────────────── */}
+   175→      <div className="w-full max-w-2xl mb-8">
+   176→        <div className="flex items-center gap-3 mb-2">
+   177→          <div className="h-10 w-10 rounded-lg bg-primary/20 flex items-center justify-center">
+   178→            <Rocket className="h-5 w-5 text-primary" />
+   179→          </div>
+   180→          <div>
+   181→            <h1 className="text-xl font-bold text-foreground tracking-tight">TOLS Platform</h1>
+   182→            <p className="text-xs text-muted-foreground">iGaming Operations & Intelligence Suite</p>
+   183→          </div>
+   184→        </div>
+   185→      </div>
+   186→
+   187→      {/* ── Step Indicators ───────────────────────────────────────────────── */}
+   188→      <div className="w-full max-w-2xl mb-6">
+   189→        <div className="flex items-center justify-between mb-3">
+   190→          {STEP_META.map((step, idx) => {
+   191→            const Icon = step.icon
+   192→            const isCompleted = idx < currentStep
+   193→            const isActive = idx === currentStep
+   194→            return (
+   195→              <div key={idx} className="flex flex-col items-center gap-1.5 flex-1">
+   196→                <div
+   197→                  className={`
+   198→                    h-10 w-10 rounded-full flex items-center justify-center transition-all duration-300 border-2
+   199→                    ${isCompleted ? 'border-emerald-400 bg-emerald-400/10' : ''}
+   200→                    ${isActive ? 'border-primary bg-primary/10' : ''}
+   201→                    ${!isCompleted && !isActive ? 'border-muted-foreground/30 bg-muted/50' : ''}
+   202→                  `}
+   203→                >
+   204→                  {isCompleted ? (
+   205→                    <CheckCircle className="h-5 w-5 text-emerald-400" />
+   206→                  ) : (
+   207→                    <Icon
+   208→                      className={`h-5 w-5 ${
+   209→                        isActive ? 'text-primary' : 'text-muted-foreground'
+   210→                      }`}
+   211→                    />
+   212→                  )}
+   213→                </div>
+   214→                <span
+   215→                  className={`text-[11px] font-medium text-center leading-tight ${
+   216→                    isCompleted
+   217→                      ? 'text-emerald-400'
+   218→                      : isActive
+   219→                        ? 'text-primary'
+   220→                        : 'text-muted-foreground'
+   221→                  }`}
+   222→                >
+   223→                  {step.label}
+   224→                </span>
+   225→              </div>
+   226→            )
+   227→          })}
+   228→        </div>
+   229→
+   230→        {/* Connecting lines */}
+   231→        <div className="flex items-center gap-1 px-5 -mt-8 mb-5">
+   232→          {STEP_META.map((_, idx) => {
+   233→            if (idx === STEP_META.length - 1) return null
+   234→            const isCompleted = idx < currentStep
+   235→            return (
+   236→              <div
+   237→                key={idx}
+   238→                className={`flex-1 h-0.5 rounded-full transition-colors duration-300 ${
+   239→                  isCompleted ? 'bg-emerald-400' : 'bg-muted-foreground/20'
+   240→                }`}
+   241→              />
+   242→            )
+   243→          })}
+   244→        </div>
+   245→
+   246→        {/* Progress bar */}
+   247→        <div className="flex items-center gap-3">
+   248→          <Progress value={progressPercent} className="flex-1 h-2" />
+   249→          <span className="text-xs font-medium text-muted-foreground tabular-nums">
+   250→            {Math.round(progressPercent)}%
+   251→          </span>
+   252→        </div>
+   253→      </div>
+   254→
+   255→      {/* ── Step Content ──────────────────────────────────────────────────── */}
+   256→      <Card className="w-full max-w-2xl bg-card/80 backdrop-blur-sm border-border/50">
+   257→        <CardContent className="p-6">
+   258→          {currentStep === 0 && renderWelcomeStep()}
+   259→          {currentStep === 1 && renderCasinoSetupStep()}
+   260→          {currentStep === 2 && renderUserSetupStep()}
+   261→          {currentStep === 3 && renderIntegrationsStep()}
+   262→          {currentStep === 4 && renderCompleteStep()}
+   263→        </CardContent>
+   264→      </Card>
+   265→
+   266→      {/* ── Navigation ────────────────────────────────────────────────────── */}
+   267→      {currentStep < 4 && (
+   268→        <div className="w-full max-w-2xl flex items-center justify-between mt-6">
+   269→          <Button
+   270→            variant="outline"
+   271→            onClick={goBack}
+   272→            disabled={currentStep === 0}
+   273→            className="gap-2"
+   274→          >
+   275→            <ArrowLeft className="h-4 w-4" />
+   276→            Back
+   277→          </Button>
+   278→
+   279→          <div className="flex items-center gap-2">
+   280→            {STEP_META.map((_, idx) => (
+   281→              <div
+   282→                key={idx}
+   283→                className={`h-2 rounded-full transition-all duration-300 ${
+   284→                  idx === currentStep
+   285→                    ? 'w-6 bg-primary'
+   286→                    : idx < currentStep
+   287→                      ? 'w-2 bg-emerald-400'
+   288→                      : 'w-2 bg-muted-foreground/30'
+   289→                }`}
+   290→              />
+   291→            ))}
+   292→          </div>
+   293→
+   294→          <Button
+   295→            onClick={goNext}
+   296→            disabled={!canProceed}
+   297→            className="gap-2"
+   298→          >
+   299→            Next
+   300→            <ArrowRight className="h-4 w-4" />
+   301→          </Button>
+   302→        </div>
+   303→      )}
+   304→    </div>
+   305→  )
+   306→
+   307→  // ── Step Renderers ───────────────────────────────────────────────────────
+   308→
+   309→  function renderWelcomeStep() {
+   310→    return (
+   311→      <div className="space-y-6">
+   312→        <div className="text-center space-y-3">
+   313→          <div className="inline-flex h-16 w-16 rounded-2xl bg-primary/10 items-center justify-center mb-2">
+   314→            <Rocket className="h-8 w-8 text-primary" />
+   315→          </div>
+   316→          <h2 className="text-2xl font-bold text-foreground">Welcome to TOLS Platform</h2>
+   317→          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+   318→            Your all-in-one command center for iGaming operations. Let&apos;s get you set up in just a few steps.
+   319→          </p>
+   320→        </div>
+   321→
+   322→        <Separator />
+   323→
+   324→        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   325→          {[
+   326→            { icon: Wallet, title: 'Financial Governance', desc: 'Complete control over transactions, wallets, and treasury operations' },
+   327→            { icon: Activity, title: 'Player Intelligence', desc: 'Deep analytics, segmentation, and real-time player monitoring' },
+   328→            { icon: Server, title: 'Vendor Integration', desc: 'Seamless game provider connections and vendor management' },
+   329→            { icon: Bot, title: 'AI Assistance', desc: 'Intelligent tutor, anomaly detection, and automated insights' },
+   330→            { icon: Globe, title: 'Real-time Monitoring', desc: 'Live dashboards, global player maps, and instant alerts' },
+   331→            { icon: Shield, title: 'Compliance & Security', desc: 'KYC/AML, regulatory compliance, and blockchain audit trails' },
+   332→          ].map((item) => (
+   333→            <div
+   334→              key={item.title}
+   335→              className="flex gap-3 p-3 rounded-lg bg-muted/30 border border-border/30"
+   336→            >
+   337→              <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0">
+   338→                <item.icon className="h-4 w-4 text-primary" />
+   339→              </div>
+   340→              <div>
+   341→                <p className="text-sm font-medium text-foreground">{item.title}</p>
+   342→                <p className="text-xs text-muted-foreground leading-relaxed">{item.desc}</p>
+   343→              </div>
+   344→            </div>
+   345→          ))}
+   346→        </div>
+   347→
+   348→        <Separator />
+   349→
+   350→        <div className="space-y-2">
+   351→          <Label htmlFor="welcome-casino-name" className="text-sm font-medium">
+   352→            Casino Name <span className="text-red-400">*</span>
+   353→          </Label>
+   354→          <Input
+   355→            id="welcome-casino-name"
+   356→            placeholder="e.g. Royal Flush Casino"
+   357→            value={formData.casinoName}
+   358→            onChange={(e) => updateField('casinoName', e.target.value)}
+   359→            className="bg-muted/30"
+   360→          />
+   361→          <p className="text-xs text-muted-foreground">
+   362→            This will be your platform identifier. You can change it later.
+   363→          </p>
+   364→        </div>
+   365→      </div>
+   366→    )
+   367→  }
+   368→
+   369→  function renderCasinoSetupStep() {
+   370→    return (
+   371→      <div className="space-y-6">
+   372→        <CardHeader className="px-0 pt-0">
+   373→          <CardTitle className="flex items-center gap-2 text-lg">
+   374→            <Building2 className="h-5 w-5 text-primary" />
+   375→            Casino Configuration
+   376→          </CardTitle>
+   377→        </CardHeader>
+   378→
+   379→        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+   380→          {/* Casino Name */}
+   381→          <div className="space-y-2 sm:col-span-2">
+   382→            <Label htmlFor="casino-name">
+   383→              Casino Name <span className="text-red-400">*</span>
+   384→            </Label>
+   385→            <Input
+   386→              id="casino-name"
+   387→              placeholder="Royal Flush Casino"
+   388→              value={formData.casinoName}
+   389→              onChange={(e) => updateField('casinoName', e.target.value)}
+   390→              className="bg-muted/30"
+   391→            />
+   392→          </div>
+   393→
+   394→          {/* Brand/Logo URL */}
+   395→          <div className="space-y-2 sm:col-span-2">
+   396→            <Label htmlFor="brand-logo">Brand / Logo URL</Label>
+   397→            <Input
+   398→              id="brand-logo"
+   399→              placeholder="https://cdn.example.com/logo.png"
+   400→              value={formData.brandLogoUrl}
+   401→              onChange={(e) => updateField('brandLogoUrl', e.target.value)}
+   402→              className="bg-muted/30"
+   403→            />
+   404→          </div>
+   405→
+   406→          {/* Primary Currency */}
+   407→          <div className="space-y-2">
+   408→            <Label>
+   409→              Primary Currency <span className="text-red-400">*</span>
+   410→            </Label>
+   411→            <Select
+   412→              value={formData.primaryCurrency}
+   413→              onValueChange={(v) => updateField('primaryCurrency', v)}
+   414→            >
+   415→              <SelectTrigger className="w-full bg-muted/30">
+   416→                <SelectValue placeholder="Select currency" />
+   417→              </SelectTrigger>
+   418→              <SelectContent>
+   419→                {CURRENCIES.map((c) => (
+   420→                  <SelectItem key={c} value={c}>{c}</SelectItem>
+   421→                ))}
+   422→              </SelectContent>
+   423→            </Select>
+   424→          </div>
+   425→
+   426→          {/* Primary Language */}
+   427→          <div className="space-y-2">
+   428→            <Label>
+   429→              Primary Language <span className="text-red-400">*</span>
+   430→            </Label>
+   431→            <Select
+   432→              value={formData.primaryLanguage}
+   433→              onValueChange={(v) => updateField('primaryLanguage', v)}
+   434→            >
+   435→              <SelectTrigger className="w-full bg-muted/30">
+   436→                <SelectValue placeholder="Select language" />
+   437→              </SelectTrigger>
+   438→              <SelectContent>
+   439→                {LANGUAGES.map((l) => (
+   440→                  <SelectItem key={l} value={l}>{l}</SelectItem>
+   441→                ))}
+   442→              </SelectContent>
+   443→            </Select>
+   444→          </div>
+   445→
+   446→          {/* Timezone */}
+   447→          <div className="space-y-2">
+   448→            <Label>
+   449→              Timezone <span className="text-red-400">*</span>
+   450→            </Label>
+   451→            <Select
+   452→              value={formData.timezone}
+   453→              onValueChange={(v) => updateField('timezone', v)}
+   454→            >
+   455→              <SelectTrigger className="w-full bg-muted/30">
+   456→                <SelectValue placeholder="Select timezone" />
+   457→              </SelectTrigger>
+   458→              <SelectContent>
+   459→                {TIMEZONES.map((tz) => (
+   460→                  <SelectItem key={tz} value={tz}>{tz}</SelectItem>
+   461→                ))}
+   462→              </SelectContent>
+   463→            </Select>
+   464→          </div>
+   465→
+   466→          {/* Domain */}
+   467→          <div className="space-y-2">
+   468→            <Label htmlFor="domain">Domain <span className="text-xs text-muted-foreground">(optional)</span></Label>
+   469→            <Input
+   470→              id="domain"
+   471→              placeholder="play.royalflushcasino.com"
+   472→              value={formData.domain}
+   473→              onChange={(e) => updateField('domain', e.target.value)}
+   474→              className="bg-muted/30"
+   475→            />
+   476→          </div>
+   477→        </div>
+   478→      </div>
+   479→    )
+   480→  }
+   481→
+   482→  function renderUserSetupStep() {
+   483→    const passwordMismatch =
+   484→      formData.adminConfirmPassword.length > 0 &&
+   485→      formData.adminPassword !== formData.adminConfirmPassword
+   486→
+   487→    return (
+   488→      <div className="space-y-6">
+   489→        <CardHeader className="px-0 pt-0">
+   490→          <CardTitle className="flex items-center gap-2 text-lg">
+   491→            <UserPlus className="h-5 w-5 text-primary" />
+   492→            Admin User Setup
+   493→          </CardTitle>
+   494→        </CardHeader>
+   495→
+   496→        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+   497→          {/* Full Name */}
+   498→          <div className="space-y-2 sm:col-span-2">
+   499→            <Label htmlFor="admin-name">
+   500→              Full Name <span className="text-red-400">*</span>
+   501→            </Label>
+   502→            <Input
+   503→              id="admin-name"
+   504→              placeholder="John Doe"
+   505→              value={formData.adminFullName}
+   506→              onChange={(e) => updateField('adminFullName', e.target.value)}
+   507→              className="bg-muted/30"
+   508→            />
+   509→          </div>
+   510→
+   511→          {/* Email */}
+   512→          <div className="space-y-2 sm:col-span-2">
+   513→            <Label htmlFor="admin-email">
+   514→              Email <span className="text-red-400">*</span>
+   515→            </Label>
+   516→            <Input
+   517→              id="admin-email"
+   518→              type="email"
+   519→              placeholder="admin@royalflushcasino.com"
+   520→              value={formData.adminEmail}
+   521→              onChange={(e) => updateField('adminEmail', e.target.value)}
+   522→              className="bg-muted/30"
+   523→            />
+   524→          </div>
+   525→
+   526→          {/* Password */}
+   527→          <div className="space-y-2">
+   528→            <Label htmlFor="admin-password">
+   529→              Password <span className="text-red-400">*</span>
+   530→            </Label>
+   531→            <Input
+   532→              id="admin-password"
+   533→              type="password"
+   534→              placeholder="Min. 6 characters"
+   535→              value={formData.adminPassword}
+   536→              onChange={(e) => updateField('adminPassword', e.target.value)}
+   537→              className="bg-muted/30"
+   538→            />
+   539→          </div>
+   540→
+   541→          {/* Confirm Password */}
+   542→          <div className="space-y-2">
+   543→            <Label htmlFor="admin-confirm">
+   544→              Confirm Password <span className="text-red-400">*</span>
+   545→            </Label>
+   546→            <Input
+   547→              id="admin-confirm"
+   548→              type="password"
+   549→              placeholder="Re-enter password"
+   550→              value={formData.adminConfirmPassword}
+   551→              onChange={(e) => updateField('adminConfirmPassword', e.target.value)}
+   552→              className={`bg-muted/30 ${passwordMismatch ? 'border-red-500 focus-visible:ring-red-500/30' : ''}`}
+   553→            />
+   554→            {passwordMismatch && (
+   555→              <p className="text-xs text-red-400">Passwords do not match</p>
+   556→            )}
+   557→          </div>
+   558→
+   559→          {/* Role */}
+   560→          <div className="space-y-2 sm:col-span-2">
+   561→            <Label>Role</Label>
+   562→            <Select
+   563→              value={formData.adminRole}
+   564→              onValueChange={(v) => updateField('adminRole', v)}
+   565→            >
+   566→              <SelectTrigger className="w-full bg-muted/30">
+   567→                <SelectValue />
+   568→              </SelectTrigger>
+   569→              <SelectContent>
+   570→                <SelectItem value="Admin">Admin</SelectItem>
+   571→                <SelectItem value="Super Admin">Super Admin</SelectItem>
+   572→                <SelectItem value="Finance Manager">Finance Manager</SelectItem>
+   573→                <SelectItem value="Controller">Controller</SelectItem>
+   574→              </SelectContent>
+   575→            </Select>
+   576→          </div>
+   577→        </div>
+   578→
+   579→        <Separator />
+   580→
+   581→        {/* Invite Team Members */}
+   582→        <div className="space-y-3">
+   583→          <div className="flex items-center gap-2">
+   584→            <Globe className="h-4 w-4 text-primary" />
+   585→            <Label className="text-sm font-medium">Invite Team Members</Label>
+   586→            <Badge variant="secondary" className="text-[10px]">Optional</Badge>
+   587→          </div>
+   588→          <Textarea
+   589→            placeholder="Enter email addresses separated by commas or new lines&#10;e.g. sarah@casino.com, mike@casino.com"
+   590→            value={formData.inviteEmails}
+   591→            onChange={(e) => updateField('inviteEmails', e.target.value)}
+   592→            className="bg-muted/30 min-h-[80px] resize-none"
+   593→          />
+   594→          <p className="text-xs text-muted-foreground">
+   595→            Invited members will receive an email to join your platform.
+   596→          </p>
+   597→        </div>
+   598→      </div>
+   599→    )
+   600→  }
+   601→
+   602→  function renderIntegrationsStep() {
+   603→    const providerNames = Object.keys(formData.providers)
+   604→    const selectedCount = providerNames.filter((p) => formData.providers[p]).length
+   605→
+   606→    return (
+   607→      <div className="space-y-6">
+   608→        <CardHeader className="px-0 pt-0">
+   609→          <CardTitle className="flex items-center gap-2 text-lg">
+   610→            <Puzzle className="h-5 w-5 text-primary" />
+   611→            Integrations & Features
+   612→          </CardTitle>
+   613→        </CardHeader>
+   614→
+   615→        {/* Game Providers */}
+   616→        <div className="space-y-3">
+   617→          <div className="flex items-center justify-between">
+   618→            <Label className="text-sm font-medium">Game Providers</Label>
+   619→            <Badge variant="outline" className="text-xs">
+   620→              {selectedCount} selected
+   621→            </Badge>
+   622→          </div>
+   623→          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   624→            {providerNames.map((name) => {
+   625→              const ProviderIcon = PROVIDER_ICONS[name] || Server
+   626→              const isChecked = formData.providers[name]
+   627→              return (
+   628→                <label
+   629→                  key={name}
+   630→                  className={`
+   631→                    flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all duration-200
+   632→                    ${isChecked
+   633→                      ? 'bg-primary/5 border-primary/40'
+   634→                      : 'bg-muted/20 border-border/30 hover:bg-muted/30 hover:border-border/50'
+   635→                    }
+   636→                  `}
+   637→                >
+   638→                  <Checkbox
+   639→                    checked={isChecked}
+   640→                    onCheckedChange={() => toggleProvider(name)}
+   641→                  />
+   642→                  <div className="h-8 w-8 rounded-md bg-muted/50 flex items-center justify-center shrink-0">
+   643→                    <ProviderIcon className={`h-4 w-4 ${isChecked ? 'text-primary' : 'text-muted-foreground'}`} />
+   644→                  </div>
+   645→                  <span className={`text-sm font-medium ${isChecked ? 'text-foreground' : 'text-muted-foreground'}`}>
+   646→                    {name}
+   647→                  </span>
+   648→                </label>
+   649→              )
+   650→            })}
+   651→          </div>
+   652→        </div>
+   653→
+   654→        <Separator />
+   655→
+   656→        {/* Feature Toggles */}
+   657→        <div className="space-y-4">
+   658→          <Label className="text-sm font-medium">Platform Features</Label>
+   659→
+   660→          {[
+   661→            {
+   662→              key: 'enableBlockchain' as const,
+   663→              icon: Wallet,
+   664→              title: 'Enable Blockchain',
+   665→              desc: 'On-chain transaction audit trails, crypto wallet support, and decentralized verification',
+   666→            },
+   667→            {
+   668→              key: 'enableAiTutor' as const,
+   669→              icon: Bot,
+   670→              title: 'Enable AI Tutor',
+   671→              desc: 'Intelligent assistant for platform guidance, anomaly detection, and predictive analytics',
+   672→            },
+   673→            {
+   674→              key: 'enableLiveTracking' as const,
+   675→              icon: Activity,
+   676→              title: 'Enable Live Tracking',
+   677→              desc: 'Real-time player activity monitoring, geo-mapping, and instant event streaming',
+   678→            },
+   679→          ].map((feature) => (
+   680→            <div
+   681→              key={feature.key}
+   682→              className="flex items-start gap-4 p-4 rounded-lg bg-muted/20 border border-border/30"
+   683→            >
+   684→              <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+   685→                <feature.icon className="h-4 w-4 text-primary" />
+   686→              </div>
+   687→              <div className="flex-1 min-w-0">
+   688→                <div className="flex items-center justify-between gap-3">
+   689→                  <p className="text-sm font-medium text-foreground">{feature.title}</p>
+   690→                  <Switch
+   691→                    checked={formData[feature.key]}
+   692→                    onCheckedChange={(v) => updateField(feature.key, v)}
+   693→                  />
+   694→                </div>
+   695→                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{feature.desc}</p>
+   696→              </div>
+   697→            </div>
+   698→          ))}
+   699→        </div>
+   700→      </div>
+   701→    )
+   702→  }
+   703→
+   704→  function renderCompleteStep() {
+   705→    const enabledProviders = Object.entries(formData.providers)
+   706→      .filter(([, v]) => v)
+   707→      .map(([k]) => k)
+   708→    const enabledFeatures: string[] = []
+   709→    if (formData.enableBlockchain) enabledFeatures.push('Blockchain')
+   710→    if (formData.enableAiTutor) enabledFeatures.push('AI Tutor')
+   711→    if (formData.enableLiveTracking) enabledFeatures.push('Live Tracking')
+   712→
+   713→    return (
+   714→      <div className="space-y-6">
+   715→        {/* Success banner */}
+   716→        <div className="text-center space-y-3 py-4">
+   717→          <div className="inline-flex h-16 w-16 rounded-full bg-emerald-400/10 items-center justify-center mb-2">
+   718→            <CheckCircle className="h-8 w-8 text-emerald-400" />
+   719→          </div>
+   720→          <h2 className="text-2xl font-bold text-foreground">Setup Complete!</h2>
+   721→          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+   722→            Your TOLS Platform is configured and ready to go. Here&apos;s a summary of your setup.
+   723→          </p>
+   724→        </div>
+   725→
+   726→        <Separator />
+   727→
+   728→        {/* Summary */}
+   729→        <div className="space-y-4">
+   730→          {/* Casino Info */}
+   731→          <div className="space-y-2">
+   732→            <div className="flex items-center gap-2">
+   733→              <Building2 className="h-4 w-4 text-primary" />
+   734→              <h3 className="text-sm font-semibold text-foreground">Casino Configuration</h3>
+   735→            </div>
+   736→            <div className="grid grid-cols-2 gap-x-4 gap-y-2 pl-6 text-sm">
+   737→              <span className="text-muted-foreground">Name</span>
+   738→              <span className="text-foreground font-medium">{formData.casinoName}</span>
+   739→              <span className="text-muted-foreground">Currency</span>
+   740→              <span className="text-foreground font-medium">{formData.primaryCurrency}</span>
+   741→              <span className="text-muted-foreground">Language</span>
+   742→              <span className="text-foreground font-medium">{formData.primaryLanguage}</span>
+   743→              <span className="text-muted-foreground">Timezone</span>
+   744→              <span className="text-foreground font-medium">{formData.timezone}</span>
+   745→              {formData.domain && (
+   746→                <>
+   747→                  <span className="text-muted-foreground">Domain</span>
+   748→                  <span className="text-foreground font-medium">{formData.domain}</span>
+   749→                </>
+   750→              )}
+   751→            </div>
+   752→          </div>
+   753→
+   754→          <Separator />
+   755→
+   756→          {/* Admin Info */}
+   757→          <div className="space-y-2">
+   758→            <div className="flex items-center gap-2">
+   759→              <UserPlus className="h-4 w-4 text-primary" />
+   760→              <h3 className="text-sm font-semibold text-foreground">Admin User</h3>
+   761→            </div>
+   762→            <div className="grid grid-cols-2 gap-x-4 gap-y-2 pl-6 text-sm">
+   763→              <span className="text-muted-foreground">Name</span>
+   764→              <span className="text-foreground font-medium">{formData.adminFullName}</span>
+   765→              <span className="text-muted-foreground">Email</span>
+   766→              <span className="text-foreground font-medium">{formData.adminEmail}</span>
+   767→              <span className="text-muted-foreground">Role</span>
+   768→              <span className="text-foreground font-medium">{formData.adminRole}</span>
+   769→            </div>
+   770→          </div>
+   771→
+   772→          <Separator />
+   773→
+   774→          {/* Integrations */}
+   775→          <div className="space-y-2">
+   776→            <div className="flex items-center gap-2">
+   777→              <Puzzle className="h-4 w-4 text-primary" />
+   778→              <h3 className="text-sm font-semibold text-foreground">Integrations & Features</h3>
+   779→            </div>
+   780→            <div className="pl-6 space-y-2">
+   781→              {enabledProviders.length > 0 ? (
+   782→                <div className="flex flex-wrap gap-1.5">
+   783→                  {enabledProviders.map((p) => (
+   784→                    <Badge key={p} variant="secondary" className="text-xs">{p}</Badge>
+   785→                  ))}
+   786→                </div>
+   787→              ) : (
+   788→                <p className="text-xs text-muted-foreground">No game providers selected</p>
+   789→              )}
+   790→              {enabledFeatures.length > 0 ? (
+   791→                <div className="flex flex-wrap gap-1.5 mt-1">
+   792→                  {enabledFeatures.map((f) => (
+   793→                    <Badge key={f} variant="outline" className="text-xs text-emerald-400 border-emerald-400/30">{f}</Badge>
+   794→                  ))}
+   795→                </div>
+   796→              ) : (
+   797→                <p className="text-xs text-muted-foreground">No extra features enabled</p>
+   798→              )}
+   799→            </div>
+   800→          </div>
+   801→        </div>
+   802→
+   803→        <Separator />
+   804→
+   805→        {/* Go to Dashboard */}
+   806→        <div className="flex flex-col items-center gap-3 pt-2">
+   807→          <Button
+   808→            onClick={handleFinish}
+   809→            size="lg"
+   810→            className="w-full max-w-xs gap-2 text-base font-semibold"
+   811→          >
+   812→            <Rocket className="h-4 w-4" />
+   813→            Go to Dashboard
+   814→          </Button>
+   815→          <p className="text-xs text-muted-foreground text-center">
+   816→            You can always modify these settings from the platform configuration panel.
+   817→          </p>
+   818→        </div>
+   819→      </div>
+   820→    )
+   821→  }
+   822→}
+   823→

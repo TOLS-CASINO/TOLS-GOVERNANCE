@@ -733,7 +733,7 @@ export function OnboardingView() {
               <Building2 className="h-4 w-4 text-primary" />
               <h3 className="text-sm font-semibold text-foreground">Casino Configuration</h3>
             </div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 pl-6 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 pl-6 text-sm">
               <span className="text-muted-foreground">Name</span>
               <span className="text-foreground font-medium">{formData.casinoName}</span>
               <span className="text-muted-foreground">Currency</span>
@@ -759,7 +759,7 @@ export function OnboardingView() {
               <UserPlus className="h-4 w-4 text-primary" />
               <h3 className="text-sm font-semibold text-foreground">Admin User</h3>
             </div>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2 pl-6 text-sm">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 pl-6 text-sm">
               <span className="text-muted-foreground">Name</span>
               <span className="text-foreground font-medium">{formData.adminFullName}</span>
               <span className="text-muted-foreground">Email</span>

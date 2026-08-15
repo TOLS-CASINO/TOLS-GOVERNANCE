@@ -606,7 +606,7 @@ export function MLPipelineView() {
                   </div>
 
                   {/* Accuracy Metrics */}
-                  <div className="grid grid-cols-2 gap-2 mb-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
                     {model.accuracy !== null && (
                       <div className="p-2 rounded-lg bg-zinc-900/60 text-center">
                         <p className="text-base font-bold text-emerald-400">{model.accuracy}%</p>
@@ -842,7 +842,7 @@ export function MLPipelineView() {
                       <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider h-8">Job ID</TableHead>
                       <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Model</TableHead>
                       <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Status</TableHead>
-                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider min-w-[180px]">Progress</TableHead>
+                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Progress</TableHead>
                       <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Started</TableHead>
                       <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Duration</TableHead>
                       <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider text-right">Actions</TableHead>
@@ -975,7 +975,7 @@ export function MLPipelineView() {
                   </div>
 
                   {/* Stats Grid */}
-                  <div className="grid grid-cols-3 gap-2 mb-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
                     <div className="p-2 rounded-lg bg-zinc-900/60 text-center">
                       <p className="text-lg font-bold text-zinc-100">{store.featuresCount}</p>
                       <p className="text-[9px] text-zinc-500 uppercase tracking-wider">Features</p>

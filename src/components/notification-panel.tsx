@@ -119,7 +119,7 @@ export function NotificationPanel() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button className="relative p-1.5 rounded-md hover:bg-muted transition-colors">
+        <button className="relative p-2.5 rounded-md hover:bg-muted transition-colors">
           <Bell className={`size-4 ${totalUnread > 0 ? 'text-primary' : 'text-muted-foreground'}`} />
           {totalUnread > 0 && (
             <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 rounded-full bg-destructive text-[9px] text-destructive-foreground font-bold flex items-center justify-center px-1">
@@ -131,7 +131,7 @@ export function NotificationPanel() {
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-96 p-0" align="end">
+      <PopoverContent className="w-[calc(100vw-2rem)] sm:w-96 p-0" align="end">
         <div className="flex items-center justify-between p-3 border-b border-border">
           <div className="flex items-center gap-2">
             <span className="text-sm font-semibold">Notifications</span>
@@ -148,11 +148,11 @@ export function NotificationPanel() {
           </div>
           <div className="flex items-center gap-1">
             {totalUnread > 0 && (
-              <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={markAllRead}>
+              <Button variant="ghost" size="sm" className="h-8 sm:h-6 text-[10px]" onClick={markAllRead}>
                 Mark all read
               </Button>
             )}
-            <Button variant="ghost" size="sm" className="h-6 text-[10px] text-primary" onClick={openNotificationCenter}>
+            <Button variant="ghost" size="sm" className="h-8 sm:h-6 text-[10px] text-primary" onClick={openNotificationCenter}>
               View all
             </Button>
           </div>
@@ -191,7 +191,7 @@ export function NotificationPanel() {
                         </div>
                       </div>
                       {!n.isRead && (
-                        <button className="p-0.5 rounded hover:bg-muted shrink-0" onClick={(e) => { e.stopPropagation(); markNotifRead(n.id) }}>
+                        <button className="p-2 rounded hover:bg-muted shrink-0" onClick={(e) => { e.stopPropagation(); markNotifRead(n.id) }}>
                           <X className="size-3 text-muted-foreground" />
                         </button>
                       )}

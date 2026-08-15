@@ -178,7 +178,7 @@ export function PromotionsView() {
                 <label className="text-xs font-medium mb-1 block">Description</label>
                 <Textarea placeholder="Describe this promotion..." className="text-xs min-h-[60px]" />
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <div>
                   <label className="text-xs font-medium mb-1 block">Budget</label>
                   <Input type="number" placeholder="50000" className="h-9 text-xs" />
@@ -216,7 +216,7 @@ export function PromotionsView() {
                 <Gift className="size-5 text-primary" />
               </div>
 
-              <div className="grid grid-cols-3 gap-2 mb-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-3">
                 <div className="text-center p-1.5 rounded bg-muted/50">
                   <p className="text-sm font-bold">{promo.claims.toLocaleString()}</p>
                   <p className="text-[9px] text-muted-foreground">Claims</p>
@@ -262,6 +262,7 @@ export function PromotionsView() {
           </CardHeader>
           <CardContent>
             {bonusCodes.length > 0 ? (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -289,6 +290,7 @@ export function PromotionsView() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             ) : (
               <p className="text-xs text-muted-foreground text-center py-4">No bonus codes available</p>
             )}

@@ -1,0 +1,1445 @@
+     1→'use client'
+     2→
+     3→import { useState, useMemo } from 'react'
+     4→import {
+     5→  Server,
+     6→  Webhook,
+     7→  Gamepad2,
+     8→  Key,
+     9→  HeartPulse,
+    10→  Search,
+    11→  Filter,
+    12→  RefreshCw,
+    13→  CheckCircle,
+    14→  XCircle,
+    15→  AlertTriangle,
+    16→  Shield,
+    17→  ExternalLink,
+    18→  Plus,
+    19→  Settings,
+    20→  Eye,
+    21→  Trash2,
+    22→  Copy,
+    23→  Globe,
+    24→  Zap,
+    25→  Activity,
+    26→  TrendingUp,
+    27→  Clock,
+    28→  Lock,
+    29→} from 'lucide-react'
+    30→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    31→import {
+    32→  Tabs,
+    33→  TabsContent,
+    34→  TabsList,
+    35→  TabsTrigger,
+    36→} from '@/components/ui/tabs'
+    37→import {
+    38→  Table,
+    39→  TableBody,
+    40→  TableCell,
+    41→  TableHead,
+    42→  TableHeader,
+    43→  TableRow,
+    44→} from '@/components/ui/table'
+    45→import { Badge } from '@/components/ui/badge'
+    46→import { Button } from '@/components/ui/button'
+    47→import {
+    48→  Dialog,
+    49→  DialogContent,
+    50→  DialogHeader,
+    51→  DialogTitle,
+    52→  DialogTrigger,
+    53→} from '@/components/ui/dialog'
+    54→import { Input } from '@/components/ui/input'
+    55→import {
+    56→  Select,
+    57→  SelectContent,
+    58→  SelectItem,
+    59→  SelectTrigger,
+    60→  SelectValue,
+    61→} from '@/components/ui/select'
+    62→import { Switch } from '@/components/ui/switch'
+    63→import { Label } from '@/components/ui/label'
+    64→import { ScrollArea } from '@/components/ui/scroll-area'
+    65→import { Skeleton } from '@/components/ui/skeleton'
+    66→import { Separator } from '@/components/ui/separator'
+    67→import { Textarea } from '@/components/ui/textarea'
+    68→import { useApi } from '@/hooks/use-api'
+    69→import { api } from '@/services/api'
+    70→
+    71→/* ─── Types ─── */
+    72→
+    73→interface GameProvider {
+    74→  id: string
+    75→  name: string
+    76→  slug: string
+    77→  type: string
+    78→  status: string
+    79→  logoUrl: string | null
+    80→  website: string | null
+    81→  description: string | null
+    82→  integrationType: string
+    83→  apiVersion: string | null
+    84→  baseUrl: string | null
+    85→  callbackUrl: string | null
+    86→  secretKey: string | null
+    87→  apiKey: string | null
+    88→  allowedIps: string | null
+    89→  supportedCurrencies: string | null
+    90→  supportedLocales: string | null
+    91→  maxConcurrentSessions: number
+    92→  defaultRtp: number | null
+    93→  isActive: boolean
+    94→  isCertified: boolean
+    95→  certifiedAt: string | null
+    96→  lastHealthCheck: string | null
+    97→  totalGames: number
+    98→  activeGames: number
+    99→  activePlayers: number
+   100→  monthlyRevenue: number
+   101→  errorRate: number
+   102→  avgLatencyMs: number
+   103→  uptime: number
+   104→  joinedAt: string
+   105→  createdAt: string
+   106→}
+   107→
+   108→interface ProviderCallback {
+   109→  id: string
+   110→  providerId: string
+   111→  name: string
+   112→  eventType: string
+   113→  url: string
+   114→  method: string
+   115→  authType: string
+   116→  secretKey: string | null
+   117→  ipWhitelist: string | null
+   118→  isActive: boolean
+   119→  retryPolicy: string | null
+   120→  timeoutMs: number
+   121→  lastReceivedAt: string | null
+   122→  lastSuccessAt: string | null
+   123→  totalReceived: number
+   124→  totalSuccess: number
+   125→  totalFailed: number
+   126→  avgProcessingMs: number
+   127→}
+   128→
+   129→interface ProviderGame {
+   130→  id: string
+   131→  providerId: string
+   132→  externalId: string
+   133→  name: string
+   134→  slug: string
+   135→  type: string
+   136→  category: string | null
+   137→  subCategory: string | null
+   138→  rtp: number | null
+   139→  volatility: string | null
+   140→  hitFrequency: number | null
+   141→  maxWin: number | null
+   142→  maxBet: number | null
+   143→  minBet: number | null
+   144→  defaultBet: number | null
+   145→  lines: number | null
+   146→  features: string | null
+   147→  isActive: boolean
+   148→  isFeatured: boolean
+   149→  isNew: boolean
+   150→  totalBets: number
+   151→  totalWins: number
+   152→  totalSessions: number
+   153→  avgSessionMin: number
+   154→  popularityScore: number
+   155→}
+   156→
+   157→interface ProviderCredential {
+   158→  id: string
+   159→  providerId: string
+   160→  environment: string
+   161→  apiKey: string | null
+   162→  apiSecret: string | null
+   163→  bearerToken: string | null
+   164→  certPath: string | null
+   165→  additional: string | null
+   166→  isActive: boolean
+   167→  lastUsedAt: string | null
+   168→  expiresAt: string | null
+   169→}
+   170→
+   171→interface ProviderHealthLog {
+   172→  id: string
+   173→  providerId: string
+   174→  metric: string
+   175→  value: number
+   176→  unit: string
+   177→  threshold: number | null
+   178→  isAlert: boolean
+   179→  details: string | null
+   180→  checkedAt: string
+   181→}
+   182→
+   183→interface VendorsData {
+   184→  providers: GameProvider[]
+   185→  callbacks: ProviderCallback[]
+   186→  games: ProviderGame[]
+   187→  credentials: ProviderCredential[]
+   188→  healthLogs: ProviderHealthLog[]
+   189→  stats: {
+   190→    totalProviders: number
+   191→    activeProviders: number
+   192→    totalGames: number
+   193→    activeGames: number
+   194→    totalCallbacks: number
+   195→    totalActivePlayers: number
+   196→    totalMonthlyRevenue: number
+   197→    avgUptime: number
+   198→    avgErrorRate: number
+   199→    certifiedProviders: number
+   200→    pendingProviders: number
+   201→  }
+   202→}
+   203→
+   204→/* ─── Helpers ─── */
+   205→
+   206→function relativeTime(dateStr: string | null | undefined): string {
+   207→  if (!dateStr) return '—'
+   208→  const diff = Date.now() - new Date(dateStr).getTime()
+   209→  const mins = Math.floor(diff / 60000)
+   210→  if (mins < 1) return 'just now'
+   211→  if (mins < 60) return `${mins}m ago`
+   212→  const hrs = Math.floor(mins / 60)
+   213→  if (hrs < 24) return `${hrs}h ago`
+   214→  const days = Math.floor(hrs / 24)
+   215→  if (days < 30) return `${days}d ago`
+   216→  const months = Math.floor(days / 30)
+   217→  return `${months}mo ago`
+   218→}
+   219→
+   220→function formatRevenue(n: number): string {
+   221→  if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`
+   222→  if (n >= 1_000) return `$${(n / 1_000).toFixed(1)}K`
+   223→  return `$${n.toFixed(0)}`
+   224→}
+   225→
+   226→function maskValue(val: string | null | undefined): string {
+   227→  if (!val) return '—'
+   228→  if (val.length <= 8) return '••••••••'
+   229→  return `${val.slice(0, 4)}${'•'.repeat(8)}${val.slice(-4)}`
+   230→}
+   231→
+   232→const STATUS_COLORS: Record<string, string> = {
+   233→  active: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
+   234→  suspended: 'bg-amber-500/15 text-amber-400 border-amber-500/25',
+   235→  disconnected: 'bg-red-500/15 text-red-400 border-red-500/25',
+   236→  pending: 'bg-gray-500/15 text-gray-400 border-gray-500/25',
+   237→}
+   238→
+   239→const TYPE_LABELS: Record<string, string> = {
+   240→  live_casino: 'Live Casino',
+   241→  slots: 'Slots',
+   242→  table_games: 'Table Games',
+   243→  sports: 'Sports',
+   244→  virtual_sports: 'Virtual Sports',
+   245→  lottery: 'Lottery',
+   246→  bingo: 'Bingo',
+   247→  poker: 'Poker',
+   248→}
+   249→
+   250→const GAME_TYPE_LABELS: Record<string, string> = {
+   251→  slot: 'Slot',
+   252→  live_table: 'Live Table',
+   253→  jackpot: 'Jackpot',
+   254→  table_game: 'Table Game',
+   255→  instant_win: 'Instant Win',
+   256→  video_poker: 'Video Poker',
+   257→  scratch: 'Scratch',
+   258→}
+   259→
+   260→const VOLATILITY_STYLES: Record<string, string> = {
+   261→  low: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
+   262→  medium: 'bg-amber-500/15 text-amber-400 border-amber-500/25',
+   263→  high: 'bg-red-500/15 text-red-400 border-red-500/25',
+   264→  very_high: 'bg-red-500/15 text-red-400 border-red-500/25',
+   265→}
+   266→
+   267→const ENV_STYLES: Record<string, string> = {
+   268→  production: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
+   269→  staging: 'bg-amber-500/15 text-amber-400 border-amber-500/25',
+   270→  sandbox: 'bg-gray-500/15 text-gray-400 border-gray-500/25',
+   271→  development: 'bg-blue-500/15 text-blue-400 border-blue-500/25',
+   272→}
+   273→
+   274→const METRIC_ICONS: Record<string, React.ElementType> = {
+   275→  error_rate: XCircle,
+   276→  latency: Clock,
+   277→  uptime: CheckCircle,
+   278→  api_connectivity: Globe,
+   279→  callback_success: Webhook,
+   280→}
+   281→
+   282→function successRateColor(rate: number): string {
+   283→  if (rate >= 99) return 'text-emerald-400'
+   284→  if (rate >= 95) return 'text-amber-400'
+   285→  return 'text-red-400'
+   286→}
+   287→
+   288→function isExpiringSoon(dateStr: string | null | undefined): boolean {
+   289→  if (!dateStr) return false
+   290→  const diff = new Date(dateStr).getTime() - Date.now()
+   291→  return diff > 0 && diff < 30 * 24 * 60 * 60 * 1000
+   292→}
+   293→
+   294→/* ─── Component ─── */
+   295→
+   296→export function VendorsView() {
+   297→  const { data, loading, error, refetch } = useApi<VendorsData>(
+   298→    () => api.vendors.get()
+   299→  )
+   300→
+   301→  /* local state */
+   302→  const [providerSearch, setProviderSearch] = useState('')
+   303→  const [providerTypeFilter, setProviderTypeFilter] = useState('all')
+   304→  const [providerStatusFilter, setProviderStatusFilter] = useState('all')
+   305→
+   306→  const [callbackProviderFilter, setCallbackProviderFilter] = useState('all')
+   307→
+   308→  const [gameProviderFilter, setGameProviderFilter] = useState('all')
+   309→  const [gameSearch, setGameSearch] = useState('')
+   310→  const [gameTypeFilter, setGameTypeFilter] = useState('all')
+   311→  const [gameActiveFilter, setGameActiveFilter] = useState('all')
+   312→
+   313→  const [credProviderFilter, setCredProviderFilter] = useState('all')
+   314→  const [copiedField, setCopiedField] = useState<string | null>(null)
+   315→
+   316→  const [healthProviderFilter, setHealthProviderFilter] = useState('all')
+   317→
+   318→  const [configDialogOpen, setConfigDialogOpen] = useState(false)
+   319→  const [selectedProvider, setSelectedProvider] = useState<GameProvider | null>(null)
+   320→
+   321→  /* derived */
+   322→  const providers = data?.providers ?? []
+   323→  const callbacks = data?.callbacks ?? []
+   324→  const games = data?.games ?? []
+   325→  const credentials = data?.credentials ?? []
+   326→  const healthLogs = data?.healthLogs ?? []
+   327→  const stats = data?.stats
+   328→
+   329→  const providerMap = useMemo(
+   330→    () => new Map(providers.map((p) => [p.id, p])),
+   331→    [providers]
+   332→  )
+   333→
+   334→  const filteredProviders = useMemo(() => {
+   335→    return providers.filter((p) => {
+   336→      if (providerSearch && !p.name.toLowerCase().includes(providerSearch.toLowerCase())) return false
+   337→      if (providerTypeFilter !== 'all' && p.type !== providerTypeFilter) return false
+   338→      if (providerStatusFilter !== 'all' && p.status !== providerStatusFilter) return false
+   339→      return true
+   340→    })
+   341→  }, [providers, providerSearch, providerTypeFilter, providerStatusFilter])
+   342→
+   343→  const filteredCallbacks = useMemo(() => {
+   344→    return callbacks.filter((c) => {
+   345→      if (callbackProviderFilter !== 'all' && c.providerId !== callbackProviderFilter) return false
+   346→      return true
+   347→    })
+   348→  }, [callbacks, callbackProviderFilter])
+   349→
+   350→  const filteredGames = useMemo(() => {
+   351→    return games.filter((g) => {
+   352→      if (gameProviderFilter !== 'all' && g.providerId !== gameProviderFilter) return false
+   353→      if (gameSearch && !g.name.toLowerCase().includes(gameSearch.toLowerCase())) return false
+   354→      if (gameTypeFilter !== 'all' && g.type !== gameTypeFilter) return false
+   355→      if (gameActiveFilter === 'active' && !g.isActive) return false
+   356→      return true
+   357→    })
+   358→  }, [games, gameProviderFilter, gameSearch, gameTypeFilter, gameActiveFilter])
+   359→
+   360→  const filteredCredentials = useMemo(() => {
+   361→    return credentials.filter((c) => {
+   362→      if (credProviderFilter !== 'all' && c.providerId !== credProviderFilter) return false
+   363→      return true
+   364→    })
+   365→  }, [credentials, credProviderFilter])
+   366→
+   367→  const filteredHealth = useMemo(() => {
+   368→    return healthLogs.filter((h) => {
+   369→      if (healthProviderFilter !== 'all' && h.providerId !== healthProviderFilter) return false
+   370→      return true
+   371→    })
+   372→  }, [healthLogs, healthProviderFilter])
+   373→
+   374→  /* copy handler (UI-only) */
+   375→  const handleCopy = (fieldId: string) => {
+   376→    setCopiedField(fieldId)
+   377→    setTimeout(() => setCopiedField(null), 2000)
+   378→  }
+   379→
+   380→  /* ─── Loading ─── */
+   381→  if (loading) {
+   382→    return (
+   383→      <div className="space-y-4">
+   384→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   385→          {Array.from({ length: 4 }).map((_, i) => (
+   386→            <Card key={i}>
+   387→              <CardContent className="p-6">
+   388→                <Skeleton className="h-16 w-full" />
+   389→              </CardContent>
+   390→            </Card>
+   391→          ))}
+   392→        </div>
+   393→        <Card>
+   394→          <CardContent className="p-6">
+   395→            <Skeleton className="h-64 w-full" />
+   396→          </CardContent>
+   397→        </Card>
+   398→      </div>
+   399→    )
+   400→  }
+   401→
+   402→  /* ─── Error ─── */
+   403→  if (error || !data) {
+   404→    return (
+   405→      <Card className="border-destructive/40">
+   406→        <CardContent className="p-6 text-center">
+   407→          <AlertTriangle className="size-8 text-destructive mx-auto mb-2" />
+   408→          <p className="text-sm font-medium text-destructive">
+   409→            Failed to load vendors data
+   410→          </p>
+   411→          <p className="text-xs text-muted-foreground mt-1">{error}</p>
+   412→          <Button variant="outline" size="sm" className="mt-3 gap-1" onClick={refetch}>
+   413→            <RefreshCw className="size-3" /> Retry
+   414→          </Button>
+   415→        </CardContent>
+   416→      </Card>
+   417→    )
+   418→  }
+   419→
+   420→  /* ─── Provider select options ─── */
+   421→  const providerSelectItems = providers.map((p) => (
+   422→    <SelectItem key={p.id} value={p.id}>
+   423→      {p.name}
+   424→    </SelectItem>
+   425→  ))
+   426→
+   427→  /* ─── Render ─── */
+   428→  return (
+   429→    <div className="space-y-6">
+   430→      {/* Header */}
+   431→      <div className="flex items-center justify-between">
+   432→        <div>
+   433→          <h2 className="text-2xl font-bold text-primary flex items-center gap-2">
+   434→            <Server className="size-6 text-amber-500" />
+   435→            Vendors &amp; Providers
+   436→          </h2>
+   437→          <p className="text-sm text-muted-foreground mt-1">
+   438→            Manage game providers, callbacks, credentials, and health monitoring
+   439→          </p>
+   440→        </div>
+   441→        <div className="flex items-center gap-2">
+   442→          <Button variant="outline" size="sm" className="gap-1" onClick={refetch}>
+   443→            <RefreshCw className="size-3.5" /> Refresh
+   444→          </Button>
+   445→          <Button size="sm" className="gap-1 bg-amber-600 hover:bg-amber-700 text-white">
+   446→            <Plus className="size-3.5" /> Add Provider
+   447→          </Button>
+   448→        </div>
+   449→      </div>
+   450→
+   451→      {/* Tabs */}
+   452→      <Tabs defaultValue="providers" className="w-full">
+   453→        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+   454→          <TabsTrigger value="providers" className="gap-1.5">
+   455→            <Server className="size-3.5" />
+   456→            <span className="hidden sm:inline">Providers</span>
+   457→          </TabsTrigger>
+   458→          <TabsTrigger value="callbacks" className="gap-1.5">
+   459→            <Webhook className="size-3.5" />
+   460→            <span className="hidden sm:inline">Callbacks</span>
+   461→          </TabsTrigger>
+   462→          <TabsTrigger value="games" className="gap-1.5">
+   463→            <Gamepad2 className="size-3.5" />
+   464→            <span className="hidden sm:inline">Games</span>
+   465→          </TabsTrigger>
+   466→          <TabsTrigger value="credentials" className="gap-1.5">
+   467→            <Key className="size-3.5" />
+   468→            <span className="hidden sm:inline">Credentials</span>
+   469→          </TabsTrigger>
+   470→          <TabsTrigger value="health" className="gap-1.5">
+   471→            <HeartPulse className="size-3.5" />
+   472→            <span className="hidden sm:inline">Health</span>
+   473→          </TabsTrigger>
+   474→        </TabsList>
+   475→
+   476→        {/* ═══════ Tab 1: Providers ═══════ */}
+   477→        <TabsContent value="providers" className="space-y-4 mt-4">
+   478→          {/* Stats Row */}
+   479→          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   480→            <Card className="bg-card border-border">
+   481→              <CardContent className="p-4">
+   482→                <div className="flex items-center justify-between">
+   483→                  <div>
+   484→                    <p className="text-xs text-muted-foreground uppercase tracking-wider">
+   485→                      Total Providers
+   486→                    </p>
+   487→                    <p className="text-2xl font-bold text-primary mt-1">
+   488→                      {stats?.totalProviders ?? 0}
+   489→                    </p>
+   490→                  </div>
+   491→                  <Server className="size-8 text-amber-500/60" />
+   492→                </div>
+   493→                <p className="text-xs text-muted-foreground mt-2">
+   494→                  {stats?.activeProviders ?? 0} active · {stats?.certifiedProviders ?? 0} certified
+   495→                </p>
+   496→              </CardContent>
+   497→            </Card>
+   498→
+   499→            <Card className="bg-card border-border">
+   500→              <CardContent className="p-4">
+   501→                <div className="flex items-center justify-between">
+   502→                  <div>
+   503→                    <p className="text-xs text-muted-foreground uppercase tracking-wider">
+   504→                      Active Games
+   505→                    </p>
+   506→                    <p className="text-2xl font-bold text-primary mt-1">
+   507→                      {stats?.activeGames?.toLocaleString() ?? 0}
+   508→                    </p>
+   509→                  </div>
+   510→                  <Gamepad2 className="size-8 text-amber-500/60" />
+   511→                </div>
+   512→                <p className="text-xs text-muted-foreground mt-2">
+   513→                  of {stats?.totalGames?.toLocaleString() ?? 0} total
+   514→                </p>
+   515→              </CardContent>
+   516→            </Card>
+   517→
+   518→            <Card className="bg-card border-border">
+   519→              <CardContent className="p-4">
+   520→                <div className="flex items-center justify-between">
+   521→                  <div>
+   522→                    <p className="text-xs text-muted-foreground uppercase tracking-wider">
+   523→                      Monthly Revenue
+   524→                    </p>
+   525→                    <p className="text-2xl font-bold text-primary mt-1">
+   526→                      {formatRevenue(stats?.totalMonthlyRevenue ?? 0)}
+   527→                    </p>
+   528→                  </div>
+   529→                  <TrendingUp className="size-8 text-amber-500/60" />
+   530→                </div>
+   531→                <p className="text-xs text-emerald-400 mt-2 flex items-center gap-1">
+   532→                  <TrendingUp className="size-3" /> Across all providers
+   533→                </p>
+   534→              </CardContent>
+   535→            </Card>
+   536→
+   537→            <Card className="bg-card border-border">
+   538→              <CardContent className="p-4">
+   539→                <div className="flex items-center justify-between">
+   540→                  <div>
+   541→                    <p className="text-xs text-muted-foreground uppercase tracking-wider">
+   542→                      Avg Uptime
+   543→                    </p>
+   544→                    <p className="text-2xl font-bold text-primary mt-1">
+   545→                      {(stats?.avgUptime ?? 0).toFixed(2)}%
+   546→                    </p>
+   547→                  </div>
+   548→                  <Activity className="size-8 text-amber-500/60" />
+   549→                </div>
+   550→                <p className="text-xs text-muted-foreground mt-2">
+   551→                  Avg error rate: {(stats?.avgErrorRate ?? 0).toFixed(2)}%
+   552→                </p>
+   553→              </CardContent>
+   554→            </Card>
+   555→          </div>
+   556→
+   557→          {/* Filter Bar */}
+   558→          <Card className="bg-card border-border">
+   559→            <CardContent className="p-4">
+   560→              <div className="flex flex-col sm:flex-row gap-3">
+   561→                <div className="relative flex-1">
+   562→                  <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+   563→                  <Input
+   564→                    placeholder="Search providers..."
+   565→                    value={providerSearch}
+   566→                    onChange={(e) => setProviderSearch(e.target.value)}
+   567→                    className="pl-8"
+   568→                  />
+   569→                </div>
+   570→                <Select value={providerTypeFilter} onValueChange={setProviderTypeFilter}>
+   571→                  <SelectTrigger className="w-full sm:w-[160px]">
+   572→                    <SelectValue placeholder="Type" />
+   573→                  </SelectTrigger>
+   574→                  <SelectContent>
+   575→                    <SelectItem value="all">All Types</SelectItem>
+   576→                    <SelectItem value="live_casino">Live Casino</SelectItem>
+   577→                    <SelectItem value="slots">Slots</SelectItem>
+   578→                    <SelectItem value="table_games">Table Games</SelectItem>
+   579→                    <SelectItem value="sports">Sports</SelectItem>
+   580→                  </SelectContent>
+   581→                </Select>
+   582→                <Select value={providerStatusFilter} onValueChange={setProviderStatusFilter}>
+   583→                  <SelectTrigger className="w-full sm:w-[160px]">
+   584→                    <SelectValue placeholder="Status" />
+   585→                  </SelectTrigger>
+   586→                  <SelectContent>
+   587→                    <SelectItem value="all">All Status</SelectItem>
+   588→                    <SelectItem value="active">Active</SelectItem>
+   589→                    <SelectItem value="suspended">Suspended</SelectItem>
+   590→                    <SelectItem value="disconnected">Disconnected</SelectItem>
+   591→                  </SelectContent>
+   592→                </Select>
+   593→              </div>
+   594→            </CardContent>
+   595→          </Card>
+   596→
+   597→          {/* Provider Cards Grid */}
+   598→          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+   599→            {filteredProviders.map((provider) => (
+   600→              <Card
+   601→                key={provider.id}
+   602→                className="bg-card border-border hover:border-amber-500/30 transition-colors"
+   603→              >
+   604→                <CardHeader className="pb-3">
+   605→                  <div className="flex items-start justify-between">
+   606→                    <div className="flex items-center gap-3">
+   607→                      <div className="size-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+   608→                        {provider.logoUrl ? (
+   609→                          <img
+   610→                            src={provider.logoUrl}
+   611→                            alt={provider.name}
+   612→                            className="size-8 rounded"
+   613→                          />
+   614→                        ) : (
+   615→                          <Server className="size-5 text-amber-500" />
+   616→                        )}
+   617→                      </div>
+   618→                      <div>
+   619→                        <CardTitle className="text-base text-primary">
+   620→                          {provider.name}
+   621→                        </CardTitle>
+   622→                        <p className="text-xs text-muted-foreground">
+   623→                          {TYPE_LABELS[provider.type] ?? provider.type}
+   624→                        </p>
+   625→                      </div>
+   626→                    </div>
+   627→                    <div className="flex items-center gap-1.5">
+   628→                      {provider.isCertified && (
+   629→                        <Badge
+   630→                          variant="outline"
+   631→                          className="bg-blue-500/15 text-blue-400 border-blue-500/25 text-[10px] px-1.5"
+   632→                        >
+   633→                          <Shield className="size-3 mr-0.5" /> Certified
+   634→                        </Badge>
+   635→                      )}
+   636→                      <Badge
+   637→                        variant="outline"
+   638→                        className={`text-[10px] px-1.5 ${STATUS_COLORS[provider.status] ?? STATUS_COLORS.pending}`}
+   639→                      >
+   640→                        {provider.status}
+   641→                      </Badge>
+   642→                    </div>
+   643→                  </div>
+   644→                </CardHeader>
+   645→                <CardContent className="pt-0 space-y-3">
+   646→                  {/* Metrics Row */}
+   647→                  <div className="grid grid-cols-3 gap-2 text-center">
+   648→                    <div>
+   649→                      <p className="text-lg font-bold text-primary">
+   650→                        {provider.activeGames}
+   651→                      </p>
+   652→                      <p className="text-[10px] text-muted-foreground">Active Games</p>
+   653→                    </div>
+   654→                    <div>
+   655→                      <p className="text-lg font-bold text-primary">
+   656→                        {provider.activePlayers}
+   657→                      </p>
+   658→                      <p className="text-[10px] text-muted-foreground">Players</p>
+   659→                    </div>
+   660→                    <div>
+   661→                      <p className="text-lg font-bold text-primary">
+   662→                        {formatRevenue(provider.monthlyRevenue)}
+   663→                      </p>
+   664→                      <p className="text-[10px] text-muted-foreground">Revenue</p>
+   665→                    </div>
+   666→                  </div>
+   667→
+   668→                  <Separator />
+   669→
+   670→                  {/* Health Indicators */}
+   671→                  <div className="grid grid-cols-3 gap-2 text-center">
+   672→                    <div>
+   673→                      <p
+   674→                        className={`text-sm font-semibold ${
+   675→                          provider.errorRate > 2 ? 'text-red-400' : 'text-emerald-400'
+   676→                        }`}
+   677→                      >
+   678→                        {provider.errorRate.toFixed(2)}%
+   679→                      </p>
+   680→                      <p className="text-[10px] text-muted-foreground">Error Rate</p>
+   681→                    </div>
+   682→                    <div>
+   683→                      <p className="text-sm font-semibold text-primary">
+   684→                        {provider.avgLatencyMs}ms
+   685→                      </p>
+   686→                      <p className="text-[10px] text-muted-foreground">Latency</p>
+   687→                    </div>
+   688→                    <div>
+   689→                      <p
+   690→                        className={`text-sm font-semibold ${
+   691→                          provider.uptime >= 99.9
+   692→                            ? 'text-emerald-400'
+   693→                            : provider.uptime >= 99
+   694→                              ? 'text-amber-400'
+   695→                              : 'text-red-400'
+   696→                        }`}
+   697→                      >
+   698→                        {provider.uptime.toFixed(2)}%
+   699→                      </p>
+   700→                      <p className="text-[10px] text-muted-foreground">Uptime</p>
+   701→                    </div>
+   702→                  </div>
+   703→
+   704→                  {/* Integration Info */}
+   705→                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+   706→                    <Zap className="size-3 text-amber-500" />
+   707→                    <span>{provider.integrationType}</span>
+   708→                    {provider.apiVersion && (
+   709→                      <>
+   710→                        <span className="text-border">·</span>
+   711→                        <span>v{provider.apiVersion}</span>
+   712→                      </>
+   713→                    )}
+   714→                  </div>
+   715→
+   716→                  {/* Actions */}
+   717→                  <div className="flex items-center gap-2 pt-1">
+   718→                    <Button
+   719→                      variant="outline"
+   720→                      size="sm"
+   721→                      className="flex-1 gap-1 text-xs h-7"
+   722→                      onClick={() => {
+   723→                        setSelectedProvider(provider)
+   724→                        setConfigDialogOpen(true)
+   725→                      }}
+   726→                    >
+   727→                      <Settings className="size-3" /> Configure
+   728→                    </Button>
+   729→                    <Button variant="outline" size="sm" className="flex-1 gap-1 text-xs h-7">
+   730→                      <Eye className="size-3" /> Games
+   731→                    </Button>
+   732→                    <Button
+   733→                      variant="outline"
+   734→                      size="sm"
+   735→                      className="gap-1 text-xs h-7"
+   736→                    >
+   737→                      <Activity className="size-3" />
+   738→                    </Button>
+   739→                  </div>
+   740→                </CardContent>
+   741→              </Card>
+   742→            ))}
+   743→          </div>
+   744→
+   745→          {filteredProviders.length === 0 && (
+   746→            <Card className="bg-card border-border">
+   747→              <CardContent className="p-8 text-center">
+   748→                <Server className="size-10 text-muted-foreground/40 mx-auto mb-3" />
+   749→                <p className="text-sm text-muted-foreground">
+   750→                  No providers match your filters
+   751→                </p>
+   752→              </CardContent>
+   753→            </Card>
+   754→          )}
+   755→        </TabsContent>
+   756→
+   757→        {/* ═══════ Tab 2: Callbacks ═══════ */}
+   758→        <TabsContent value="callbacks" className="space-y-4 mt-4">
+   759→          {/* Filter */}
+   760→          <Card className="bg-card border-border">
+   761→            <CardContent className="p-4">
+   762→              <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+   763→                <Select value={callbackProviderFilter} onValueChange={setCallbackProviderFilter}>
+   764→                  <SelectTrigger className="w-full sm:w-[220px]">
+   765→                    <SelectValue placeholder="All Providers" />
+   766→                  </SelectTrigger>
+   767→                  <SelectContent>
+   768→                    <SelectItem value="all">All Providers</SelectItem>
+   769→                    {providerSelectItems}
+   770→                  </SelectContent>
+   771→                </Select>
+   772→                <p className="text-xs text-muted-foreground">
+   773→                  {filteredCallbacks.length} callback{filteredCallbacks.length !== 1 ? 's' : ''}
+   774→                </p>
+   775→              </div>
+   776→            </CardContent>
+   777→          </Card>
+   778→
+   779→          {/* Callbacks Table */}
+   780→          <Card className="bg-card border-border">
+   781→            <CardContent className="p-0">
+   782→              <ScrollArea className="max-h-96">
+   783→                <Table>
+   784→                  <TableHeader>
+   785→                    <TableRow>
+   786→                      <TableHead>Provider</TableHead>
+   787→                      <TableHead>Callback</TableHead>
+   788→                      <TableHead>Event Type</TableHead>
+   789→                      <TableHead>URL</TableHead>
+   790→                      <TableHead>Auth</TableHead>
+   791→                      <TableHead>Status</TableHead>
+   792→                      <TableHead>Last Received</TableHead>
+   793→                      <TableHead className="text-right">Success Rate</TableHead>
+   794→                      <TableHead className="text-right">Avg ms</TableHead>
+   795→                    </TableRow>
+   796→                  </TableHeader>
+   797→                  <TableBody>
+   798→                    {filteredCallbacks.map((cb) => {
+   799→                      const prov = providerMap.get(cb.providerId)
+   800→                      const sRate =
+   801→                        cb.totalReceived > 0
+   802→                          ? (cb.totalSuccess / cb.totalReceived) * 100
+   803→                          : 0
+   804→                      return (
+   805→                        <TableRow key={cb.id}>
+   806→                          <TableCell className="font-medium text-primary text-xs">
+   807→                            {prov?.name ?? '—'}
+   808→                          </TableCell>
+   809→                          <TableCell className="text-xs">{cb.name}</TableCell>
+   810→                          <TableCell>
+   811→                            <Badge
+   812→                              variant="outline"
+   813→                              className="text-[10px] bg-amber-500/10 text-amber-400 border-amber-500/25"
+   814→                            >
+   815→                              {cb.eventType}
+   816→                            </Badge>
+   817→                          </TableCell>
+   818→                          <TableCell className="text-xs font-mono max-w-[200px] truncate">
+   819→                            {cb.url}
+   820→                          </TableCell>
+   821→                          <TableCell>
+   822→                            <Badge
+   823→                              variant="outline"
+   824→                              className="text-[10px] bg-slate-500/10 text-slate-300 border-slate-500/25"
+   825→                            >
+   826→                              {cb.authType}
+   827→                            </Badge>
+   828→                          </TableCell>
+   829→                          <TableCell>
+   830→                            <Badge
+   831→                              variant="outline"
+   832→                              className={`text-[10px] ${cb.isActive ? STATUS_COLORS.active : STATUS_COLORS.suspended}`}
+   833→                            >
+   834→                              {cb.isActive ? 'Active' : 'Inactive'}
+   835→                            </Badge>
+   836→                          </TableCell>
+   837→                          <TableCell className="text-xs text-muted-foreground">
+   838→                            {relativeTime(cb.lastReceivedAt)}
+   839→                          </TableCell>
+   840→                          <TableCell
+   841→                            className={`text-xs text-right font-semibold ${successRateColor(sRate)}`}
+   842→                          >
+   843→                            {sRate.toFixed(1)}%
+   844→                          </TableCell>
+   845→                          <TableCell className="text-xs text-right text-muted-foreground">
+   846→                            {cb.avgProcessingMs}ms
+   847→                          </TableCell>
+   848→                        </TableRow>
+   849→                      )
+   850→                    })}
+   851→                  </TableBody>
+   852→                </Table>
+   853→              </ScrollArea>
+   854→            </CardContent>
+   855→          </Card>
+   856→
+   857→          {filteredCallbacks.length === 0 && (
+   858→            <Card className="bg-card border-border">
+   859→              <CardContent className="p-8 text-center">
+   860→                <Webhook className="size-10 text-muted-foreground/40 mx-auto mb-3" />
+   861→                <p className="text-sm text-muted-foreground">No callbacks found</p>
+   862→              </CardContent>
+   863→            </Card>
+   864→          )}
+   865→        </TabsContent>
+   866→
+   867→        {/* ═══════ Tab 3: Games ═══════ */}
+   868→        <TabsContent value="games" className="space-y-4 mt-4">
+   869→          {/* Filters */}
+   870→          <Card className="bg-card border-border">
+   871→            <CardContent className="p-4">
+   872→              <div className="flex flex-col sm:flex-row gap-3">
+   873→                <Select value={gameProviderFilter} onValueChange={setGameProviderFilter}>
+   874→                  <SelectTrigger className="w-full sm:w-[200px]">
+   875→                    <SelectValue placeholder="All Providers" />
+   876→                  </SelectTrigger>
+   877→                  <SelectContent>
+   878→                    <SelectItem value="all">All Providers</SelectItem>
+   879→                    {providerSelectItems}
+   880→                  </SelectContent>
+   881→                </Select>
+   882→                <div className="relative flex-1">
+   883→                  <Search className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" />
+   884→                  <Input
+   885→                    placeholder="Search games..."
+   886→                    value={gameSearch}
+   887→                    onChange={(e) => setGameSearch(e.target.value)}
+   888→                    className="pl-8"
+   889→                  />
+   890→                </div>
+   891→                <Select value={gameTypeFilter} onValueChange={setGameTypeFilter}>
+   892→                  <SelectTrigger className="w-full sm:w-[150px]">
+   893→                    <SelectValue placeholder="Type" />
+   894→                  </SelectTrigger>
+   895→                  <SelectContent>
+   896→                    <SelectItem value="all">All Types</SelectItem>
+   897→                    <SelectItem value="slot">Slot</SelectItem>
+   898→                    <SelectItem value="live_table">Live Table</SelectItem>
+   899→                    <SelectItem value="jackpot">Jackpot</SelectItem>
+   900→                    <SelectItem value="table_game">Table Game</SelectItem>
+   901→                    <SelectItem value="instant_win">Instant Win</SelectItem>
+   902→                  </SelectContent>
+   903→                </Select>
+   904→                <Select value={gameActiveFilter} onValueChange={setGameActiveFilter}>
+   905→                  <SelectTrigger className="w-full sm:w-[120px]">
+   906→                    <SelectValue placeholder="Status" />
+   907→                  </SelectTrigger>
+   908→                  <SelectContent>
+   909→                    <SelectItem value="all">All</SelectItem>
+   910→                    <SelectItem value="active">Active</SelectItem>
+   911→                  </SelectContent>
+   912→                </Select>
+   913→              </div>
+   914→            </CardContent>
+   915→          </Card>
+   916→
+   917→          {/* Games Table */}
+   918→          <Card className="bg-card border-border">
+   919→            <CardContent className="p-0">
+   920→              <ScrollArea className="max-h-96">
+   921→                <Table>
+   922→                  <TableHeader>
+   923→                    <TableRow>
+   924→                      <TableHead>Game</TableHead>
+   925→                      <TableHead>Provider</TableHead>
+   926→                      <TableHead>Type</TableHead>
+   927→                      <TableHead className="text-right">RTP</TableHead>
+   928→                      <TableHead>Volatility</TableHead>
+   929→                      <TableHead className="text-right">Max Win</TableHead>
+   930→                      <TableHead className="text-right">Bet Range</TableHead>
+   931→                      <TableHead className="text-right">Sessions</TableHead>
+   932→                      <TableHead className="text-right">Popularity</TableHead>
+   933→                    </TableRow>
+   934→                  </TableHeader>
+   935→                  <TableBody>
+   936→                    {filteredGames.map((game) => {
+   937→                      const prov = providerMap.get(game.providerId)
+   938→                      return (
+   939→                        <TableRow key={game.id}>
+   940→                          <TableCell>
+   941→                            <div className="flex items-center gap-1.5">
+   942→                              <span className="font-medium text-xs text-primary">
+   943→                                {game.name}
+   944→                              </span>
+   945→                              {game.isNew && (
+   946→                                <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[9px] px-1 py-0">
+   947→                                  NEW
+   948→                                </Badge>
+   949→                              )}
+   950→                              {game.isFeatured && (
+   951→                                <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-[9px] px-1 py-0">
+   952→                                  FEATURED
+   953→                                </Badge>
+   954→                              )}
+   955→                            </div>
+   956→                          </TableCell>
+   957→                          <TableCell className="text-xs text-muted-foreground">
+   958→                            {prov?.name ?? '—'}
+   959→                          </TableCell>
+   960→                          <TableCell>
+   961→                            <Badge
+   962→                              variant="outline"
+   963→                              className="text-[10px] bg-amber-500/10 text-amber-400 border-amber-500/25"
+   964→                            >
+   965→                              {GAME_TYPE_LABELS[game.type] ?? game.type}
+   966→                            </Badge>
+   967→                          </TableCell>
+   968→                          <TableCell className="text-xs text-right font-mono">
+   969→                            {game.rtp != null ? `${game.rtp.toFixed(1)}%` : '—'}
+   970→                          </TableCell>
+   971→                          <TableCell>
+   972→                            {game.volatility ? (
+   973→                              <Badge
+   974→                                variant="outline"
+   975→                                className={`text-[10px] ${VOLATILITY_STYLES[game.volatility] ?? ''} ${game.volatility === 'very_high' ? 'animate-pulse' : ''}`}
+   976→                              >
+   977→                                {game.volatility.replace('_', ' ')}
+   978→                              </Badge>
+   979→                            ) : (
+   980→                              '—'
+   981→                            )}
+   982→                          </TableCell>
+   983→                          <TableCell className="text-xs text-right font-mono">
+   984→                            {game.maxWin != null
+   985→                              ? game.maxWin >= 1000
+   986→                                ? `${(game.maxWin / 1000).toFixed(0)}K`
+   987→                                : game.maxWin.toFixed(0)
+   988→                              : '—'}
+   989→                          </TableCell>
+   990→                          <TableCell className="text-xs text-right font-mono">
+   991→                            {game.minBet != null && game.maxBet != null
+   992→                              ? `$${game.minBet}-$${game.maxBet}`
+   993→                              : '—'}
+   994→                          </TableCell>
+   995→                          <TableCell className="text-xs text-right text-muted-foreground">
+   996→                            {game.totalSessions.toLocaleString()}
+   997→                          </TableCell>
+   998→                          <TableCell className="text-right">
+   999→                            <div className="flex items-center justify-end gap-1">
+  1000→                              <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
+  1001→                                <div
+  1002→                                  className="h-full rounded-full bg-amber-500"
+  1003→                                  style={{ width: `${Math.min(game.popularityScore, 100)}%` }}
+  1004→                                />
+  1005→                              </div>
+  1006→                              <span className="text-[10px] text-muted-foreground w-6 text-right">
+  1007→                                {game.popularityScore}
+  1008→                              </span>
+  1009→                            </div>
+  1010→                          </TableCell>
+  1011→                        </TableRow>
+  1012→                      )
+  1013→                    })}
+  1014→                  </TableBody>
+  1015→                </Table>
+  1016→              </ScrollArea>
+  1017→            </CardContent>
+  1018→          </Card>
+  1019→
+  1020→          {filteredGames.length === 0 && (
+  1021→            <Card className="bg-card border-border">
+  1022→              <CardContent className="p-8 text-center">
+  1023→                <Gamepad2 className="size-10 text-muted-foreground/40 mx-auto mb-3" />
+  1024→                <p className="text-sm text-muted-foreground">No games match your filters</p>
+  1025→              </CardContent>
+  1026→            </Card>
+  1027→          )}
+  1028→        </TabsContent>
+  1029→
+  1030→        {/* ═══════ Tab 4: Credentials ═══════ */}
+  1031→        <TabsContent value="credentials" className="space-y-4 mt-4">
+  1032→          {/* Filter */}
+  1033→          <Card className="bg-card border-border">
+  1034→            <CardContent className="p-4">
+  1035→              <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+  1036→                <Select value={credProviderFilter} onValueChange={setCredProviderFilter}>
+  1037→                  <SelectTrigger className="w-full sm:w-[220px]">
+  1038→                    <SelectValue placeholder="All Providers" />
+  1039→                  </SelectTrigger>
+  1040→                  <SelectContent>
+  1041→                    <SelectItem value="all">All Providers</SelectItem>
+  1042→                    {providerSelectItems}
+  1043→                  </SelectContent>
+  1044→                </Select>
+  1045→                <p className="text-xs text-muted-foreground">
+  1046→                  {filteredCredentials.length} credential set{filteredCredentials.length !== 1 ? 's' : ''}
+  1047→                </p>
+  1048→              </div>
+  1049→            </CardContent>
+  1050→          </Card>
+  1051→
+  1052→          {/* Credential Cards */}
+  1053→          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  1054→            {filteredCredentials.map((cred) => {
+  1055→              const prov = providerMap.get(cred.providerId)
+  1056→              const expiringSoon = isExpiringSoon(cred.expiresAt)
+  1057→              const expired =
+  1058→                cred.expiresAt && new Date(cred.expiresAt).getTime() < Date.now()
+  1059→
+  1060→              return (
+  1061→                <Card
+  1062→                  key={cred.id}
+  1063→                  className={`bg-card border-border ${expiringSoon ? 'border-amber-500/40' : ''} ${expired ? 'border-red-500/40' : ''}`}
+  1064→                >
+  1065→                  <CardHeader className="pb-3">
+  1066→                    <div className="flex items-start justify-between">
+  1067→                      <div>
+  1068→                        <CardTitle className="text-base text-primary">
+  1069→                          {prov?.name ?? 'Unknown Provider'}
+  1070→                        </CardTitle>
+  1071→                        <p className="text-xs text-muted-foreground mt-0.5">
+  1072→                          {cred.environment} environment
+  1073→                        </p>
+  1074→                      </div>
+  1075→                      <div className="flex items-center gap-1.5">
+  1076→                        <Badge
+  1077→                          variant="outline"
+  1078→                          className={`text-[10px] ${ENV_STYLES[cred.environment] ?? ENV_STYLES.sandbox}`}
+  1079→                        >
+  1080→                          {cred.environment}
+  1081→                        </Badge>
+  1082→                        <Badge
+  1083→                          variant="outline"
+  1084→                          className={`text-[10px] ${cred.isActive ? STATUS_COLORS.active : STATUS_COLORS.suspended}`}
+  1085→                        >
+  1086→                          {cred.isActive ? 'Active' : 'Inactive'}
+  1087→                        </Badge>
+  1088→                      </div>
+  1089→                    </div>
+  1090→                  </CardHeader>
+  1091→                  <CardContent className="pt-0 space-y-3">
+  1092→                    {/* API Key */}
+  1093→                    {cred.apiKey && (
+  1094→                      <div className="flex items-center justify-between gap-2">
+  1095→                        <div className="flex-1 min-w-0">
+  1096→                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+  1097→                            API Key
+  1098→                          </p>
+  1099→                          <p className="text-xs font-mono text-primary truncate">
+  1100→                            {maskValue(cred.apiKey)}
+  1101→                          </p>
+  1102→                        </div>
+  1103→                        <Button
+  1104→                          variant="ghost"
+  1105→                          size="sm"
+  1106→                          className="size-7 p-0 shrink-0"
+  1107→                          onClick={() => handleCopy(`${cred.id}-apikey`)}
+  1108→                        >
+  1109→                          {copiedField === `${cred.id}-apikey` ? (
+  1110→                            <CheckCircle className="size-3.5 text-emerald-400" />
+  1111→                          ) : (
+  1112→                            <Copy className="size-3.5 text-muted-foreground" />
+  1113→                          )}
+  1114→                        </Button>
+  1115→                      </div>
+  1116→                    )}
+  1117→
+  1118→                    {/* API Secret */}
+  1119→                    {cred.apiSecret && (
+  1120→                      <div className="flex items-center justify-between gap-2">
+  1121→                        <div className="flex-1 min-w-0">
+  1122→                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+  1123→                            API Secret
+  1124→                          </p>
+  1125→                          <p className="text-xs font-mono text-primary truncate">
+  1126→                            {maskValue(cred.apiSecret)}
+  1127→                          </p>
+  1128→                        </div>
+  1129→                        <Button
+  1130→                          variant="ghost"
+  1131→                          size="sm"
+  1132→                          className="size-7 p-0 shrink-0"
+  1133→                          onClick={() => handleCopy(`${cred.id}-apisecret`)}
+  1134→                        >
+  1135→                          {copiedField === `${cred.id}-apisecret` ? (
+  1136→                            <CheckCircle className="size-3.5 text-emerald-400" />
+  1137→                          ) : (
+  1138→                            <Copy className="size-3.5 text-muted-foreground" />
+  1139→                          )}
+  1140→                        </Button>
+  1141→                      </div>
+  1142→                    )}
+  1143→
+  1144→                    {/* Bearer Token */}
+  1145→                    {cred.bearerToken && (
+  1146→                      <div className="flex items-center justify-between gap-2">
+  1147→                        <div className="flex-1 min-w-0">
+  1148→                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+  1149→                            Bearer Token
+  1150→                          </p>
+  1151→                          <p className="text-xs font-mono text-primary truncate">
+  1152→                            {maskValue(cred.bearerToken)}
+  1153→                          </p>
+  1154→                        </div>
+  1155→                        <Button
+  1156→                          variant="ghost"
+  1157→                          size="sm"
+  1158→                          className="size-7 p-0 shrink-0"
+  1159→                          onClick={() => handleCopy(`${cred.id}-bearer`)}
+  1160→                        >
+  1161→                          {copiedField === `${cred.id}-bearer` ? (
+  1162→                            <CheckCircle className="size-3.5 text-emerald-400" />
+  1163→                          ) : (
+  1164→                            <Copy className="size-3.5 text-muted-foreground" />
+  1165→                          )}
+  1166→                        </Button>
+  1167→                      </div>
+  1168→                    )}
+  1169→
+  1170→                    <Separator />
+  1171→
+  1172→                    {/* Expiry & Last Used */}
+  1173→                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+  1174→                      <div className="flex items-center gap-1.5">
+  1175→                        <Clock className="size-3" />
+  1176→                        <span>Last used: {relativeTime(cred.lastUsedAt)}</span>
+  1177→                      </div>
+  1178→                      {cred.expiresAt && (
+  1179→                        <div className="flex items-center gap-1.5">
+  1180→                          {expired ? (
+  1181→                            <>
+  1182→                              <XCircle className="size-3 text-red-400" />
+  1183→                              <span className="text-red-400">Expired</span>
+  1184→                            </>
+  1185→                          ) : expiringSoon ? (
+  1186→                            <>
+  1187→                              <AlertTriangle className="size-3 text-amber-400" />
+  1188→                              <span className="text-amber-400">
+  1189→                                Expires {relativeTime(cred.expiresAt)}
+  1190→                              </span>
+  1191→                            </>
+  1192→                          ) : (
+  1193→                            <>
+  1194→                              <Lock className="size-3" />
+  1195→                              <span>Expires {relativeTime(cred.expiresAt)}</span>
+  1196→                            </>
+  1197→                          )}
+  1198→                        </div>
+  1199→                      )}
+  1200→                    </div>
+  1201→                  </CardContent>
+  1202→                </Card>
+  1203→              )
+  1204→            })}
+  1205→          </div>
+  1206→
+  1207→          {filteredCredentials.length === 0 && (
+  1208→            <Card className="bg-card border-border">
+  1209→              <CardContent className="p-8 text-center">
+  1210→                <Key className="size-10 text-muted-foreground/40 mx-auto mb-3" />
+  1211→                <p className="text-sm text-muted-foreground">No credentials found</p>
+  1212→              </CardContent>
+  1213→            </Card>
+  1214→          )}
+  1215→        </TabsContent>
+  1216→
+  1217→        {/* ═══════ Tab 5: Health ═══════ */}
+  1218→        <TabsContent value="health" className="space-y-4 mt-4">
+  1219→          {/* Filter */}
+  1220→          <Card className="bg-card border-border">
+  1221→            <CardContent className="p-4">
+  1222→              <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+  1223→                <Select value={healthProviderFilter} onValueChange={setHealthProviderFilter}>
+  1224→                  <SelectTrigger className="w-full sm:w-[220px]">
+  1225→                    <SelectValue placeholder="All Providers" />
+  1226→                  </SelectTrigger>
+  1227→                  <SelectContent>
+  1228→                    <SelectItem value="all">All Providers</SelectItem>
+  1229→                    {providerSelectItems}
+  1230→                  </SelectContent>
+  1231→                </Select>
+  1232→                <p className="text-xs text-muted-foreground">
+  1233→                  {filteredHealth.length} log{filteredHealth.length !== 1 ? 's' : ''}
+  1234→                </p>
+  1235→              </div>
+  1236→            </CardContent>
+  1237→          </Card>
+  1238→
+  1239→          {/* Health Table */}
+  1240→          <Card className="bg-card border-border">
+  1241→            <CardContent className="p-0">
+  1242→              <ScrollArea className="max-h-96">
+  1243→                <Table>
+  1244→                  <TableHeader>
+  1245→                    <TableRow>
+  1246→                      <TableHead>Provider</TableHead>
+  1247→                      <TableHead>Metric</TableHead>
+  1248→                      <TableHead className="text-right">Value</TableHead>
+  1249→                      <TableHead className="text-right">Threshold</TableHead>
+  1250→                      <TableHead>Status</TableHead>
+  1251→                      <TableHead>Checked</TableHead>
+  1252→                    </TableRow>
+  1253→                  </TableHeader>
+  1254→                  <TableBody>
+  1255→                    {filteredHealth.map((log) => {
+  1256→                      const prov = providerMap.get(log.providerId)
+  1257→                      const MetricIcon = METRIC_ICONS[log.metric] ?? Activity
+  1258→                      return (
+  1259→                        <TableRow key={log.id}>
+  1260→                          <TableCell className="font-medium text-xs text-primary">
+  1261→                            {prov?.name ?? '—'}
+  1262→                          </TableCell>
+  1263→                          <TableCell>
+  1264→                            <div className="flex items-center gap-1.5">
+  1265→                              <MetricIcon className="size-3.5 text-amber-500" />
+  1266→                              <span className="text-xs">
+  1267→                                {log.metric.replace(/_/g, ' ')}
+  1268→                              </span>
+  1269→                            </div>
+  1270→                          </TableCell>
+  1271→                          <TableCell className="text-xs text-right font-mono font-semibold">
+  1272→                            {log.value} {log.unit}
+  1273→                          </TableCell>
+  1274→                          <TableCell className="text-xs text-right font-mono text-muted-foreground">
+  1275→                            {log.threshold != null ? `${log.threshold} ${log.unit}` : '—'}
+  1276→                          </TableCell>
+  1277→                          <TableCell>
+  1278→                            {log.isAlert ? (
+  1279→                              <Badge
+  1280→                                variant="outline"
+  1281→                                className="text-[10px] bg-red-500/15 text-red-400 border-red-500/25 gap-1"
+  1282→                              >
+  1283→                                <XCircle className="size-3" /> ALERT
+  1284→                              </Badge>
+  1285→                            ) : (
+  1286→                              <Badge
+  1287→                                variant="outline"
+  1288→                                className="text-[10px] bg-emerald-500/15 text-emerald-400 border-emerald-500/25 gap-1"
+  1289→                              >
+  1290→                                <CheckCircle className="size-3" /> OK
+  1291→                              </Badge>
+  1292→                            )}
+  1293→                          </TableCell>
+  1294→                          <TableCell className="text-xs text-muted-foreground">
+  1295→                            {relativeTime(log.checkedAt)}
+  1296→                          </TableCell>
+  1297→                        </TableRow>
+  1298→                      )
+  1299→                    })}
+  1300→                  </TableBody>
+  1301→                </Table>
+  1302→              </ScrollArea>
+  1303→            </CardContent>
+  1304→          </Card>
+  1305→
+  1306→          {filteredHealth.length === 0 && (
+  1307→            <Card className="bg-card border-border">
+  1308→              <CardContent className="p-8 text-center">
+  1309→                <HeartPulse className="size-10 text-muted-foreground/40 mx-auto mb-3" />
+  1310→                <p className="text-sm text-muted-foreground">No health logs found</p>
+  1311→              </CardContent>
+  1312→            </Card>
+  1313→          )}
+  1314→        </TabsContent>
+  1315→      </Tabs>
+  1316→
+  1317→      {/* ═══════ Configure Provider Dialog ═══════ */}
+  1318→      <Dialog open={configDialogOpen} onOpenChange={setConfigDialogOpen}>
+  1319→        <DialogContent className="sm:max-w-[600px]">
+  1320→          <DialogHeader>
+  1321→            <DialogTitle className="flex items-center gap-2">
+  1322→              <Settings className="size-5 text-amber-500" />
+  1323→              Configure Provider
+  1324→              {selectedProvider && (
+  1325→                <span className="text-muted-foreground font-normal">
+  1326→                  — {selectedProvider.name}
+  1327→                </span>
+  1328→              )}
+  1329→            </DialogTitle>
+  1330→          </DialogHeader>
+  1331→          {selectedProvider && (
+  1332→            <div className="space-y-4 py-2">
+  1333→              {/* Basic Info */}
+  1334→              <div className="grid grid-cols-2 gap-3">
+  1335→                <div className="space-y-1.5">
+  1336→                  <Label className="text-xs text-muted-foreground">Provider Name</Label>
+  1337→                  <Input value={selectedProvider.name} readOnly className="text-xs" />
+  1338→                </div>
+  1339→                <div className="space-y-1.5">
+  1340→                  <Label className="text-xs text-muted-foreground">Integration Type</Label>
+  1341→                  <Input value={selectedProvider.integrationType} readOnly className="text-xs" />
+  1342→                </div>
+  1343→              </div>
+  1344→
+  1345→              <div className="grid grid-cols-2 gap-3">
+  1346→                <div className="space-y-1.5">
+  1347→                  <Label className="text-xs text-muted-foreground">Base URL</Label>
+  1348→                  <Input
+  1349→                    value={selectedProvider.baseUrl ?? ''}
+  1350→                    readOnly
+  1351→                    className="text-xs font-mono"
+  1352→                  />
+  1353→                </div>
+  1354→                <div className="space-y-1.5">
+  1355→                  <Label className="text-xs text-muted-foreground">Callback URL</Label>
+  1356→                  <Input
+  1357→                    value={selectedProvider.callbackUrl ?? ''}
+  1358→                    readOnly
+  1359→                    className="text-xs font-mono"
+  1360→                  />
+  1361→                </div>
+  1362→              </div>
+  1363→
+  1364→              <Separator />
+  1365→
+  1366→              {/* Settings */}
+  1367→              <div className="space-y-3">
+  1368→                <div className="flex items-center justify-between">
+  1369→                  <div className="space-y-0.5">
+  1370→                    <Label className="text-xs">Active</Label>
+  1371→                    <p className="text-[10px] text-muted-foreground">
+  1372→                      Enable or disable this provider
+  1373→                    </p>
+  1374→                  </div>
+  1375→                  <Switch defaultChecked={selectedProvider.isActive} />
+  1376→                </div>
+  1377→
+  1378→                <div className="flex items-center justify-between">
+  1379→                  <div className="space-y-0.5">
+  1380→                    <Label className="text-xs">Certified</Label>
+  1381→                    <p className="text-[10px] text-muted-foreground">
+  1382→                      Provider certification status
+  1383→                    </p>
+  1384→                  </div>
+  1385→                  <Switch defaultChecked={selectedProvider.isCertified} disabled />
+  1386→                </div>
+  1387→              </div>
+  1388→
+  1389→              <Separator />
+  1390→
+  1391→              {/* Additional Info */}
+  1392→              <div className="grid grid-cols-2 gap-3">
+  1393→                <div className="space-y-1.5">
+  1394→                  <Label className="text-xs text-muted-foreground">API Version</Label>
+  1395→                  <Input
+  1396→                    value={selectedProvider.apiVersion ?? '—'}
+  1397→                    readOnly
+  1398→                    className="text-xs"
+  1399→                  />
+  1400→                </div>
+  1401→                <div className="space-y-1.5">
+  1402→                  <Label className="text-xs text-muted-foreground">Max Concurrent Sessions</Label>
+  1403→                  <Input
+  1404→                    value={String(selectedProvider.maxConcurrentSessions)}
+  1405→                    readOnly
+  1406→                    className="text-xs"
+  1407→                  />
+  1408→                </div>
+  1409→              </div>
+  1410→
+  1411→              {selectedProvider.allowedIps && (
+  1412→                <div className="space-y-1.5">
+  1413→                  <Label className="text-xs text-muted-foreground">Allowed IPs</Label>
+  1414→                  <Textarea
+  1415→                    value={selectedProvider.allowedIps}
+  1416→                    readOnly
+  1417→                    className="text-xs font-mono min-h-[60px]"
+  1418→                  />
+  1419→                </div>
+  1420→              )}
+  1421→
+  1422→              <div className="flex justify-end gap-2 pt-2">
+  1423→                <Button
+  1424→                  variant="outline"
+  1425→                  size="sm"
+  1426→                  onClick={() => setConfigDialogOpen(false)}
+  1427→                >
+  1428→                  Cancel
+  1429→                </Button>
+  1430→                <Button
+  1431→                  size="sm"
+  1432→                  className="bg-amber-600 hover:bg-amber-700 text-white gap-1"
+  1433→                  onClick={() => setConfigDialogOpen(false)}
+  1434→                >
+  1435→                  <CheckCircle className="size-3.5" /> Save Changes
+  1436→                </Button>
+  1437→              </div>
+  1438→            </div>
+  1439→          )}
+  1440→        </DialogContent>
+  1441→      </Dialog>
+  1442→    </div>
+  1443→  )
+  1444→}
+  1445→

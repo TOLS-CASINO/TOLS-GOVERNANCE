@@ -450,7 +450,7 @@ export function VendorsView() {
 
       {/* Tabs */}
       <Tabs defaultValue="providers" className="w-full">
-        <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 lg:w-auto lg:inline-grid">
           <TabsTrigger value="providers" className="gap-1.5">
             <Server className="size-3.5" />
             <span className="hidden sm:inline">Providers</span>
@@ -644,7 +644,7 @@ export function VendorsView() {
                 </CardHeader>
                 <CardContent className="pt-0 space-y-3">
                   {/* Metrics Row */}
-                  <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-center">
                     <div>
                       <p className="text-lg font-bold text-primary">
                         {provider.activeGames}
@@ -668,7 +668,7 @@ export function VendorsView() {
                   <Separator />
 
                   {/* Health Indicators */}
-                  <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-center">
                     <div>
                       <p
                         className={`text-sm font-semibold ${
@@ -744,7 +744,7 @@ export function VendorsView() {
 
           {filteredProviders.length === 0 && (
             <Card className="bg-card border-border">
-              <CardContent className="p-8 text-center">
+              <CardContent className="p-4 sm:p-8 text-center">
                 <Server className="size-10 text-muted-foreground/40 mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">
                   No providers match your filters
@@ -856,7 +856,7 @@ export function VendorsView() {
 
           {filteredCallbacks.length === 0 && (
             <Card className="bg-card border-border">
-              <CardContent className="p-8 text-center">
+              <CardContent className="p-4 sm:p-8 text-center">
                 <Webhook className="size-10 text-muted-foreground/40 mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">No callbacks found</p>
               </CardContent>
@@ -1019,7 +1019,7 @@ export function VendorsView() {
 
           {filteredGames.length === 0 && (
             <Card className="bg-card border-border">
-              <CardContent className="p-8 text-center">
+              <CardContent className="p-4 sm:p-8 text-center">
                 <Gamepad2 className="size-10 text-muted-foreground/40 mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">No games match your filters</p>
               </CardContent>
@@ -1206,7 +1206,7 @@ export function VendorsView() {
 
           {filteredCredentials.length === 0 && (
             <Card className="bg-card border-border">
-              <CardContent className="p-8 text-center">
+              <CardContent className="p-4 sm:p-8 text-center">
                 <Key className="size-10 text-muted-foreground/40 mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">No credentials found</p>
               </CardContent>
@@ -1305,7 +1305,7 @@ export function VendorsView() {
 
           {filteredHealth.length === 0 && (
             <Card className="bg-card border-border">
-              <CardContent className="p-8 text-center">
+              <CardContent className="p-4 sm:p-8 text-center">
                 <HeartPulse className="size-10 text-muted-foreground/40 mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">No health logs found</p>
               </CardContent>
@@ -1331,7 +1331,7 @@ export function VendorsView() {
           {selectedProvider && (
             <div className="space-y-4 py-2">
               {/* Basic Info */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Provider Name</Label>
                   <Input value={selectedProvider.name} readOnly className="text-xs" />
@@ -1342,7 +1342,7 @@ export function VendorsView() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">Base URL</Label>
                   <Input
@@ -1389,7 +1389,7 @@ export function VendorsView() {
               <Separator />
 
               {/* Additional Info */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground">API Version</Label>
                   <Input

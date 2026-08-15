@@ -138,7 +138,7 @@ export function SegmentsView() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
                 <div className="text-center p-2 rounded-lg bg-muted/50">
                   <p className="text-lg font-bold">{segment.playerCount.toLocaleString()}</p>
                   <p className="text-[9px] text-muted-foreground uppercase">Players</p>

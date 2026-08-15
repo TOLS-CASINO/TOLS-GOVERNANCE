@@ -310,6 +310,7 @@ export function DashboardView() {
           </CardHeader>
           <CardContent>
             {topGames.length > 0 ? (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -332,6 +333,7 @@ export function DashboardView() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             ) : (
               <p className="text-xs text-muted-foreground text-center py-4">No house earnings data available</p>
             )}

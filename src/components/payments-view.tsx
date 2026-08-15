@@ -484,7 +484,7 @@ export function PaymentsView() {
             </DialogHeader>
             {selectedDeposit && (
               <div className="space-y-3 text-sm">
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div><span className="text-muted-foreground text-xs">ID</span><p className="font-mono text-xs">{selectedDeposit.id}</p></div>
                   <div><span className="text-muted-foreground text-xs">Player</span><p className="font-medium">{selectedDeposit.playerName}</p></div>
                   <div><span className="text-muted-foreground text-xs">Amount</span><p className="font-mono">{fmtAmount(selectedDeposit.amount, selectedDeposit.currency)}</p></div>
@@ -607,7 +607,7 @@ export function PaymentsView() {
             </DialogHeader>
             {selectedWithdrawal && (
               <div className="space-y-3 text-sm">
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <div><span className="text-muted-foreground text-xs">ID</span><p className="font-mono text-xs">{selectedWithdrawal.id}</p></div>
                   <div><span className="text-muted-foreground text-xs">Player</span><p className="font-medium">{selectedWithdrawal.playerName}</p></div>
                   <div><span className="text-muted-foreground text-xs">Amount</span><p className="font-mono">{fmtAmount(selectedWithdrawal.amount, selectedWithdrawal.currency)}</p></div>

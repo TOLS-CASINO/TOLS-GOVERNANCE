@@ -167,7 +167,7 @@ function StatsOverlay({ stats }: { stats: LiveMapData['stats'] }) {
   return (
     <div className="absolute top-3 left-3 z-20 flex flex-col gap-2">
       <Card className="bg-[#0a0e1a]/90 backdrop-blur-md border-amber-900/40 shadow-lg shadow-amber-900/10">
-        <CardContent className="p-3 flex flex-col gap-2 min-w-[180px]">
+        <CardContent className="p-3 flex flex-col gap-2 min-w-0 sm:min-w-[180px]">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
               <Users className="w-4 h-4 text-emerald-400" />
@@ -298,7 +298,7 @@ function ServerTooltip({ node, visible, x, y }: { node: ServerNode | null; visib
       className="fixed z-50 pointer-events-none"
       style={{ left: x + 12, top: y - 10 }}
     >
-      <Card className="bg-[#0a0e1a]/95 backdrop-blur-md border-amber-900/40 shadow-xl shadow-amber-900/20 min-w-[200px]">
+      <Card className="bg-[#0a0e1a]/95 backdrop-blur-md border-amber-900/40 shadow-xl shadow-amber-900/20 min-w-0 sm:min-w-[200px]">
         <CardContent className="p-3">
           <div className="flex items-center gap-2 mb-2">
             <Server className="w-3.5 h-3.5" style={{ color: statusColor }} />
@@ -307,7 +307,7 @@ function ServerTooltip({ node, visible, x, y }: { node: ServerNode | null; visib
               {node.status}
             </Badge>
           </div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
             <span className="text-slate-400">Players</span>
             <span className="text-slate-200 tabular-nums">{node.activePlayers}/{node.maxPlayers}</span>
             <span className="text-slate-400">CPU</span>
@@ -334,13 +334,13 @@ function SessionTooltip({ session, visible, x, y }: { session: ActiveSession | n
       className="fixed z-50 pointer-events-none"
       style={{ left: x + 12, top: y - 10 }}
     >
-      <Card className="bg-[#0a0e1a]/95 backdrop-blur-md border-amber-900/40 shadow-xl shadow-amber-900/20 min-w-[180px]">
+      <Card className="bg-[#0a0e1a]/95 backdrop-blur-md border-amber-900/40 shadow-xl shadow-amber-900/20 min-w-0 sm:min-w-[180px]">
         <CardContent className="p-3">
           <div className="flex items-center gap-2 mb-2">
             <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color, boxShadow: `0 0 6px ${color}` }} />
             <span className="text-xs font-semibold text-amber-200">{session.playerName}</span>
           </div>
-          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3 gap-y-1 text-[10px]">
             <span className="text-slate-400">Game</span>
             <span className="text-slate-200">{session.gameName}</span>
             <span className="text-slate-400">Wagered</span>
