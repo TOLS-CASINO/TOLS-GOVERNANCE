@@ -13,7 +13,9 @@ import { AffiliatesView } from '@/components/affiliates-view'
 import { WalletsView } from '@/components/wallets-view'
 import { PaymentsView } from '@/components/payments-view'
 import { AiTutorView } from '@/components/ai-tutor-view'
+import { ApiHubView } from '@/components/api-hub-view'
 import { LegalView } from '@/components/legal-view'
+import { NotificationsView } from '@/components/notifications-view'
 import {
   SidebarProvider,
   SidebarInset,
@@ -35,6 +37,8 @@ import {
   Bot,
   Scale,
   Settings,
+  Zap,
+  Bell,
 } from 'lucide-react'
 import { NotificationPanel } from '@/components/notification-panel'
 
@@ -49,6 +53,8 @@ const sectionMeta: Record<Section, { title: string; description: string; icon: R
   affiliates: { title: 'Affiliates', description: 'Partner management & commissions', icon: Link2 },
   wallets: { title: 'Wallets', description: 'Multi-currency wallets & transactions', icon: Wallet },
   payments: { title: 'Payments', description: 'Deposits, withdrawals & providers', icon: CreditCard },
+  notifications: { title: 'Notifications', description: 'Notification center, preferences & channels', icon: Bell },
+  'api-hub': { title: 'API Hub', description: 'Tokens, webhooks, integrations & MCP', icon: Zap },
   'ai-tutor': { title: 'AI Tutor', description: 'Intelligent assistant for operators', icon: Bot },
   legal: { title: 'Legal', description: 'Contracts, audit & compliance', icon: Scale },
 }
@@ -65,6 +71,8 @@ function SectionContent({ section }: { section: Section }) {
     case 'affiliates': return <AffiliatesView />
     case 'wallets': return <WalletsView />
     case 'payments': return <PaymentsView />
+    case 'notifications': return <NotificationsView />
+    case 'api-hub': return <ApiHubView />
     case 'ai-tutor': return <AiTutorView />
     case 'legal': return <LegalView />
   }

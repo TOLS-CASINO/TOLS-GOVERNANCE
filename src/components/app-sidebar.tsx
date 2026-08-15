@@ -15,6 +15,8 @@ import {
   Scale,
   Shield,
   TrendingUp,
+  Zap,
+  Bell,
 } from 'lucide-react'
 import { useAppStore, type Section } from '@/lib/store'
 import {
@@ -65,6 +67,8 @@ const financeItems: NavItem[] = [
 ]
 
 const systemItems: NavItem[] = [
+  { section: 'notifications', label: 'Notifications', icon: Bell },
+  { section: 'api-hub', label: 'API Hub', icon: Zap, badge: 'API' },
   { section: 'ai-tutor', label: 'AI Tutor', icon: Bot, badge: 'AI' },
   { section: 'legal', label: 'Legal', icon: Scale },
 ]

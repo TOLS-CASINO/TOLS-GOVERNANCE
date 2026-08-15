@@ -68,4 +68,10 @@ export const api = {
   wallets: {
     get: () => request<import('@/types').WalletsData>('/api/wallets'),
   },
+  apiHub: {
+    get: () => request<any>('/api/api-hub'),
+  },
+  notifications: {
+    get: () => request<any>('/api/notifications'),
+  },
 }

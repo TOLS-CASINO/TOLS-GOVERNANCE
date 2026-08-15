@@ -676,3 +676,154 @@ model ServerNode {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
+
+// ============================================
+// MODULO API & INTEGRATION (6 tabelle)
+// ============================================
+
+model ApiToken {
+  id            String   @id @default(cuid())
+  name          String   // "Production API", "Staging", "Partner X"
+  token         String   @unique // hashed token
+  tokenPrefix   String   // first 8 chars for display (tols_xxxx...)
+  ownerId       String   // user or integration ID
+  scopes        String   // JSON array: ["players:read", "wallets:write", "financial:read", ...]
+  rateLimit     Int      @default(1000) // requests per minute
+  isActive      Boolean  @default(true)
+  lastUsedAt    DateTime?
+  expiresAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  usageLogs     ApiUsageLog[]
+  webhooks      WebhookEndpoint[]
+}
+
+model WebhookEndpoint {
+  id            String   @id @default(cuid())
+  apiTokenId    String
+  name          String   // "Notify on Deposit", "Player Events"
+  url           String   // https://partner.com/webhooks/tols
+  events        String   // JSON array: ["deposit.confirmed", "withdrawal.completed", "player.login", ...]
+  secret        String   // HMAC secret for signature verification
+  isActive      Boolean  @default(true)
+  retryCount    Int      @default(3)
+  timeoutMs     Int      @default(5000)
+  lastTriggerAt DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  apiToken      ApiToken @relation(fields: [apiTokenId], references: [id])
+  deliveries    WebhookDelivery[]
+}
+
+model WebhookDelivery {
+  id            String   @id @default(cuid())
+  webhookId     String
+  eventId       String   // event type that triggered this
+  payload       String   // JSON payload sent
+  statusCode    Int?     // HTTP response status
+  response      String?  // response body (truncated)
+  duration      Int?     // ms
+  success       Boolean
+  attempt       Int      @default(1)
+  nextRetryAt   DateTime?
+  createdAt     DateTime @default(now())
+  webhook       WebhookEndpoint @relation(fields: [webhookId], references: [id])
+}
+
+model Integration {
+  id            String   @id @default(cuid())
+  name          String   // "BetMGM", "PokerStars", "Custom Platform"
+  type          String   // casino_poker, casino_slots, sports_betting, lottery, custom
+  status        String   @default("pending") // pending, connected, syncing, error, disconnected
+  apiTokenId    String?
+  config        String   // JSON: { baseUrl, authType, apiKey, syncInterval, ... }
+  syncStats     String?  // JSON: { lastSync, recordsSynced, errors, ... }
+  logo          String?  // URL
+  lastSyncAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model McpEndpoint {
+  id            String   @id @default(cuid())
+  name          String   // "TOLS Player Intelligence", "TOLS Financial API"
+  description   String
+  version       String   @default("1.0.0")
+  baseUrl       String   // /api/mcp/players, /api/mcp/financial
+  tools         String   // JSON array of MCP tool definitions
+  resources     String   // JSON array of MCP resource definitions
+  isActive      Boolean  @default(true)
+  requiresAuth  Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model ApiUsageLog {
+  id            String   @id @default(cuid())
+  apiTokenId    String
+  endpoint      String   // /api/players, /api/wallets
+  method        String   // GET, POST, PUT, DELETE
+  statusCode    Int
+  durationMs    Int
+  ipAddress     String?
+  userAgent     String?
+  error         String?
+  createdAt     DateTime @default(now())
+  apiToken      ApiToken @relation(fields: [apiTokenId], references: [id])
+}
+
+// ============================================
+// MODULO NOTIFICATIONS (4 tabelle)
+// ============================================
+
+model Notification {
+  id            String   @id @default(cuid())
+  userId        String?  // null = broadcast to all
+  type          String   // info, warning, success, error, critical
+  category      String   // financial, player, system, webhook, integration, compliance
+  title         String
+  message       String
+  metadata      String?  // JSON: { link, actionUrl, entityType, entityId, ... }
+  isRead        Boolean  @default(false)
+  readAt        DateTime?
+  channel       String   @default("in_app") // in_app, email, sms, webhook, push
+  priority      String   @default("normal") // low, normal, high, urgent
+  expiresAt     DateTime?
+  createdAt     DateTime @default(now())
+}
+
+model NotificationPreference {
+  id            String   @id @default(cuid())
+  userId        String
+  category      String   // financial, player, system, webhook, integration, compliance
+  channel       String   // in_app, email, sms, webhook, push
+  isEnabled     Boolean  @default(true)
+  minPriority   String   @default("normal") // only notify for this priority and above
+  quietHoursStart String? // "22:00"
+  quietHoursEnd   String? // "08:00"
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model NotificationTemplate {
+  id            String   @id @default(cuid())
+  name          String   // "deposit_confirmed", "withdrawal_pending", "variance_alert"
+  category      String
+  titleTemplate String   // "Deposit of {{amount}} {{currency}} Confirmed"
+  bodyTemplate  String   // "Player {{playerName}} deposit of {{amount}} ..."
+  channel       String   @default("in_app")
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model NotificationChannel {
+  id            String   @id @default(cuid())
+  userId        String
+  type          String   // email, sms, webhook, slack, discord, telegram
+  config        String   // JSON: { email, phone, webhookUrl, slackChannel, ... }
+  isVerified    Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
