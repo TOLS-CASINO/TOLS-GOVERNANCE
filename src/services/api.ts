@@ -74,4 +74,7 @@ export const api = {
   notifications: {
     get: () => request<any>('/api/notifications'),
   },
+  vendors: {
+    get: () => request<any>('/api/vendors'),
+  },
 }

@@ -17,6 +17,7 @@ import {
   TrendingUp,
   Zap,
   Bell,
+  Server,
 } from 'lucide-react'
 import { useAppStore, type Section } from '@/lib/store'
 import {
@@ -64,6 +65,7 @@ const marketingItems: NavItem[] = [
 const financeItems: NavItem[] = [
   { section: 'wallets', label: 'Wallets', icon: Wallet },
   { section: 'payments', label: 'Payments', icon: CreditCard },
+  { section: 'vendors', label: 'Vendors', icon: Server },
 ]
 
 const systemItems: NavItem[] = [

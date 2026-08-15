@@ -11,6 +11,7 @@ export type Section =
   | 'affiliates'
   | 'wallets'
   | 'payments'
+  | 'vendors'
   | 'notifications'
   | 'api-hub'
   | 'ai-tutor'

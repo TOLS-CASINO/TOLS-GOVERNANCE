@@ -1,0 +1,720 @@
+     1→# TOLS Platform Worklog
+     2→
+     3→---
+     4→A comprehensive casino management platform has been built from scratch using Next.js 16 with App Router.
+     5→
+     6→## Architecture Overview
+     7→
+     8→### Database (Prisma + SQLite)
+     9→- 35 tables across 6 modules: Financial, Player Intelligence, Marketing/CRM, Affiliates, Legal/Security, AI/Analytics
+    10→- Full schema with relations, seeded with realistic demo data
+    11→
+    12→### Frontend (React + Next.js)
+    13→- Single-page app with sidebar navigation across 8 sections
+    14→- Dark casino theme with gold/amber primary, deep navy backgrounds
+    15→- All shadcn/ui components used (Card, Tabs, Table, Badge, Dialog, Sheet, etc.)
+    16→- Recharts for all data visualizations (AreaChart, BarChart, PieChart)
+    17→- Responsive design with mobile-friendly sidebar collapse
+    18→
+    19→### API Routes (14 endpoints)
+    20→- /api/dashboard - KPI data aggregation
+    21→- /api/financial - Deposits, withdrawals, house earnings, ledger
+    22→- /api/escrow - Escrow account with settlement history
+    23→- /api/waterfall - 6-tier waterfall distribution engine
+    24→- /api/players - Player profiles with segments and notes
+    25→- /api/segments - Segment management with rules
+    26→- /api/promotions - Promotion builder with stats and codes
+    27→- /api/affiliates - Affiliate leaderboard and commissions
+    28→- /api/legal - Contract signatures and audit logs
+    29→- /api/variance - Variance alerts and budget targets
+    30→- /api/budget - Budget tracking
+    31→- /api/jackpots - Global jackpot pools
+    32→- /api/forecast - 13-week financial forecast
+    33→- /api/ai-tutor - AI Tutor chat endpoint
+    34→
+    35→### Modules Built
+    36→1. **Dashboard** - KPI cards, cash flow chart, forecast, top games table, global jackpots, variance alerts
+    37→2. **Financial** - 5-tab view (Overview, Escrow, Waterfall, Ledger, Variance)
+    38→3. **Player Intelligence** - Searchable roster, detail drawer, timeline, responsible gaming
+    39→4. **Segmentation** - Segment cards with player counts, filter rules, create dialog
+    40→5. **Promotion Builder** - Active promotions, bonus codes, wagering config, cron schedules
+    41→6. **Affiliates** - Leaderboard, commission tiers, performance charts
+    42→7. **AI Tutor** - Chat interface with context selector and suggested questions
+    43→8. **Legal** - Contracts, audit log, DocuSign integration status
+    44→
+    45→### Key Features
+    46→- Waterfall Protocol: 6-tier payment distribution (Operational# 15% → Affiliate 25% → Jackpot 10% → Marketing 20% → Reserve 15% → Profit 15%)
+    47→- Escrow Account: Centralized balance with settlement scheduling
+    48→- Variance Alerts: ±15% threshold monitoring with severity levels
+    49→- RBAC: Finance/Controller/Super Admin role switcher
+    50→- 13-Week Forecast: Rolling financial projection with seasonal factors
+    51→
+    52→---
+    53→
+    54→## Task 3-a: Live World Map Component
+    55→
+    56→### Files Created/Modified
+    57→- **NEW** `src/types/live-map.ts` - LiveMapData, ActiveSession, ServerNode, LiveEvent, LiveMapStats type definitions
+    58→- **MOD** `src/types/index.ts` - Added live-map type export
+    59→- **MOD** `src/services/api.ts` - Added `liveMap.get()` endpoint
+    60→- **NEW** `src/app/api/live-map/route.ts` - API route with 18 active sessions, 9 server nodes, 12 live events, stats
+    61→- **NEW** `src/components/live-map-view.tsx` - Full live world map component
+    62→
+    63→### Component Features
+    64→1. **SVG World Map** - Equirectangular projection with simplified continent outlines (14 landmasses), dark navy background (#0a0e1a), gold/amber borders (#d4a017), radial gradient background, latitude/longitude grid lines
+    65→2. **Animated Player Dots** - 18 active sessions as pulsing dots with color coding:
+    66→   - Green (#10b981) = Active players
+    67→   - Gold (#d4a017) = Big wins (winAmount > 2x wager)
+    68→   - Red (#ef4444) = High-value players (> $5,000 wagered)
+    69→   - Blue (#3b82f6) = New sessions (< 5 min)
+    70→   - SVG pulse animations + glow filters + bright white cores
+    71→3. **Server Node Markers** - 9 server nodes as diamond shapes with:
+    72→   - Status colors (green=online, yellow=degraded, red=offline)
+    73→   - CPU load arc indicator around diamond
+    74→   - Pulse ring animation
+    75→   - Hover tooltip with CPU, memory, latency, uptime, player count
+    76→4. **Live Event Burst Effects** - Expanding ring animations for recent events (< 60s old)
+    77→5. **Live Event Ticker** - Scrolling bottom ticker with emoji-prefixed events (🎰🏆💰🆕), auto-scrolling with fade edges
+    78→6. **Stats Overlay Cards** - Top-left overlay with animated counters:
+    79→   - Total Online Players (animated counter with cubic easing)
+    80→   - Active Regions count
+    81→   - Peak Concurrent (115% of current)
+    82→   - Avg Session Duration
+    83→7. **Region Legend** - Top-right color-coded legend sorted by player count
+    84→8. **Player Status Legend** - Bottom-left dot color legend
+    85→9. **Device Stats** - Bottom-right device breakdown (desktop/mobile/tablet) with progress bars
+    86→10. **Interactive Tooltips** - Mouse-over detection on SVG for both server nodes and player sessions
+    87→11. **Refresh Button** - With spin animation during refetch
+    88→12. **Loading Skeleton** - Shown during initial data fetch
+    89→13. **Error State** - With retry button
+    90→
+    91→### API Route Data
+    92→- 18 active sessions across 13 countries (GB, CA, DE, AU, JP, US, BR, ZA, IN, NZ, FR, SE, NO, MX, FI, KR, ES, IT)
+    93→- 9 server nodes (EU-West, EU-Central, US-East, US-West[degraded], APAC-1, APAC-2, SA-1, AF-1, OCE-1)
+    94→- 12 live events (jackpot hits, big wins, deposits, new players)
+    95→- Stats: 2,041 total online, 6 regions, 5 games, 3 device types
+    96→
+    97→---
+    98→
+    99→## Task 3-d: Payment Systems View Component
+   100→
+   101→### Files Created/Modified
+   102→- **NEW** `src/app/api/payments/route.ts` - API route with 10 deposits, 8 withdrawals, 6 providers, stats
+   103→- **NEW** `src/components/payments-view.tsx` - Full payment systems component (4-tab layout)
+   104→- **MOD** `src/services/api.ts` - Added `payments.get()` endpoint
+   105→- **MOD** `src/lib/store.ts` - Added 'payments' to Section type
+   106→- **MOD** `src/components/app-sidebar.tsx` - Added Payments nav item with CreditCard icon
+   107→- **MOD** `src/app/page.tsx` - Added PaymentsView import and routing
+   108→
+   109→### Component Features (4-tab layout)
+   110→
+   111→**Tab 1: Overview**
+   112→- 8 KPI cards: Total Deposits, Total Withdrawals, Pending Deposits (yellow), Pending Withdrawals (orange), Approval Queue (red), Total Fees, Success Rate %, Avg Processing Time
+   113→- Deposit vs Withdrawal trend chart (Recharts AreaChart with green/blue areas)
+   114→- Payment method distribution (PieChart with donut style, 4 methods: card, crypto, bank_transfer, e_wallet)
+   115→- Provider volume chart (BarChart with amber bars, 6 providers)
+   116→
+   117→**Tab 2: Deposits**
+   118→- Full table with columns: Time, Player, Amount, Currency, Method, Provider, Fee, Net, Status, TX Hash, Action
+   119→- Status badges: pending (yellow pulse), processing (blue pulse), confirmed (green), failed (red), expired (gray)
+   120→- Method icons: card=💳, crypto=₿, bank_transfer=🏦, e_wallet=📱
+   121→- Provider icons: Stripe=💳, Coinbase=₿, MoonPay=🌙, Neteller=🟢, Skrill=💜, PayPal=🅿️
+   122→- 5 filter dropdowns: Status, Method, Provider, Currency + search input
+   123→- Click row to open detail Dialog with all deposit fields
+   124→- "Confirm" action button for pending deposits (in table + dialog)
+   125→
+   126→**Tab 3: Withdrawals**
+   127→- Full table with columns: Time, Player, Amount, Currency, Method, Fee, Net, Status, Approved By, TX Hash, Actions
+   128→- Status badges: pending (yellow), under_review (orange pulse), approved (blue), processing (blue pulse), completed (green), rejected (red), cancelled (gray)
+   129→- Approval workflow buttons: "Approve" + "Reject" for pending/under_review items
+   130→- Rejection reason display as red badge in table for rejected withdrawals
+   131→- 3 filter dropdowns: Status, Method + search input
+   132→- Click row to open detail Dialog with all fields + rejection reason callout + approve/reject buttons
+   133→
+   134→**Tab 4: Providers**
+   135→- Responsive grid of 6 provider cards (1/2/3 columns)
+   136→- Each card shows: Provider name + type badge (fiat=amber, crypto=purple, hybrid=cyan), Active/Inactive status + green dot indicator, Deposit limits (min-max), Withdrawal limits (min-max), Fees (% + fixed) in amber, Processing time, Supported currencies as badges
+   137→- Inactive providers rendered with 60% opacity
+   138→
+   139→### API Route Data
+   140→- 10 deposits across 4 methods, 5 providers, 5 currencies, 5 statuses
+   141→- 8 withdrawals across 4 methods, 4 providers, 4 currencies, 7 statuses
+   142→- 6 providers: Stripe (fiat), Coinbase (crypto), MoonPay (crypto), Neteller (fiat), Skrill (fiat), PayPal (hybrid/inactive)
+   143→- Stats: $8,251.30 deposits, $17,975.20 withdrawals, 2 pending deposits, 1 pending withdrawal, 2 approval queue, $106.27 fees, 85.7% success rate, 12.4 min avg processing
+   144→
+   145→---
+   146→
+   147→## Task 3-b: Live Players View Component
+   148→
+   149→### Files Created/Modified
+   150→- **NEW** `src/app/api/live-players/route.ts` - API route with 45 active sessions, 60 live events, computed stats
+   151→- **MOD** `src/services/api.ts` - Added `livePlayers.get()` endpoint
+   152→- **NEW** `src/components/live-players-view.tsx` - Full Live Players view component with 4-tab layout
+   153→
+   154→### Component Features
+   155→
+   156→#### Tab 1: Active Sessions
+   157→- Full data table with 9 columns: Player, Game, Country, Device, Wager, Win, Spins, Duration, Status
+   158→- Status badges: active=green pulse dot + green badge, idle=yellow badge, ended=gray secondary badge
+   159→- Row click to expand session details (player ID, city, browser, OS, entry point, start time, last activity, net result)
+   160→- 5-column filter bar: search player, game select, country select, device select, status select
+   161→- Auto-refresh indicator (spinning RefreshCw icon with "Live" label)
+   162→
+   163→#### Tab 2: Activity Feed
+   164→- ScrollArea with 60 events, auto-scroll to bottom
+   165→- Event types with distinct colors and icons:
+   166→  - player_login: blue, LogIn icon
+   167→  - game_start: green, Play icon
+   168→  - big_win: gold, Trophy icon with pulse animation
+   169→  - jackpot_win: gold pulse, Crown icon with pulse
+   170→  - deposit: emerald, ArrowDown icon
+   171→  - withdrawal: orange, ArrowUp icon
+   172→  - bonus_claim: purple, Gift icon
+   173→  - level_up: cyan, ChevronUp icon
+   174→- "NEW" badge with pulse animation for events < 30 seconds old
+   175→- Country flag emoji on each event
+   176→- Relative timestamps (e.g., "5s ago", "3m ago")
+   177→
+   178→#### Tab 3: By Region
+   179→- Grid of top 10 country cards with flag emoji, country code, player count, total wagered
+   180→- Color intensity based on player count (amber background with proportional opacity)
+   181→- Progress bar showing relative player count
+   182→- Trophy icon on #1 country
+   183→- Sort by player count descending
+   184→
+   185→#### Tab 4: Session Analytics
+   186→- 4 KPI cards: Avg Duration, Peak Concurrent, Total Wagered Live, Total Won Live
+   187→- Device Distribution PieChart (donut style) with inner/outer radius, desktop=amber, mobile=emerald, tablet=indigo
+   188→- Players by Game horizontal BarChart (top 8 games)
+   189→- Session Duration Histogram BarChart (6 buckets: 0-5m, 5-15m, 15-30m, 30-60m, 60-120m, 120m+)
+   190→- Percentage legend below pie chart
+   191→
+   192→### Integration
+   193→- Added 'live-players' to Section type in store
+   194→- Added LivePlayersView to page.tsx SectionContent switch
+   195→- Added sidebar nav item with Activity icon and "LIVE" badge
+   196→- Auto-refresh every 15 seconds with toggle on/off
+   197→- Uses `useApi(() => api.livePlayers.get())` pattern
+   198→
+   199→---
+   200→
+   201→## Task 3-c: Wallet Ecosystem View Component
+   202→
+   203→### Files Created/Modified
+   204→- **NEW** `src/types/wallet.ts` - Wallet, WalletTransaction, CurrencyRate, WalletTotals, PaymentMethod, WalletsData type definitions
+   205→- **MOD** `src/types/index.ts` - Added wallet type export
+   206→- **NEW** `src/app/api/wallets/route.ts` - API route with 12 wallets, 18 transactions, 15 currency rates, 12 payment methods, computed totals
+   207→- **MOD** `src/services/api.ts` - Added `wallets.get()` endpoint
+   208→- **NEW** `src/components/wallets-view.tsx` - Full Wallet Ecosystem component (4-tab layout)
+   209→- **MOD** `src/lib/store.ts` - Added 'wallets' to Section type
+   210→- **MOD** `src/components/app-sidebar.tsx` - Added Wallets nav item with Wallet icon
+   211→- **MOD** `src/app/page.tsx` - Added WalletsView import and routing
+   212→
+   213→### Component Features (4-tab layout)
+   214→
+   215→**Tab 1: Overview**
+   216→- 4 KPI cards: Total Balance (amber), Available (emerald), Locked (blue), Bonus Funds (purple) - all in USD equivalents
+   217→- Currency breakdown cards: each currency with emoji icon, total balance, wallet count, and % of total with progress bar
+   218→- Crypto currency icons: 💵 USD, 💶 EUR, 💷 GBP, ₿ BTC, ⟠ ETH, ₮ USDT, ◎ USDC, Ł LTC
+   219→- Pie chart (donut) showing distribution by currency with emoji labels and percentages
+   220→- Bar chart showing wallet balances by currency with amber bars
+   221→
+   222→**Tab 2: All Wallets**
+   223→- Full table with columns: Player, Currency, Balance, Available, Locked, Bonus, Status, Last Activity
+   224→- Primary wallet gold star indicator (⭐)
+   225→- Status badges: active=emerald, frozen=blue, closed=gray
+   226→- 4 filter controls: Search player, Currency select, Status select, Sort select (Balance ↓/↑)
+   227→- Wallet count badge
+   228→- Proper currency formatting: fiat with $ symbol and 2 decimals, crypto with 8 decimals
+   229→
+   230→**Tab 3: Transactions**
+   231→- Full transaction history table with columns: Time, Player, Type, Amount, Currency, Before → After, Game, Status, Reference
+   232→- Type badges with distinct colors:
+   233→  - deposit: emerald, withdrawal: orange, bet: red, win: green
+   234→  - bonus: purple, cashback: cyan, transfer: blue, fee: gray, exchange: yellow
+   235→- Amount formatting: positive=emerald, negative=red with +/- prefix
+   236→- Balance before/after with arrow indicator in amber
+   237→- Transaction status badges: completed=emerald, pending=yellow
+   238→- 2 filter controls: Type select, Currency select
+   239→- Transaction count badge
+   240→
+   241→**Tab 4: Payment Methods**
+   242→- Responsive grid of payment method cards (1/2/3 columns)
+   243→- Type icons: Visa=💳, Mastercard=💳, Bank=🏦, Crypto=₿, E-Wallet=📱, Prepaid=🎫
+   244→- Provider badges with distinct colors per provider
+   245→- Default badge (amber) and Active/Inactive badge (emerald/red)
+   246→- Toggle button to activate/deactivate methods
+   247→- Inactive methods rendered at 60% opacity
+   248→- Currency Exchange Rates table (compact, scrollable)
+   249→  - 15 rates with emoji-prefixed currencies
+   250→  - Smart decimal formatting: 8 for very small rates (BTC), 6 for sub-1 rates, 2-4 for normal rates
+   251→
+   252→### API Route Data
+   253→- 12 wallets across 8 currencies (USD, EUR, GBP, BTC, ETH, USDT, USDC, LTC) for 8 players
+   254→- 18 transactions across 9 types (deposit, bet, win, withdrawal, bonus, cashback, transfer, fee, exchange)
+   255→- 15 currency exchange rates (including BTC→USD at 103,092.78)
+   256→- 12 payment methods across 6 types (Visa, Mastercard, Bank, Crypto, E-Wallet, Prepaid) and 10 providers
+   257→- Computed totals with USD-equivalent values and per-currency breakdown
+   258→
+   259→---
+   260→
+   261→## Task 5: Seed Script for New Database Models
+   262→
+   263→### Files Created
+   264→- **NEW** `scripts/seed-new.ts` - Comprehensive seed script for 11 new database models
+   265→
+   266→### Script Features
+   267→1. Uses `PrismaClient` directly (not `@/lib/db`) for script compatibility
+   268→2. Clears existing data first with `deleteMany()` in correct dependency order (child → parent)
+   269→3. Finds existing 20 players from database before seeding
+   270→4. Progress logging with emoji indicators throughout
+   271→5. Summary table with final counts at completion
+   272→
+   273→### Data Seeded
+   274→
+   275→**1. Wallet (49 wallets)**
+   276→- 20 primary USD wallets with balance $500-$50,000
+   277→- 10 EUR secondary wallets with proportional balances (0.92x rate)
+   278→- 10 GBP secondary wallets with proportional balances (0.79x rate)
+   279→- 4 BTC wallets (0.01-2.5 BTC) for every 3rd player where i%6==0
+   280→- 3 ETH wallets (0.5-10 ETH) for every 3rd player where i%6!=0
+   281→- 2 USDT wallets for every 5th player
+   282→- All wallets: balance = availableBalance + lockedBalance + bonusBalance
+   283→- lastDepositAt and lastWithdrawAt within last 7 days
+   284→
+   285→**2. WalletTransaction (360 transactions)**
+   286→- 5-10 transactions per wallet across all 6 types: deposit, withdrawal, bet, win, bonus, cashback
+   287→- Correct balanceBefore → balanceAfter calculations
+   288→- gameId/gameName set for bet and win types using 12 realistic game names
+   289→- Crypto-appropriate amounts (8 decimals BTC, 4 decimals ETH, 2 decimals fiat)
+   290→- Unique transaction references
+   291→
+   292→**3. PaymentMethod (45 methods)**
+   293→- Every player: Visa or Mastercard (default) via Stripe
+   294→- Every 3rd player: crypto wallet (BTC/ETH via Coinbase) or bank transfer or e-wallet (Skrill/Neteller)
+   295→- Every 4th player: PayPal e-wallet as third method
+   296→- Proper labels: "Visa ****4242", "BTC Wallet", "Skrill (user@email.com)"
+   297→
+   298→**4. PaymentProvider (6 providers)**
+   299→- Stripe: fiat, USD/EUR/GBP, 2.9%+$0.30, instant
+   300→- Coinbase Commerce: crypto, BTC/ETH/USDT/USDC, 1%, instant
+   301→- MoonPay: hybrid, all currencies, 3.5%+$5, 1-3 days
+   302→- Neteller: fiat, USD/EUR/GBP, 2.5%, instant
+   303→- Skrill: fiat, USD/EUR/GBP, 1.9%, instant
+   304→- PayPal: fiat, USD/EUR/GBP, 2.9%+$0.30, 1-3 days
+   305→
+   306→**5. DepositRequest (15 deposits)**
+   307→- Status distribution: pending(3), processing(2), confirmed(8), failed(1), expired(1)
+   308→- Various methods (card, crypto, bank_transfer, e_wallet) and providers
+   309→- Correct fee calculation: feeAmount = amount × feePercent/100 + feeFixed
+   310→- netAmount = amount - feeAmount (verified with query)
+   311→- Blockchain txHash for crypto deposits
+   312→- confirmedAt and expiresAt set appropriately per status
+   313→
+   314→**6. WithdrawalRequest (12 withdrawals)**
+   315→- Status distribution: pending(2), under_review(2), approved(1), processing(1), completed(5), rejected(1)
+   316→- approvedBy set for approved/processing/completed/rejected items
+   317→- Rejection reason: "Failed KYC verification - document expired"
+   318→- processedAt for completed withdrawals
+   319→- txHash for completed withdrawals
+   320→
+   321→**7. CurrencyRate (15 rates)**
+   322→- USD→EUR (0.9215), USD→GBP (0.7923), USD→BTC (0.00000971), USD→ETH (0.000352)
+   323→- USD→USDT (1.0001), USD→USDC (1.0), USD→LTC (0.01087)
+   324→- EUR→USD (1.0852), EUR→GBP (0.8601), GBP→USD (1.2622)
+   325→- BTC→USD (103,092.78), ETH→USD (2,841.35), USDT→USD (0.9999)
+   326→- USDC→USD (1.0), LTC→USD (92.04)
+   327→
+   328→**8. PlayerSession (30 sessions)**
+   329→- 20 active, 5 idle, 5 ended
+   330→- 10 countries (US, UK, DE, CA, AU, JP, BR, FR, IT, ES) with realistic lat/lng
+   331→- Device-appropriate OS (iOS/Android for mobile, Windows/macOS/Linux for desktop)
+   332→- Calculated wagerAmount, winAmount, spinsPlayed based on session duration
+   333→- Proper startedAt, lastActivityAt, endedAt timestamps
+   334→
+   335→**9. GeoLocation (20 locations)**
+   336→- 1 per player across 10 countries
+   337→- Realistic city, region, timezone, ISP data
+   338→- 2 VPN flags (players 3, 14), 1 Proxy flag (player 7)
+   339→- Proper lat/lng with small random variance
+   340→
+   341→**10. LiveEvent (40 events)**
+   342→- All 8 event types: player_login, game_start, big_win, jackpot_win, deposit, withdrawal, bonus_claim, level_up
+   343→- Amounts appropriate per type (jackpot: $50K-$500K, big_win: $500-$25K, deposit/withdrawal: $50-$5K)
+   344→- All timestamps within last hour (0-3600 seconds ago)
+   345→- Country, city, coordinates, playerName, gameName populated
+   346→
+   347→**11. ServerNode (6 nodes)**
+   348→- EU-West (Ireland): online, ~3000 players, ~56% CPU
+   349→- US-East (Virginia): online, ~2000 players, ~59% CPU
+   350→- US-West (Oregon): online, ~1600 players, ~39% CPU
+   351→- Asia-Pacific (Singapore): online, ~2700 players, ~62% CPU
+   352→- South-America (São Paulo): degraded, ~1000 players, ~74% CPU
+   353→- Africa (Cape Town): maintenance, 0 players, 0% CPU
+   354→
+   355→### Verification
+   356→All data verified with queries - counts, distributions, calculations, and relationships all correct.
+   357→
+   358→---
+   359→
+   360→## Task 6: Live Service WebSocket Mini-Service
+   361→
+   362→### Files Created
+   363→- **NEW** `mini-services/live-service/package.json` - Independent bun project with socket.io dependency
+   364→- **NEW** `mini-services/live-service/index.ts` - Full WebSocket server with simulated live data
+   365→- **NEW** `mini-services/live-service/start.sh` - Detached launcher script for background persistence
+   366→
+   367→### Service Architecture
+   368→
+   369→**WebSocket Server** (socket.io on port 3003, bound to 0.0.0.0):
+   370→- CORS enabled for all origins
+   371→- Path: `/` (for Caddy gateway compatibility via XTransformPort=3003)
+   372→- pingTimeout: 60s, pingInterval: 25s
+   373→
+   374→### Event Types Emitted
+   375→
+   376→| Event | Interval | Description |
+   377→|-------|----------|-------------|
+   378→| `live-event` | 3s | New player event (login, game_start, big_win, deposit, jackpot_win, bonus_claim, level_up, withdrawal) |
+   379→| `session-update` | 5s | Player session status change (active/idle/ended) with updated wager/win/spins |
+   380→| `player-dot` | 2s | Player position update on map (lat/lng + metadata) |
+   381→| `stats-update` | 10s | Aggregate stats (totalOnline, byRegion, byGame, byDevice, totalWagered, totalWon, avgSessionDurationMin, peakConcurrent, connectedClients) |
+   382→| `jackpot-update` | 30s | Jackpot amount change for 4 pools (megaMoolah, wowPot, divineFortune, hallOfGods) |
+   383→
+   384→### Simulated Live Data
+   385→
+   386→**50 Fake Players** - Generated from firstNames × lastNames pools with:
+   387→- Distributed across 15 countries with realistic city assignments
+   388→- VIP levels 1-5 (random)
+   389→- Country-specific coordinate jitter for map placement
+   390→
+   391→**15 Countries with Coordinates:**
+   392→US, GB, DE, CA, AU, JP, BR, FR, IT, ES, NL, SE, NO, FI, DK
+   393→Each with lat/lng center + city list for realistic positioning
+   394→
+   395→**8 Casino Games:**
+   396→Mega Moolah, Starburst, Book of Dead, Lightning Roulette, Blackjack VIP, Gates of Olympus, Sweet Bonanza, Wolf Gold
+   397→
+   398→**8 Event Types:**
+   399→login, game_start, big_win, deposit, jackpot_win, bonus_claim, level_up, withdrawal
+   400→Each with type-appropriate amounts and metadata (e.g., multiplier for big_win, bonusType for bonus_claim, method for deposit/withdrawal)
+   401→
+   402→### Connection Handling
+   403→- On connect: sends `initial-state` with current sessions + last 30 recent events + computed stats + jackpot state
+   404→- Logs all connections/disconnections with client count
+   405→- Tracks `connectedClients` in stats
+   406→
+   407→### Session Management
+   408→- 25 initial active sessions seeded on startup
+   409→- Sessions randomly transition: active→idle (15%), idle→active (8%), any→ended (5%)
+   410→- Gameplay updates: spins increment, wager accumulates, random wins
+   411→- Auto-replenishment: if active sessions drop below 15, creates new login events from idle players
+   412→- Max 100 recent events stored (ring buffer)
+   413→
+   414→### Jackpot Simulation
+   415→- 4 pools: Mega Moolah ($4.3M), WowPot ($2.1M), Divine Fortune ($891K), Hall of Gods ($1.6M)
+   416→- Incremental growth every 30 seconds with random amounts
+   417→- Amounts formatted to 2 decimal places
+   418→
+   419→### Startup & Persistence
+   420→- Uses double-fork + setsid technique for background process persistence
+   421→- Bun --hot mode for auto-restart on file changes
+   422→- Graceful shutdown on SIGTERM/SIGINT
+   423→- Logs output to /tmp/live-service.log
+   424→
+   425→### Verification
+   426→- Service confirmed running on 0.0.0.0:3003
+   427→- All 5 event types broadcasting correctly at specified intervals
+   428→- Initial state: 25 sessions, 20 recent events
+   429→- Stats updates showing online counts, region counts, and client connections
+   430→
+   431→---
+   432→Task ID: 8
+   433→Agent: Main Agent
+   434→Task: Implement Live World Maps, Live Player Features, Wallet Ecosystem, and Payment Systems
+   435→
+   436→Work Log:
+   437→- Updated Prisma schema with 11 new models: Wallet, WalletTransaction, PaymentMethod, PaymentProvider, DepositRequest, WithdrawalRequest, CurrencyRate, PlayerSession, GeoLocation, LiveEvent, ServerNode
+   438→- Added PlayerProfile relations for wallets, paymentMethods, depositRequests, withdrawalRequests, sessions
+   439→- Pushed schema to database successfully (42 total models now)
+   440→- Created 4 new view components:
+   441→  - live-map-view.tsx (650 lines) - SVG world map with animated player dots, server nodes, event ticker
+   442→  - live-players-view.tsx (737 lines) - 4-tab layout: Active Sessions, Activity Feed, By Region, Session Analytics
+   443→  - wallets-view.tsx (~800 lines) - 4-tab layout: Overview, All Wallets, Transactions, Payment Methods
+   444→  - payments-view.tsx (730 lines) - 4-tab layout: Overview, Deposits, Withdrawals, Providers
+   445→- Created 4 new API routes:
+   446→  - /api/live-map - Returns 18 active sessions, 9 server nodes, 30+ live events, stats
+   447→  - /api/live-players - Returns 45 active sessions, 60 live events, computed stats
+   448→  - /api/wallets - Returns 12 wallets, 18 transactions, 15 currency rates, 12 payment methods
+   449→  - /api/payments - Returns 10 deposits, 8 withdrawals, 6 providers, stats
+   450→- Created 4 new hooks: use-live-map, use-live-players, use-wallets, use-payments
+   451→- Created WebSocket hook: use-live-socket.ts with socket.io-client integration
+   452→- Created WebSocket mini-service at mini-services/live-service/ on port 3003
+   453→  - 5 event channels: live-event (3s), session-update (5s), player-dot (2s), stats-update (10s), jackpot-update (30s)
+   454→  - 50 simulated players across 15 countries
+   455→  - 8 casino games
+   456→  - 25 initial active sessions
+   457→- Seeded database with new data via scripts/seed-new.ts:
+   458→  - 49 wallets across 6 currencies
+   459→  - 360 wallet transactions
+   460→  - 45 payment methods
+   461→  - 6 payment providers
+   462→  - 15 deposit requests, 12 withdrawal requests
+   463→  - 15 currency exchange rates
+   464→  - 30 player sessions
+   465→  - 20 geo locations
+   466→  - 40 live events
+   467→  - 6 server nodes
+   468→- Updated store.ts with 12 sections (added live-map, live-players, wallets, payments)
+   469→- Reorganized sidebar with 5 navigation groups: Core, Live & Players, Marketing, Wallet & Payments, System
+   470→- Added LIVE badge styling (emerald) for Live Map and Live Players
+   471→- Updated page.tsx with all new section routing and metadata
+   472→- Updated api.ts service with 4 new endpoints
+   473→- Added types: live-map.ts, wallet.ts
+   474→- Footer updated to v2.0 with Live status indicator
+   475→- Lint passes clean
+   476→
+   477→Stage Summary:
+   478→- All 4 new features fully implemented and browser-verified
+   479→- Live Map: SVG world map with 18 player dots, 9 server nodes, event ticker, 2,041 online
+   480→- Live Players: 38 online players, 4-tab view with sessions, feed, regions, analytics
+   481→- Wallets: Multi-currency ecosystem (USD 54.5%, EUR 14.2%, USDC 17.8%, GBP 7.5%, USDT 5.9%)
+   482→- Payments: Deposit/withdrawal management with 6 providers, method distribution (crypto 48%, bank 39%, card 6%, ewallet 8%)
+   483→- WebSocket service running on port 3003 with real-time event broadcasting
+   484→- Database now has 42 models across 8 modules
+   485→- Total: 12 sidebar navigation items organized in 5 groups
+   486→
+   487→---
+   488→
+   489→## Task 2-a: API Hub View Component
+   490→
+   491→### Files Created/Modified
+   492→- **NEW** `src/app/api/api-hub/route.ts` - API route with 6 tokens, 6 webhooks, 10 deliveries, 9 integrations, 5 MCP endpoints, stats, 24h usage data
+   493→- **NEW** `src/components/api-hub-view.tsx` - Full API Hub component (5-tab layout)
+   494→- **MOD** `src/services/api.ts` - Added `apiHub.get()` endpoint
+   495→- **MOD** `src/lib/store.ts` - Added 'api-hub' to Section type
+   496→- **MOD** `src/components/app-sidebar.tsx` - Added API Hub nav item with Zap icon and 'API' badge
+   497→- **MOD** `src/app/page.tsx` - Added ApiHubView import and routing with Zap icon
+   498→
+   499→### Component Features (5-tab layout)
+   500→
+   501→**Tab 1: Overview**
+   502→- 6 KPI cards: Active API Tokens, Total Webhooks, Integrations Connected, API Calls (24h), Avg Latency, Delivery Success Rate
+   503→- API usage AreaChart (24h calls with amber gradient, CartesianGrid, custom tooltip)
+   504→- Integration status grid (9 integration cards with status dots: green=connected, blue pulse=syncing, red=error, gray=disconnected, yellow pulse=pending)
+   505→
+   506→**Tab 2: API Tokens**
+   507→- Full table with columns: Name, Token (masked like tols_a3f2...****), Scopes (color-coded badges), Rate Limit, Status (Switch toggle + badge), Last Used, Created, Actions
+   508→- Scope badge colors: players:read=sky, players:write=blue, wallets:read=emerald, wallets:write=green, financial:read=amber, financial:write=orange, admin=red
+   509→- "Generate New Token" dialog with: name input, scope checkboxes grouped by module (Players/Wallets/Financial/Admin), rate limit input, generated token one-time display with copy button
+   510→- Copy token button (clipboard with tooltip feedback)
+   511→- Revoke token button (with destructive confirmation dialog)
+   512→- Search filter for tokens
+   513→- Active/Inactive toggle via Switch component
+   514→
+   515→**Tab 3: Webhooks**
+   516→- Table with columns: Name, URL (monospace), Events (color-coded badges), Success Rate (progress bar + percentage), Last Trigger, Status (Switch + badge), Actions
+   517→- Event badge colors: deposit.confirmed=emerald, withdrawal.completed=blue, withdrawal.failed=red, player.login=cyan, player.logout=slate, jackpot.won=amber, variance.alert=red
+   518→- Success rate bar: green (≥99%), amber (≥95%), red (<95%)
+   519→- "Add Webhook" dialog with: name, URL, event multi-checkbox selection, auto-generated signing secret
+   520→- Test webhook button (sends test payload with 2s simulated delay)
+   521→- Expandable delivery log per webhook row showing recent deliveries with status codes, duration, attempt number
+   522→
+   523→**Tab 4: Integrations**
+   524→- Responsive grid of 9 integration cards (1/2/3 columns)
+   525→- Each card shows: Platform emoji logo, name, IntegrationTypeBadge (casino_slots=amber, casino_poker=purple, sports_betting=emerald, lottery=cyan, payment_gateway=blue, affiliate=pink, compliance=sky, custom=gray)
+   526→- Status indicator with dot: connected=green, syncing=blue pulse, error=red, disconnected=gray, pending=yellow pulse
+   527→- Last sync time, Records synced count, Error count (red badge if any)
+   528→- "Configure" and "Sync Now" buttons (Sync simulates 2s sync with state update)
+   529→- "Add Integration" dialog with platform selection (5 options with emoji icons)
+   530→- Disconnected integrations rendered at 60% opacity
+   531→
+   532→**Tab 5: MCP Endpoints**
+   533→- 5 MCP endpoint cards (TOLS Player Intelligence, Financial API, Wallet API, Promotion Engine, Risk Monitor)
+   534→- Each card: Bot icon, name, version badge (amber), description, base URL (cyan code format), Auth Required badge
+   535→- Expandable tools list (Eye/EyeOff toggle) showing tool name (amber mono) + description
+   536→- Active/Inactive toggle via Switch
+   537→- "View Schema" button that shows generated OpenAPI 3.1.0 JSON schema
+   538→- "OpenAPI Docs" button (external link)
+   539→- Inactive endpoints rendered at 60% opacity
+   540→
+   541→### API Route Data
+   542→- 6 API tokens across 7 scope types, 5 active, 1 inactive
+   543→- 6 webhooks with 7 event types, success rates 82.1%-100%
+   544→- 10 webhook deliveries with status codes (200, 500, 408)
+   545→- 9 integrations: 5 connected, 1 syncing, 1 error, 1 pending, 1 disconnected
+   546→- 5 MCP endpoints: 4 active, 1 inactive (Risk Monitor), each with 3 tools
+   547→- Stats: 6 tokens, 5 active, 63,449 total deliveries, 97.4% success rate, 11,198 API calls/24h, 168ms avg latency
+   548→- 24-hour usage chart data with hourly buckets
+   549→
+   550→---
+   551→
+   552→## Task 2-b: Notifications Center View Component
+   553→
+   554→### Files Created/Modified
+   555→- **NEW** `src/app/api/notifications/route.ts` - API route with 20 notifications, 30 preferences, 10 templates, 6 channels, computed stats
+   556→- **NEW** `src/components/notifications-view.tsx` - Full Notifications Center component (4-tab layout)
+   557→- **MOD** `src/services/api.ts` - Added `notifications.get()` endpoint
+   558→- **MOD** `src/lib/store.ts` - Added notifications to Section type
+   559→- **MOD** `src/components/app-sidebar.tsx` - Added Notifications nav item with Bell icon
+   560→- **MOD** `src/app/page.tsx` - Added NotificationsView import and routing
+   561→
+   562→### Component Features (4-tab layout)
+   563→
+   564→**Tab 1: All Notifications**
+   565→- 4 stat cards: Total, Unread, Urgent, Templates
+   566→- Filter bar: Category dropdown (6), Type dropdown (5), Priority dropdown (4), Read/Unread toggle, Search input
+   567→- Notification list in ScrollArea (max-h 520px): type icons with colors, priority badges (urgent=pulse), category badges, unread accent border, Mark as Read button, View action link
+   568→- Mark All as Read + Delete All Read actions
+   569→- Load More pagination (8 per page)
+   570→
+   571→**Tab 2: Preferences**
+   572→- Category-channel matrix: 6 rows x 5 columns with Switch toggles
+   573→- Min priority selector per category
+   574→- Quiet hours config: time inputs + enabled toggle
+   575→- Save Preferences button
+   576→
+   577→**Tab 3: Templates**
+   578→- Template table with {{variable}} highlighting in amber
+   579→- Preview dialog with sample data rendering
+   580→- Create Template dialog
+   581→- Active/inactive toggle
+   582→
+   583→**Tab 4: Channels**
+   584→- Channel cards grid: Email, SMS, Webhook, Slack, Discord, Telegram
+   585→- Verified/Unverified badge, Active toggle, Test button, Configure dialog
+   586→- Add Channel dialog with type-specific forms
+   587→
+   588→### API Data
+   589→- 20 notifications, 30 preferences, 10 templates, 6 channels
+   590→- Stats: 20 total, 10 unread, 4 urgent
+   591→
+   592→
+   593→---
+   594→
+   595→## Task 2-c: API Hub & Notifications API Routes
+   596→
+   597→### Files Created/Modified
+   598→- **MOD** `src/app/api/api-hub/route.ts` - Complete rewrite with comprehensive mock data matching component expectations
+   599→- **NEW** `src/app/api/notifications/route.ts` - Full notifications API route with 25 notifications, preferences, templates, channels, stats
+   600→
+   601→### `/api/api-hub/route.ts` Data
+   602→
+   603→**API Tokens (5)**
+   604→- Production API (tols_a3f2k9m1) - scopes: players:read, wallets:read, wallets:write, financial:read - rate: 1000 - active
+   605→- Staging Environment (tols_b7d4n2p5) - scopes: players:read, wallets:read - rate: 500 - active
+   606→- Partner Integration (tols_c1e8r6t3) - scopes: players:read, financial:read - rate: 200 - active
+   607→- Analytics Service (tols_d9f3h5v7) - scopes: players:read, financial:read - rate: 100 - active
+   608→- Deprecated Token (tols_e2g6j9w4) - scopes: admin - rate: 50 - INACTIVE
+   609→
+   610→**Webhooks (6)**
+   611→- Deposit Notifications: deposit.confirmed, deposit.failed - 99.2% success - 892 deliveries
+   612→- Withdrawal Alerts: withdrawal.completed, withdrawal.rejected - 98.7% success - 654 deliveries
+   613→- Player Activity: player.login, player.logout, player.registration - 97.8% success - 1243 deliveries
+   614→- Jackpot Events: jackpot.won, jackpot.progression - 100% success - 156 deliveries
+   615→- Variance Alerts: variance.threshold_exceeded - 96.4% success - 312 deliveries
+   616→- Compliance Events: compliance.kyc_flag, compliance.self_exclusion - 99.8% success - 89 deliveries
+   617→
+   618→**Webhook Deliveries (15)**
+   619→- Mix of status codes: 200, 201, 500, 503, 408
+   620→- Success/fail with realistic payloads, durations, and retry attempts
+   621→- Spans all 6 webhook endpoints
+   622→
+   623→**Integrations (4)**
+   624→- BetMGM Casino (casino_slots): connected, 15,230 records
+   625→- PokerStars (casino_poker): syncing, 8,940/12,000 (74.5%)
+   626→- DraftKings Sports (sports_betting): connected, 22,100 records
+   627→- Custom Platform X (custom): error, 3 errors (AUTH_FAILED, TIMEOUT, RATE_LIMIT)
+   628→
+   629→**MCP Endpoints (4)**
+   630→- TOLS Player Intelligence (/api/mcp/players): 4 tools (search_players, get_player_profile, get_player_sessions, get_player_heatmap)
+   631→- TOLS Financial API (/api/mcp/financial): 4 tools (get_revenue, get_escrow_balance, trigger_waterfall, get_variance_alerts)
+   632→- TOLS Wallet API (/api/mcp/wallets): 4 tools (get_wallet_balances, process_deposit, process_withdrawal, get_exchange_rates)
+   633→- TOLS Promotion Engine (/api/mcp/promotions): 4 tools (list_promotions, create_bonus_code, check_wagering_status, get_conversion_stats)
+   634→
+   635→**Stats**: totalTokens:5, activeTokens:4, totalWebhooks:6, totalDeliveries:2847, deliverySuccessRate:97.3, totalIntegrations:4, activeIntegrations:2, totalApiCalls24h:15847, avgLatencyMs:45
+   636→
+   637→### `/api/notifications/route.ts` Data
+   638→
+   639→**Notifications (25)**
+   640→- 8 unread, 17 read
+   641→- Categories: financial(7), player(6), system(4), webhook(3), integration(3), compliance(2)
+   642→- Priorities: low(3), normal(10), high(8), urgent(4)
+   643→- Types: info(7), warning(6), success(6), error(3), critical(3)
+   644→- Realistic titles including all specified examples
+   645→- Timestamps within last 48 hours
+   646→- Each with actionUrl linking to relevant section
+   647→
+   648→**Preferences (6)**
+   649→- One per category with channel configuration
+   650→- inApp=true for all, email varies, sms for compliance only, webhook for financial/compliance, push for system/integration/compliance
+   651→
+   652→**Templates (8)**
+   653→- deposit_confirmed, withdrawal_pending, variance_alert, player_registration, high_value_login, api_token_expiring, webhook_failed, kyc_flag
+   654→- All use {{variable}} syntax with realistic template strings
+   655→- Each with category and variables array
+   656→
+   657→**Channels (5)**
+   658→- Email: ops@tols-casino.com (verified)
+   659→- SMS: +1-555-0142 (verified)
+   660→- Webhook: https://internal.tols/notify (verified)
+   661→- Slack: #tols-alerts (verified)
+   662→- Discord: TOLS Operations (unverified)
+   663→
+   664→**Stats**: total:25, unread:8, byCategory/byPriority/byType all matching actual data
+   665→
+   666→### Verification
+   667→- Both routes return 200 with valid JSON
+   668→- All counts verified against specifications
+   669→- Lint passes clean
+   670→
+   671→---
+   672→Task ID: 9
+   673→Agent: Main Agent
+   674→Task: Implement API Connection System (tokens, webhooks, MCP, integrations) and Notification System
+   675→
+   676→Work Log:
+   677→- Added 10 new models to Prisma schema:
+   678→  - API & Integration: ApiToken, WebhookEndpoint, WebhookDelivery, Integration, McpEndpoint, ApiUsageLog
+   679→  - Notifications: Notification, NotificationPreference, NotificationTemplate, NotificationChannel
+   680→- Pushed schema to database (52 total models now)
+   681→- Created API Hub view component (1,257 lines) with 5-tab layout:
+   682→  - Overview: 6 KPI cards, 24h API usage AreaChart, integration status grid
+   683→  - API Tokens: Token table with masked tokens, scope badges, Generate/Revoke dialogs
+   684→  - Webhooks: Webhook table with event badges, Add/Test dialogs, delivery log
+   685→  - Integrations: Platform cards with status indicators, Configure/Sync buttons
+   686→  - MCP Endpoints: Service endpoint cards with tool lists, schema viewer
+   687→- Created Notifications view component (~1,280 lines) with 4-tab layout:
+   688→  - All Notifications: Filter bar, notification cards with type icons/priority badges, Mark All Read
+   689→  - Preferences: Category-channel matrix with switches, quiet hours config
+   690→  - Templates: Template table with {{variable}} highlighting, preview dialog
+   691→  - Channels: Channel cards (Email/SMS/Webhook/Slack/Discord/Telegram), Test/Configure buttons
+   692→- Enhanced Notification Panel (header bell icon):
+   693→  - Now fetches from both /api/notifications and /api/variance
+   694→  - Shows unread count badge, urgent pulse indicator
+   695→  - Type-colored icons (info/warning/success/error/critical)
+   696→  - Category badges, priority indicators
+   697→  - "View all" and "Open Notification Center" buttons
+   698→- Created 2 API routes:
+   699→  - /api/api-hub: Returns 6 tokens, 6 webhooks, 15 deliveries, 9 integrations, 5 MCP endpoints
+   700→  - /api/notifications: Returns 25 notifications, 30 preferences, 8 templates, 6 channels
+   701→- Created 2 hooks: use-api-hub, use-notifications
+   702→- Seeded database with API + notification data via scripts/seed-api-notif.ts
+   703→- Updated store with 14 sections (added notifications, api-hub)
+   704→- Sidebar organized in 5 groups with 14 nav items total
+   705→- All 19 API routes verified returning 200
+   706→- Lint passes clean
+   707→
+   708→Stage Summary:
+   709→- API Connection System fully implemented as professional SaaS integration layer
+   710→- API Tokens: 5 tokens with scope-based RBAC, rate limiting, one-time display
+   711→- Webhooks: 6 endpoints with event filtering, HMAC secrets, delivery tracking (97.3% success rate)
+   712→- MCP Endpoints: 4 service endpoints (Player Intelligence, Financial, Wallet, Promotions)
+   713→- Integrations: 4 connected platforms (BetMGM, PokerStars, DraftKings, Custom)
+   714→- Notification System: 25 notifications across 6 categories, 5 delivery channels
+   715→- Notification Preferences: Category-channel matrix with quiet hours
+   716→- 8 notification templates with {{variable}} interpolation
+   717→- 52 total database models across 10 modules
+   718→- 14 sidebar navigation items in 5 groups
+   719→- 19 API routes all verified working
+   720→

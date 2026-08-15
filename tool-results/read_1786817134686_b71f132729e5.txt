@@ -1,0 +1,830 @@
+     1→generator client {
+     2→  provider = "prisma-client-js"
+     3→}
+     4→
+     5→datasource db {
+     6→  provider = "sqlite"
+     7→  url      = env("DATABASE_URL")
+     8→}
+     9→
+    10→// ============================================
+    11→// MODULO FINANZIARIO (10 tabelle)
+    12→// ============================================
+    13→
+    14→model CasinoDeposit {
+    15→  id            String   @id @default(cuid())
+    16→  playerId      String
+    17→  amount        Float
+    18→  currency      String   @default("USD")
+    19→  method        String   // crypto, card, bank_transfer
+    20→  txHash        String?  // blockchain hash for crypto
+    21→  status        String   @default("pending") // pending, confirmed, failed
+    22→  createdAt     DateTime @default(now())
+    23→  updatedAt     DateTime @updatedAt
+    24→  player        PlayerProfile @relation(fields: [playerId], references: [id])
+    25→}
+    26→
+    27→model TotalWithdrawal {
+    28→  id            String   @id @default(cuid())
+    29→  playerId      String
+    30→  amount        Float
+    31→  currency      String   @default("USD")
+    32→  method        String
+    33→  status        String   @default("pending") // pending, approved, completed, rejected
+    34→  approvedBy    String?
+    35→  createdAt     DateTime @default(now())
+    36→  updatedAt     DateTime @updatedAt
+    37→  player        PlayerProfile @relation(fields: [playerId], references: [id])
+    38→}
+    39→
+    40→model HouseEarning {
+    41→  id            String   @id @default(cuid())
+    42→  gameId        String
+    43→  grossRevenue  Float
+    44→  playerPayout  Float
+    45→  houseEdge     Float    // percentage
+    46→  netEarning    Float
+    47→  periodStart   DateTime
+    48→  periodEnd     DateTime
+    49→  createdAt     DateTime @default(now())
+    50→}
+    51→
+    52→model CommissionLog {
+    53→  id            String   @id @default(cuid())
+    54→  affiliateId   String
+    55→  playerId      String
+    56→  amount        Float
+    57→  tier          String   // bronze, silver, gold, platinum
+    58→  rate          Float    // commission percentage
+    59→  createdAt     DateTime @default(now())
+    60→  affiliate     AffiliateProfile @relation(fields: [affiliateId], references: [id])
+    61→}
+    62→
+    63→model GlobalJackpot {
+    64→  id            String   @id @default(cuid())
+    65→  name          String
+    66→  currentAmount Float
+    67→  seedAmount    Float
+    68→  contributionRate Float
+    69→  lastWonAt     DateTime?
+    70→  createdAt     DateTime @default(now())
+    71→  updatedAt     DateTime @updatedAt
+    72→}
+    73→
+    74→model InternalLedger {
+    75→  id            String   @id @default(cuid())
+    76→  category      String   // operational, marketing, affiliate, jackpot, reserve
+    77→  description   String
+    78→  amount        Float
+    79→  type          String   // debit, credit
+    80→  periodWeek    String   // ISO week format
+    81→  reference     String?
+    82→  createdAt     DateTime @default(now())
+    83→}
+    84→
+    85→model EscrowAccount {
+    86→  id            String   @id @default(cuid())
+    87→  totalBalance  Float
+    88→  pendingSettlement Float
+    89→  lastSettlement DateTime?
+    90→  settlementFrequency String @default("weekly")
+    91→  status        String   @default("active")
+    92→  createdAt     DateTime @default(now())
+    93→  updatedAt     DateTime @updatedAt
+    94→  settlements   SettlementLog[]
+    95→}
+    96→
+    97→model SettlementLog {
+    98→  id            String   @id @default(cuid())
+    99→  escrowId      String
+   100→  amount        Float
+   101→  recipients    String   // JSON array of recipients
+   102→  status        String   @default("processing") // processing, completed, failed
+   103→  settledAt     DateTime @default(now())
+   104→  escrow        EscrowAccount @relation(fields: [escrowId], references: [id])
+   105→}
+   106→
+   107→model BudgetTarget {
+   108→  id            String   @id @default(cuid())
+   109→  category      String
+   110→  targetAmount  Float
+   111→  actualAmount  Float
+   112→  variance      Float    // percentage
+   113→  periodWeek    String
+   114→  createdAt     DateTime @default(now())
+   115→  updatedAt     DateTime @updatedAt
+   116→}
+   117→
+   118→model VarianceAlert {
+   119→  id            String   @id @default(cuid())
+   120→  category      String
+   121→  expectedValue Float
+   122→  actualValue   Float
+   123→  variancePercent Float
+   124→  threshold     Float    @default(15.0)
+   125→  severity      String   // low, medium, high, critical
+   126→  isRead        Boolean  @default(false)
+   127→  createdAt     DateTime @default(now())
+   128→}
+   129→
+   130→// ============================================
+   131→// MODULO PLAYER INTELLIGENCE (8 tabelle)
+   132→// ============================================
+   133→
+   134→model PlayerProfile {
+   135→  id            String   @id @default(cuid())
+   136→  username      String   @unique
+   137→  email         String?
+   138→  vipLevel      String   @default("bronze") // bronze, silver, gold, platinum, diamond
+   139→  totalDeposits Float    @default(0)
+   140→  totalWagers   Float    @default(0)
+   141→  totalWins     Float    @default(0)
+   142→  lifetimeValue Float    @default(0)
+   143→  churnRisk     Float    @default(0) // 0-1 score
+   144→  status        String   @default("active") // active, inactive, suspended, self_excluded
+   145→  country       String?
+   146→  registeredAt  DateTime @default(now())
+   147→  lastActivityAt DateTime @default(now())
+   148→  createdAt     DateTime @default(now())
+   149→  updatedAt     DateTime @updatedAt
+   150→  deposits      CasinoDeposit[]
+   151→  withdrawals   TotalWithdrawal[]
+   152→  notes         PlayerNote[]
+   153→  segments      PlayerSegmentAssignment[]
+   154→  timeline      PlayerTimeline[]
+   155→  bonusHistory  PlayerBonusHistory[]
+   156→  wallets       Wallet[]
+   157→  paymentMethods PaymentMethod[]
+   158→  depositRequests DepositRequest[]
+   159→  withdrawalRequests WithdrawalRequest[]
+   160→  sessions      PlayerSession[]
+   161→}
+   162→
+   163→model GameControl {
+   164→  id            String   @id @default(cuid())
+   165→  playerId      String
+   166→  gameId        String
+   167→  gameName      String
+   168→  sessions      Int      @default(0)
+   169→  totalWagered  Float    @default(0)
+   170→  totalWon      Float    @default(0)
+   171→  avgSessionDuration Float @default(0) // minutes
+   172→  lastPlayedAt  DateTime @default(now())
+   173→  createdAt     DateTime @default(now())
+   174→  updatedAt     DateTime @updatedAt
+   175→}
+   176→
+   177→model ResponsibleLimit {
+   178→  id            String   @id @default(cuid())
+   179→  playerId      String
+   180→  dailyDepositLimit Float?
+   181→  weeklyDepositLimit Float?
+   182→  monthlyDepositLimit Float?
+   183→  sessionTimeLimit Float?  // minutes
+   184→  lossLimit     Float?
+   185→  selfExclusionEnd DateTime?
+   186→  isActive      Boolean  @default(true)
+   187→  createdAt     DateTime @default(now())
+   188→  updatedAt     DateTime @updatedAt
+   189→}
+   190→
+   191→model PlayerNote {
+   192→  id            String   @id @default(cuid())
+   193→  playerId      String
+   194→  authorRole    String   // finance, controller, support
+   195→  content       String
+   196→  isInternal    Boolean  @default(true)
+   197→  createdAt     DateTime @default(now())
+   198→  player        PlayerProfile @relation(fields: [playerId], references: [id])
+   199→}
+   200→
+   201→model PlayerSegmentAssignment {
+   202→  id            String   @id @default(cuid())
+   203→  playerId      String
+   204→  segmentId     String
+   205→  assignedAt    DateTime @default(now())
+   206→  player        PlayerProfile @relation(fields: [playerId], references: [id])
+   207→  segment       Segment @relation(fields: [segmentId], references: [id])
+   208→}
+   209→
+   210→model PlayerTimeline {
+   211→  id            String   @id @default(cuid())
+   212→  playerId      String
+   213→  eventType     String   // deposit, withdrawal, game_session, bonus_claim, limit_change
+   214→  description   String
+   215→  metadata      String?  // JSON
+   216→  createdAt     DateTime @default(now())
+   217→  player        PlayerProfile @relation(fields: [playerId], references: [id])
+   218→}
+   219→
+   220→model PlayerHeatmap {
+   221→  id            String   @id @default(cuid())
+   222→  playerId      String
+   223→  gameId        String
+   224→  dayOfWeek     Int      // 0-6
+   225→  hourOfDay     Int      // 0-23
+   226→  intensity     Float    // normalized 0-1
+   227→  createdAt     DateTime @default(now())
+   228→  updatedAt     DateTime @updatedAt
+   229→}
+   230→
+   231→model PlayerBonusHistory {
+   232→  id            String   @id @default(cuid())
+   233→  playerId      String
+   234→  promotionId   String?
+   235→  bonusCode     String?
+   236→  amount        Float
+   237→  wageringRequired Float
+   238→  wageringCompleted Float @default(0)
+   239→  status        String   @default("active") // active, completed, expired, forfeited
+   240→  claimedAt     DateTime @default(now())
+   241→  expiresAt     DateTime?
+   242→  player        PlayerProfile @relation(fields: [playerId], references: [id])
+   243→}
+   244→
+   245→// ============================================
+   246→// MODULO MARKETING & CRM (7 tabelle)
+   247→// ============================================
+   248→
+   249→model Segment {
+   250→  id            String   @id @default(cuid())
+   251→  name          String
+   252→  description   String?
+   253→  rules         String   // JSON filter rules
+   254→  playerCount   Int      @default(0)
+   255→  isDynamic     Boolean  @default(true)
+   256→  color         String   @default("#10b981")
+   257→  createdAt     DateTime @default(now())
+   258→  updatedAt     DateTime @updatedAt
+   259→  players       PlayerSegmentAssignment[]
+   260→  promotions    Promotion[]
+   261→}
+   262→
+   263→model Promotion {
+   264→  id            String   @id @default(cuid())
+   265→  name          String
+   266→  type          String   // deposit_match, free_spins, cashback, no_deposit, loyalty
+   267→  segmentId     String?
+   268→  bonusPercent  Float?
+   269→  maxAmount     Float?
+   270→  freeSpins     Int?
+   271→  wageringMultiplier Float @default(30)
+   272→  minDeposit    Float?
+   273→  isActive      Boolean  @default(true)
+   274→  startsAt      DateTime
+   275→  endsAt        DateTime
+   276→  createdAt     DateTime @default(now())
+   277→  updatedAt     DateTime @updatedAt
+   278→  segment       Segment? @relation(fields: [segmentId], references: [id])
+   279→  stats         PromotionStat[]
+   280→  bonusCodes    BonusCode[]
+   281→}
+   282→
+   283→model PromotionStat {
+   284→  id            String   @id @default(cuid())
+   285→  promotionId   String
+   286→  claims        Int      @default(0)
+   287→  conversions   Int      @default(0)
+   288→  totalBonusGiven Float  @default(0)
+   289→  totalWagered  Float    @default(0)
+   290→  revenue       Float    @default(0)
+   291→  periodDate    DateTime @default(now())
+   292→  promotion     Promotion @relation(fields: [promotionId], references: [id])
+   293→}
+   294→
+   295→model BonusCode {
+   296→  id            String   @id @default(cuid())
+   297→  promotionId   String
+   298→  code          String   @unique
+   299→  maxUses       Int?
+   300→  currentUses   Int      @default(0)
+   301→  isActive      Boolean  @default(true)
+   302→  expiresAt     DateTime?
+   303→  createdAt     DateTime @default(now())
+   304→  promotion     Promotion @relation(fields: [promotionId], references: [id])
+   305→}
+   306→
+   307→model WageringRequirement {
+   308→  id            String   @id @default(cuid())
+   309→  playerBonusId String
+   310→  totalRequired Float
+   311→  totalCompleted Float @default(0)
+   312→  remaining     Float
+   313→  gamesContrib  String?  // JSON game contribution rates
+   314→  expiresAt     DateTime
+   315→  createdAt     DateTime @default(now())
+   316→  updatedAt     DateTime @updatedAt
+   317→}
+   318→
+   319→model ConversionTracking {
+   320→  id            String   @id @default(cuid())
+   321→  promotionId   String?
+   322→  playerId      String
+   323→  eventType     String   // view, click, claim, convert, expire
+   324→  value         Float?
+   325→  createdAt     DateTime @default(now())
+   326→}
+   327→
+   328→model CronSchedule {
+   329→  id            String   @id @default(cuid())
+   330→  name          String
+   331→  taskType      String   // bonus_code_generation, segment_refresh, report_generation
+   332→  cronExpression String
+   333→  isActive      Boolean  @default(true)
+   334→  lastRunAt     DateTime?
+   335→  nextRunAt     DateTime?
+   336→  createdAt     DateTime @default(now())
+   337→  updatedAt     DateTime @updatedAt
+   338→}
+   339→
+   340→// ============================================
+   341→// MODULO AFFILIATI (4 tabelle)
+   342→// ============================================
+   343→
+   344→model AffiliateProfile {
+   345→  id            String   @id @default(cuid())
+   346→  name          String
+   347→  email         String   @unique
+   348→  website       String?
+   349→  tier          String   @default("bronze") // bronze, silver, gold, platinum
+   350→  commissionRate Float  @default(25)
+   351→  totalEarnings Float    @default(0)
+   352→  activePlayers Int      @default(0)
+   353→  status        String   @default("active") // active, suspended, terminated
+   354→  joinedAt      DateTime @default(now())
+   355→  createdAt     DateTime @default(now())
+   356→  updatedAt     DateTime @updatedAt
+   357→  commissions   CommissionLog[]
+   358→  performance   AffiliatePerformance[]
+   359→}
+   360→
+   361→model AffiliatePerformance {
+   362→  id            String   @id @default(cuid())
+   363→  affiliateId   String
+   364→  period        String   // month/week
+   365→  clicks        Int      @default(0)
+   366→  signups       Int      @default(0)
+   367→  ftd           Int      @default(0) // first time deposits
+   368→  revenue       Float    @default(0)
+   369→  createdAt     DateTime @default(now())
+   370→  affiliate     AffiliateProfile @relation(fields: [affiliateId], references: [id])
+   371→}
+   372→
+   373→model AffiliateCommission {
+   374→  id            String   @id @default(cuid())
+   375→  affiliateId   String
+   376→  amount        Float
+   377→  source        String   // revenue_share, cpa, hybrid
+   378→  periodMonth   String
+   379→  isPaid        Boolean  @default(false)
+   380→  paidAt        DateTime?
+   381→  createdAt     DateTime @default(now())
+   382→}
+   383→
+   384→model AffiliateTier {
+   385→  id            String   @id @default(cuid())
+   386→  name          String   // bronze, silver, gold, platinum
+   387→  minFtd        Int
+   388→  minRevenue    Float
+   389→  commissionRate Float
+   390→  bonusRate     Float    @default(0)
+   391→  createdAt     DateTime @default(now())
+   392→}
+   393→
+   394→// ============================================
+   395→// MODULO LEGALE & SICUREZZA (4 tabelle)
+   396→// ============================================
+   397→
+   398→model ContractSignature {
+   399→  id            String   @id @default(cuid())
+   400→  contractType  String   // operator_agreement, affiliate_terms, nda
+   401→  documentName  String
+   402→  documentUrl   String?
+   403→  docusignId    String?
+   404→  signers       String   // JSON array
+   405→  status        String   @default("pending") // pending, sent, signed, expired
+   406→  expiresAt     DateTime?
+   407→  signedAt      DateTime?
+   408→  createdAt     DateTime @default(now())
+   409→  updatedAt     DateTime @updatedAt
+   410→}
+   411→
+   412→model AuditLog {
+   413→  id            String   @id @default(cuid())
+   414→  userId        String?
+   415→  userRole      String?
+   416→  action        String
+   417→  resource      String
+   418→  resourceId    String?
+   419→  details       String?  // JSON
+   420→  ipAddress     String?
+   421→  createdAt     DateTime @default(now())
+   422→}
+   423→
+   424→model UserRole {
+   425→  id            String   @id @default(cuid())
+   426→  userId        String   @unique
+   427→  role          String   // super_admin, finance, controller, support, affiliate
+   428→  permissions   String   // JSON array
+   429→  createdAt     DateTime @default(now())
+   430→  updatedAt     DateTime @updatedAt
+   431→}
+   432→
+   433→model AITutorInstance {
+   434→  id            String   @id @default(cuid())
+   435→  userId        String
+   436→  contextType   String   // financial, player, promotion, general
+   437→  contextId     String?
+   438→  createdAt     DateTime @default(now())
+   439→  updatedAt     DateTime @updatedAt
+   440→}
+   441→
+   442→// ============================================
+   443→// MODULO AI & ANALYTICS (2 tabelle)
+   444→// ============================================
+   445→
+   446→model AILog {
+   447→  id            String   @id @default(cuid())
+   448→  model         String
+   449→  prompt        String
+   450→  response      String
+   451→  tokensUsed    Int?
+   452→  latencyMs     Int?
+   453→  tutorInstanceId String?
+   454→  createdAt     DateTime @default(now())
+   455→}
+   456→
+   457→model AIModelMetric {
+   458→  id            String   @id @default(cuid())
+   459→  modelName     String
+   460→  version       String
+   461→  accuracy      Float?
+   462→  avgLatencyMs Float?
+   463→  totalRequests Int      @default(0)
+   464→  successRate   Float?
+   465→  periodDate    DateTime @default(now())
+   466→  createdAt     DateTime @default(now())
+   467→}
+   468→
+   469→// ============================================
+   470→// MODULO WALLET & PAYMENTS (7 tabelle)
+   471→// ============================================
+   472→
+   473→model Wallet {
+   474→  id            String   @id @default(cuid())
+   475→  playerId      String
+   476→  currency      String   // USD, EUR, GBP, BTC, ETH, USDT, USDC, LTC, BNB, SOL
+   477→  balance       Float    @default(0)
+   478→  availableBalance Float @default(0)
+   479→  lockedBalance Float    @default(0) // bonus-locked, wagering-locked
+   480→  bonusBalance  Float    @default(0) // bonus funds separate
+   481→  isPrimary     Boolean  @default(false)
+   482→  status        String   @default("active") // active, frozen, closed
+   483→  lastDepositAt DateTime?
+   484→  lastWithdrawAt DateTime?
+   485→  createdAt     DateTime @default(now())
+   486→  updatedAt     DateTime @updatedAt
+   487→  transactions  WalletTransaction[]
+   488→  player        PlayerProfile @relation(fields: [playerId], references: [id])
+   489→}
+   490→
+   491→model WalletTransaction {
+   492→  id            String   @id @default(cuid())
+   493→  walletId      String
+   494→  type          String   // deposit, withdrawal, bet, win, bonus, cashback, transfer, fee, exchange
+   495→  amount        Float
+   496→  balanceBefore Float
+   497→  balanceAfter  Float
+   498→  currency      String
+   499→  status        String   @default("completed") // pending, completed, failed, cancelled, reversed
+   500→  reference     String?  // external tx id
+   501→  gameId        String?
+   502→  gameName      String?
+   503→  promotionId   String?
+   504→  metadata      String?  // JSON
+   505→  createdAt     DateTime @default(now())
+   506→  wallet        Wallet @relation(fields: [walletId], references: [id])
+   507→}
+   508→
+   509→model PaymentMethod {
+   510→  id            String   @id @default(cuid())
+   511→  playerId      String
+   512→  type          String   // visa, mastercard, bank_transfer, crypto_wallet, e_wallet, prepaid
+   513→  provider      String   // stripe, coinbase, moonpay, netseller, skrill, paypal
+   514→  label         String   // "Visa ****4242", "BTC Wallet"
+   515→  identifier    String?  // last 4 digits or wallet address (masked)
+   516→  isDefault     Boolean  @default(false)
+   517→  isActive      Boolean  @default(true)
+   518→  currency      String   @default("USD")
+   519→  metadata      String?  // JSON (encrypted details)
+   520→  createdAt     DateTime @default(now())
+   521→  updatedAt     DateTime @updatedAt
+   522→  player        PlayerProfile @relation(fields: [playerId], references: [id])
+   523→}
+   524→
+   525→model PaymentProvider {
+   526→  id            String   @id @default(cuid())
+   527→  name          String   // Stripe, Coinbase Commerce, MoonPay, etc.
+   528→  type          String   // fiat, crypto, hybrid
+   529→  isActive      Boolean  @default(true)
+   530→  minDeposit    Float    @default(10)
+   531→  maxDeposit    Float    @default(50000)
+   532→  minWithdrawal Float    @default(20)
+   533→  maxWithdrawal Float    @default(100000)
+   534→  feePercent    Float    @default(0)
+   535→  feeFixed      Float    @default(0)
+   536→  processingTime String  @default("instant") // instant, 1-3_days, 3-5_days
+   537→  supportedCurrencies String // JSON array
+   538→  logo          String?  // URL
+   539→  createdAt     DateTime @default(now())
+   540→  updatedAt     DateTime @updatedAt
+   541→}
+   542→
+   543→model DepositRequest {
+   544→  id            String   @id @default(cuid())
+   545→  playerId      String
+   546→  walletId      String
+   547→  amount        Float
+   548→  currency      String
+   549→  method        String   // card, crypto, bank_transfer, e_wallet
+   550→  provider      String
+   551→  status        String   @default("pending") // pending, processing, confirmed, failed, expired
+   552→  txHash        String?  // blockchain hash
+   553→  feeAmount     Float    @default(0)
+   554→  netAmount     Float    // amount - fee
+   555→  paymentMethodId String?
+   556→  metadata      String?  // JSON
+   557→  confirmedAt   DateTime?
+   558→  expiresAt     DateTime?
+   559→  createdAt     DateTime @default(now())
+   560→  updatedAt     DateTime @updatedAt
+   561→  player        PlayerProfile @relation(fields: [playerId], references: [id])
+   562→}
+   563→
+   564→model WithdrawalRequest {
+   565→  id            String   @id @default(cuid())
+   566→  playerId      String
+   567→  walletId      String
+   568→  amount        Float
+   569→  currency      String
+   570→  method        String
+   571→  provider      String
+   572→  status        String   @default("pending") // pending, under_review, approved, processing, completed, rejected, cancelled
+   573→  approvedBy    String?
+   574→  approvedAt    DateTime?
+   575→  txHash        String?
+   576→  feeAmount     Float    @default(0)
+   577→  netAmount     Float
+   578→  paymentMethodId String?
+   579→  rejectionReason String?
+   580→  metadata      String?
+   581→  processedAt   DateTime?
+   582→  createdAt     DateTime @default(now())
+   583→  updatedAt     DateTime @updatedAt
+   584→  player        PlayerProfile @relation(fields: [playerId], references: [id])
+   585→}
+   586→
+   587→model CurrencyRate {
+   588→  id            String   @id @default(cuid())
+   589→  fromCurrency  String
+   590→  toCurrency    String
+   591→  rate          Float
+   592→  source        String   @default("api") // api, manual
+   593→  updatedAt     DateTime @updatedAt
+   594→}
+   595→
+   596→// ============================================
+   597→// MODULO LIVE TRACKING & GEO (4 tabelle)
+   598→// ============================================
+   599→
+   600→model PlayerSession {
+   601→  id            String   @id @default(cuid())
+   602→  playerId      String
+   603→  gameId        String
+   604→  gameName      String
+   605→  ipAddress     String?
+   606→  country       String?
+   607→  city          String?
+   608→  latitude      Float?
+   609→  longitude     Float?
+   610→  deviceType    String?  // desktop, mobile, tablet
+   611→  browser       String?
+   612→  os            String?
+   613→  entryPoint    String?  // homepage, direct, affiliate, promotion
+   614→  wagerAmount   Float    @default(0)
+   615→  winAmount     Float    @default(0)
+   616→  spinsPlayed   Int      @default(0)
+   617→  startedAt     DateTime @default(now())
+   618→  lastActivityAt DateTime @default(now())
+   619→  endedAt       DateTime?
+   620→  status        String   @default("active") // active, idle, ended
+   621→  player        PlayerProfile @relation(fields: [playerId], references: [id])
+   622→}
+   623→
+   624→model GeoLocation {
+   625→  id            String   @id @default(cuid())
+   626→  playerId      String
+   627→  country       String
+   628→  countryCode   String   // ISO 2-letter
+   629→  city          String?
+   630→  region        String?
+   631→  latitude      Float
+   632→  longitude     Float
+   633→  timezone      String?
+   634→  isp           String?
+   635→  isVpn         Boolean  @default(false)
+   636→  isProxy       Boolean  @default(false)
+   637→  isTor         Boolean  @default(false)
+   638→  detectedAt    DateTime @default(now())
+   639→  createdAt     DateTime @default(now())
+   640→  updatedAt     DateTime @updatedAt
+   641→}
+   642→
+   643→model LiveEvent {
+   644→  id            String   @id @default(cuid())
+   645→  eventType     String   // player_login, game_start, big_win, jackpot_win, deposit, withdrawal, bonus_claim, level_up, tournament_join, chat_message
+   646→  playerId      String?
+   647→  playerName    String?
+   648→  gameId        String?
+   649→  gameName      String?
+   650→  amount        Float?
+   651→  currency      String?
+   652→  country       String?
+   653→  countryCode   String?
+   654→  city          String?
+   655→  latitude      Float?
+   656→  longitude     Float?
+   657→  metadata      String?  // JSON
+   658→  createdAt     DateTime @default(now())
+   659→}
+   660→
+   661→model ServerNode {
+   662→  id            String   @id @default(cuid())
+   663→  name          String   // EU-West, US-East, Asia-Pacific
+   664→  region        String
+   665→  countryCode   String
+   666→  latitude      Float
+   667→  longitude     Float
+   668→  status        String   @default("online") // online, degraded, offline, maintenance
+   669→  activePlayers Int      @default(0)
+   670→  maxPlayers    Int      @default(10000)
+   671→  cpuLoad       Float    @default(0)
+   672→  memoryLoad    Float    @default(0)
+   673→  latencyMs     Float    @default(0)
+   674→  uptime        Float    @default(99.9)
+   675→  lastHeartbeat DateTime @default(now())
+   676→  createdAt     DateTime @default(now())
+   677→  updatedAt     DateTime @updatedAt
+   678→}
+   679→
+   680→// ============================================
+   681→// MODULO API & INTEGRATION (6 tabelle)
+   682→// ============================================
+   683→
+   684→model ApiToken {
+   685→  id            String   @id @default(cuid())
+   686→  name          String   // "Production API", "Staging", "Partner X"
+   687→  token         String   @unique // hashed token
+   688→  tokenPrefix   String   // first 8 chars for display (tols_xxxx...)
+   689→  ownerId       String   // user or integration ID
+   690→  scopes        String   // JSON array: ["players:read", "wallets:write", "financial:read", ...]
+   691→  rateLimit     Int      @default(1000) // requests per minute
+   692→  isActive      Boolean  @default(true)
+   693→  lastUsedAt    DateTime?
+   694→  expiresAt     DateTime?
+   695→  createdAt     DateTime @default(now())
+   696→  updatedAt     DateTime @updatedAt
+   697→  usageLogs     ApiUsageLog[]
+   698→  webhooks      WebhookEndpoint[]
+   699→}
+   700→
+   701→model WebhookEndpoint {
+   702→  id            String   @id @default(cuid())
+   703→  apiTokenId    String
+   704→  name          String   // "Notify on Deposit", "Player Events"
+   705→  url           String   // https://partner.com/webhooks/tols
+   706→  events        String   // JSON array: ["deposit.confirmed", "withdrawal.completed", "player.login", ...]
+   707→  secret        String   // HMAC secret for signature verification
+   708→  isActive      Boolean  @default(true)
+   709→  retryCount    Int      @default(3)
+   710→  timeoutMs     Int      @default(5000)
+   711→  lastTriggerAt DateTime?
+   712→  createdAt     DateTime @default(now())
+   713→  updatedAt     DateTime @updatedAt
+   714→  apiToken      ApiToken @relation(fields: [apiTokenId], references: [id])
+   715→  deliveries    WebhookDelivery[]
+   716→}
+   717→
+   718→model WebhookDelivery {
+   719→  id            String   @id @default(cuid())
+   720→  webhookId     String
+   721→  eventId       String   // event type that triggered this
+   722→  payload       String   // JSON payload sent
+   723→  statusCode    Int?     // HTTP response status
+   724→  response      String?  // response body (truncated)
+   725→  duration      Int?     // ms
+   726→  success       Boolean
+   727→  attempt       Int      @default(1)
+   728→  nextRetryAt   DateTime?
+   729→  createdAt     DateTime @default(now())
+   730→  webhook       WebhookEndpoint @relation(fields: [webhookId], references: [id])
+   731→}
+   732→
+   733→model Integration {
+   734→  id            String   @id @default(cuid())
+   735→  name          String   // "BetMGM", "PokerStars", "Custom Platform"
+   736→  type          String   // casino_poker, casino_slots, sports_betting, lottery, custom
+   737→  status        String   @default("pending") // pending, connected, syncing, error, disconnected
+   738→  apiTokenId    String?
+   739→  config        String   // JSON: { baseUrl, authType, apiKey, syncInterval, ... }
+   740→  syncStats     String?  // JSON: { lastSync, recordsSynced, errors, ... }
+   741→  logo          String?  // URL
+   742→  lastSyncAt    DateTime?
+   743→  createdAt     DateTime @default(now())
+   744→  updatedAt     DateTime @updatedAt
+   745→}
+   746→
+   747→model McpEndpoint {
+   748→  id            String   @id @default(cuid())
+   749→  name          String   // "TOLS Player Intelligence", "TOLS Financial API"
+   750→  description   String
+   751→  version       String   @default("1.0.0")
+   752→  baseUrl       String   // /api/mcp/players, /api/mcp/financial
+   753→  tools         String   // JSON array of MCP tool definitions
+   754→  resources     String   // JSON array of MCP resource definitions
+   755→  isActive      Boolean  @default(true)
+   756→  requiresAuth  Boolean  @default(true)
+   757→  createdAt     DateTime @default(now())
+   758→  updatedAt     DateTime @updatedAt
+   759→}
+   760→
+   761→model ApiUsageLog {
+   762→  id            String   @id @default(cuid())
+   763→  apiTokenId    String
+   764→  endpoint      String   // /api/players, /api/wallets
+   765→  method        String   // GET, POST, PUT, DELETE
+   766→  statusCode    Int
+   767→  durationMs    Int
+   768→  ipAddress     String?
+   769→  userAgent     String?
+   770→  error         String?
+   771→  createdAt     DateTime @default(now())
+   772→  apiToken      ApiToken @relation(fields: [apiTokenId], references: [id])
+   773→}
+   774→
+   775→// ============================================
+   776→// MODULO NOTIFICATIONS (4 tabelle)
+   777→// ============================================
+   778→
+   779→model Notification {
+   780→  id            String   @id @default(cuid())
+   781→  userId        String?  // null = broadcast to all
+   782→  type          String   // info, warning, success, error, critical
+   783→  category      String   // financial, player, system, webhook, integration, compliance
+   784→  title         String
+   785→  message       String
+   786→  metadata      String?  // JSON: { link, actionUrl, entityType, entityId, ... }
+   787→  isRead        Boolean  @default(false)
+   788→  readAt        DateTime?
+   789→  channel       String   @default("in_app") // in_app, email, sms, webhook, push
+   790→  priority      String   @default("normal") // low, normal, high, urgent
+   791→  expiresAt     DateTime?
+   792→  createdAt     DateTime @default(now())
+   793→}
+   794→
+   795→model NotificationPreference {
+   796→  id            String   @id @default(cuid())
+   797→  userId        String
+   798→  category      String   // financial, player, system, webhook, integration, compliance
+   799→  channel       String   // in_app, email, sms, webhook, push
+   800→  isEnabled     Boolean  @default(true)
+   801→  minPriority   String   @default("normal") // only notify for this priority and above
+   802→  quietHoursStart String? // "22:00"
+   803→  quietHoursEnd   String? // "08:00"
+   804→  createdAt     DateTime @default(now())
+   805→  updatedAt     DateTime @updatedAt
+   806→}
+   807→
+   808→model NotificationTemplate {
+   809→  id            String   @id @default(cuid())
+   810→  name          String   // "deposit_confirmed", "withdrawal_pending", "variance_alert"
+   811→  category      String
+   812→  titleTemplate String   // "Deposit of {{amount}} {{currency}} Confirmed"
+   813→  bodyTemplate  String   // "Player {{playerName}} deposit of {{amount}} ..."
+   814→  channel       String   @default("in_app")
+   815→  isActive      Boolean  @default(true)
+   816→  createdAt     DateTime @default(now())
+   817→  updatedAt     DateTime @updatedAt
+   818→}
+   819→
+   820→model NotificationChannel {
+   821→  id            String   @id @default(cuid())
+   822→  userId        String
+   823→  type          String   // email, sms, webhook, slack, discord, telegram
+   824→  config        String   // JSON: { email, phone, webhookUrl, slackChannel, ... }
+   825→  isVerified    Boolean  @default(false)
+   826→  isActive      Boolean  @default(true)
+   827→  createdAt     DateTime @default(now())
+   828→  updatedAt     DateTime @updatedAt
+   829→}
+   830→

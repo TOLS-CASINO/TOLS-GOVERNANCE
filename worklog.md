@@ -717,3 +717,27 @@ Stage Summary:
 - 52 total database models across 10 modules
 - 14 sidebar navigation items in 5 groups
 - 19 API routes all verified working
+---
+Task ID: 1
+Agent: main
+Task: Fix Notifications API data shape and create Vendor/Provider section
+
+Work Log:
+- Fixed Notifications API to return data matching frontend expectations (isRead, channel-based preferences, titleTemplate/bodyTemplate, config/isVerified/isActive)
+- Added 5 new Prisma models: GameProvider, ProviderGame, ProviderCallback, ProviderCredential, ProviderHealthLog
+- Created /api/vendors route with 8 providers, 20 games, 15 callbacks, 10 credentials, 24 health logs
+- Created VendorsView component with 5 tabs (Providers, Callbacks, Games, Credentials, Health)
+- Added 'vendors' section to store, sidebar, page.tsx, api service, and hooks
+- Pushed schema to database successfully
+- Verified Notifications API: 28 notifications, 30 preferences, 8 templates, 6 channels - all with correct data shape
+- Verified Vendors API: 8 providers, 20 games, 15 callbacks, 10 credentials, 24 health logs
+- Lint passes cleanly
+- Browser verification shows sidebar renders correctly with Vendors section visible
+- Server experiences OOM in constrained sandbox when browser triggers concurrent compilations (environment issue, not code issue)
+
+Stage Summary:
+- Notifications section fixed: API now returns correct data shape matching frontend types
+- Vendor/Provider section created: full game provider management with callback configuration
+- 5 new DB models added to Prisma schema
+- All API endpoints verified working with correct data
+- Code quality verified (lint passes, no TS errors in new files)

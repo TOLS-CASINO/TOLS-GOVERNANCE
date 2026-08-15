@@ -827,3 +827,141 @@ model NotificationChannel {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
+
+// ============================================
+// MODULO VENDOR / GAME PROVIDERS (5 tabelle)
+// ============================================
+
+model GameProvider {
+  id              String   @id @default(cuid())
+  name            String   // Evolution Gaming, Pragmatic Play, NetEnt, etc.
+  slug            String   @unique // evolution-gaming, pragmatic-play, netent
+  type            String   // live_casino, slots, table_games, sports, virtual, bingo, poker
+  status          String   @default("pending") // pending, active, suspended, disconnected
+  logoUrl         String?  // provider logo URL
+  website         String?  // provider website
+  description     String?  // short description
+  integrationType String   @default("api") // api, iframe, download, hybrid
+  apiVersion      String?  // provider API version e.g. "2.1.0"
+  baseUrl         String?  // provider API base URL
+  callbackUrl     String?  // our callback URL for this provider
+  secretKey       String?  // HMAC/API secret (masked)
+  apiKey          String?  // provider API key (masked)
+  allowedIps      String?  // JSON array of allowed IP ranges for callback validation
+  supportedCurrencies String? // JSON array: ["USD","EUR","BTC"]
+  supportedLocales String?  // JSON array: ["en","de","ja"]
+  maxConcurrentSessions Int @default(5000)
+  defaultRtp      Float?   // average RTP for this provider
+  isActive        Boolean  @default(true)
+  isCertified     Boolean  @default(false) // passed certification/QA
+  certifiedAt     DateTime?
+  lastHealthCheck DateTime?
+  totalGames      Int      @default(0)
+  activeGames     Int      @default(0)
+  activePlayers   Int      @default(0)
+  monthlyRevenue  Float    @default(0)
+  errorRate       Float    @default(0) // percentage
+  avgLatencyMs    Int      @default(0)
+  uptime          Float    @default(99.9) // percentage
+  joinedAt        DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  games           ProviderGame[]
+  credentials     ProviderCredential[]
+  callbacks       ProviderCallback[]
+  healthLogs      ProviderHealthLog[]
+}
+
+model ProviderGame {
+  id            String   @id @default(cuid())
+  providerId    String
+  externalId    String   // game ID in provider's system
+  name          String   // "Mega Moolah", "Lightning Roulette", "Book of Dead"
+  slug          String   // mega-moolah, lightning-roulette
+  type          String   // slot, live_table, table_game, jackpot, instant_win, video_poker, scratch
+  category      String?  // "Popular", "New", "Jackpot", "Live Casino"
+  subCategory   String?  // "Fruit Slots", "Megaways", "Hold and Win"
+  coverUrl      String?  // game cover/image URL
+  demoUrl       String?  // demo/play-for-fun URL
+  rtp           Float?   // Return to Player percentage
+  volatility    String?  // low, medium, high, very_high
+  hitFrequency  Float?   // percentage
+  maxWin        Float?   // max win multiplier (e.g., 5000x)
+  maxBet        Float?   // max bet amount
+  minBet        Float?   // min bet amount
+  defaultBet    Float?   // default bet amount
+  lines         Int?     // number of paylines (for slots)
+  features      String?  // JSON array: ["free_spins", "bonus_round", "wild", "megaways"]
+  supportedCurrencies String? // JSON array
+  supportedLocales String?  // JSON array
+  isMobile      Boolean  @default(true)
+  isDesktop     Boolean  @default(true)
+  isLandscape   Boolean  @default(true)
+  isActive      Boolean  @default(true)
+  isFeatured    Boolean  @default(false)
+  isNew         Boolean  @default(false)
+  launchDate    DateTime?
+  totalBets     Float    @default(0)
+  totalWins     Float    @default(0)
+  totalSessions Int      @default(0)
+  avgSessionMin Float    @default(0)
+  popularityScore Float  @default(0) // 0-100 calculated score
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  provider      GameProvider @relation(fields: [providerId], references: [id])
+}
+
+model ProviderCallback {
+  id            String   @id @default(cuid())
+  providerId    String
+  name          String   // "Game Session Events", "Wallet Callbacks", "Player Tracking"
+  eventType     String   // game.session_start, game.session_end, game.bet, game.win, game.jackpot, wallet.credit, wallet.debit, player.login, player.logout
+  url           String   // our URL that receives the callback
+  method        String   @default("POST") // POST, GET
+  authType      String   @default("hmac") // hmac, bearer, api_key, ip_whitelist, none
+  secretKey     String?  // HMAC/API key for verification (masked)
+  ipWhitelist   String?  // JSON array of allowed IPs
+  isActive      Boolean  @default(true)
+  retryPolicy   String?  // JSON: { maxRetries: 3, backoffMs: 1000, retryOn: [500,502,503] }
+  timeoutMs     Int      @default(5000)
+  lastReceivedAt DateTime?
+  lastSuccessAt DateTime?
+  totalReceived Int      @default(0)
+  totalSuccess  Int      @default(0)
+  totalFailed   Int      @default(0)
+  avgProcessingMs Int    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  provider      GameProvider @relation(fields: [providerId], references: [id])
+}
+
+model ProviderCredential {
+  id            String   @id @default(cuid())
+  providerId    String
+  environment   String   // production, staging, sandbox
+  apiKey        String?  // masked API key
+  apiSecret     String?  // masked API secret
+  bearerToken   String?  // masked bearer token
+  certPath      String?  // path to client certificate
+  additional    String?  // JSON: extra config keys
+  isActive      Boolean  @default(true)
+  lastUsedAt    DateTime?
+  expiresAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  provider      GameProvider @relation(fields: [providerId], references: [id])
+}
+
+model ProviderHealthLog {
+  id            String   @id @default(cuid())
+  providerId    String
+  metric        String   // error_rate, latency, uptime, api_connectivity, callback_success, game_load_time
+  value         Float
+  unit          String   // percent, ms, count, bool
+  threshold     Float?   // alert threshold
+  isAlert       Boolean  @default(false) // exceeded threshold
+  details       String?  // JSON: additional context
+  checkedAt     DateTime @default(now())
+  createdAt     DateTime @default(now())
+  provider      GameProvider @relation(fields: [providerId], references: [id])
+}
