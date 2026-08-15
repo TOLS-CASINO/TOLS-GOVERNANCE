@@ -16,6 +16,11 @@ export type Section =
   | 'api-hub'
   | 'ai-tutor'
   | 'legal'
+  | 'auth'
+  | 'billing'
+  | 'onboarding'
+  | 'blockchain'
+  | 'ml-pipeline'
 
 export type UserRole = 'finance' | 'controller' | 'super_admin'
 
@@ -26,6 +31,8 @@ interface AppState {
   setActiveRole: (role: UserRole) => void
   sidebarCollapsed: boolean
   toggleSidebar: () => void
+  onboardingComplete: boolean
+  setOnboardingComplete: (v: boolean) => void
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -35,4 +42,6 @@ export const useAppStore = create<AppState>((set) => ({
   setActiveRole: (role) => set({ activeRole: role }),
   sidebarCollapsed: false,
   toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+  onboardingComplete: true,
+  setOnboardingComplete: (v) => set({ onboardingComplete: v }),
 }))

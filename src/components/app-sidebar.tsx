@@ -18,6 +18,9 @@ import {
   Zap,
   Bell,
   Server,
+  Receipt,
+  Rocket,
+  Brain,
 } from 'lucide-react'
 import { useAppStore, type Section } from '@/lib/store'
 import {
@@ -64,14 +67,19 @@ const marketingItems: NavItem[] = [
 
 const financeItems: NavItem[] = [
   { section: 'wallets', label: 'Wallets', icon: Wallet },
+  { section: 'blockchain', label: 'Blockchain', icon: Shield },
   { section: 'payments', label: 'Payments', icon: CreditCard },
   { section: 'vendors', label: 'Vendors', icon: Server },
 ]
 
 const systemItems: NavItem[] = [
+  { section: 'auth', label: 'Auth & Security', icon: Shield },
   { section: 'notifications', label: 'Notifications', icon: Bell },
   { section: 'api-hub', label: 'API Hub', icon: Zap, badge: 'API' },
+  { section: 'billing', label: 'Billing', icon: Receipt },
   { section: 'ai-tutor', label: 'AI Tutor', icon: Bot, badge: 'AI' },
+  { section: 'ml-pipeline', label: 'ML Pipeline', icon: Brain, badge: 'ML' },
+  { section: 'onboarding', label: 'Onboarding', icon: Rocket },
   { section: 'legal', label: 'Legal', icon: Scale },
 ]
 

@@ -77,4 +77,24 @@ export const api = {
   vendors: {
     get: () => request<any>('/api/vendors'),
   },
+  auth: {
+    get: () => request<any>('/api/auth'),
+  },
+  billing: {
+    get: () => request<any>('/api/billing'),
+  },
+  onboarding: {
+    get: () => request<any>('/api/onboarding'),
+    post: (step: number, data?: any) =>
+      request<any>('/api/onboarding', {
+        method: 'POST',
+        body: JSON.stringify({ step, ...data }),
+      }),
+  },
+  blockchain: {
+    get: () => request<any>('/api/blockchain'),
+  },
+  mlPipeline: {
+    get: () => request<any>('/api/ml-pipeline'),
+  },
 }

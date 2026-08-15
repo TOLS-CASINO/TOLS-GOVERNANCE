@@ -17,6 +17,11 @@ import { ApiHubView } from '@/components/api-hub-view'
 import { LegalView } from '@/components/legal-view'
 import { NotificationsView } from '@/components/notifications-view'
 import { VendorsView } from '@/components/vendors-view'
+import { AuthView } from '@/components/auth-view'
+import { BillingView } from '@/components/billing-view'
+import { OnboardingView } from '@/components/onboarding-view'
+import { BlockchainView } from '@/components/blockchain-view'
+import { MLPipelineView } from '@/components/ml-pipeline-view'
 import {
   SidebarProvider,
   SidebarInset,
@@ -41,6 +46,10 @@ import {
   Zap,
   Bell,
   Server,
+  Shield,
+  Receipt,
+  Rocket,
+  Brain,
 } from 'lucide-react'
 import { NotificationPanel } from '@/components/notification-panel'
 
@@ -60,6 +69,11 @@ const sectionMeta: Record<Section, { title: string; description: string; icon: R
   'api-hub': { title: 'API Hub', description: 'Tokens, webhooks, integrations & MCP', icon: Zap },
   'ai-tutor': { title: 'AI Tutor', description: 'Intelligent assistant for operators', icon: Bot },
   legal: { title: 'Legal', description: 'Contracts, audit & compliance', icon: Scale },
+  auth: { title: 'Auth & Security', description: 'Users, sessions, roles & permissions', icon: Shield },
+  billing: { title: 'Billing', description: 'Plans, subscription & invoices', icon: Receipt },
+  onboarding: { title: 'Onboarding', description: 'Setup wizard & initial configuration', icon: Rocket },
+  blockchain: { title: 'Blockchain', description: 'Crypto wallets, transactions & smart contracts', icon: Shield },
+  'ml-pipeline': { title: 'ML Pipeline', description: 'Models, predictions & training jobs', icon: Brain },
 }
 
 function SectionContent({ section }: { section: Section }) {
@@ -79,6 +93,11 @@ function SectionContent({ section }: { section: Section }) {
     case 'api-hub': return <ApiHubView />
     case 'ai-tutor': return <AiTutorView />
     case 'legal': return <LegalView />
+    case 'auth': return <AuthView />
+    case 'billing': return <BillingView />
+    case 'onboarding': return <OnboardingView />
+    case 'blockchain': return <BlockchainView />
+    case 'ml-pipeline': return <MLPipelineView />
   }
 }
 

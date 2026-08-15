@@ -965,3 +965,262 @@ model ProviderHealthLog {
   createdAt     DateTime @default(now())
   provider      GameProvider @relation(fields: [providerId], references: [id])
 }
+
+// ============================================
+// MODULO AUTH & MULTI-TENANCY (5 tabelle)
+// ============================================
+
+model Casino {
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  domain        String?  @unique
+  logo          String?
+  status        String   @default("pending") // pending, active, suspended, terminated
+  plan          String   @default("starter") // starter, professional, enterprise
+  config        String?  // JSON: custom configurations
+  settings      String?  // JSON: specific settings
+  maxPlayers    Int      @default(1000)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  users         User[]
+  subscriptions Subscription[]
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String?
+  name          String?
+  role          String   @default("viewer") // admin, controller, finance, marketing, support, viewer
+  casinoId      String?
+  image         String?
+  isActive      Boolean  @default(true)
+  lastLoginAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  casino        Casino?  @relation(fields: [casinoId], references: [id])
+  sessions      UserSession[]
+}
+
+model UserSession {
+  id            String   @id @default(cuid())
+  userId        String
+  token         String   @unique
+  ipAddress     String?
+  userAgent     String?
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id])
+}
+
+model RolePermission {
+  id            String   @id @default(cuid())
+  role          String   // admin, controller, finance, marketing, support, viewer
+  resource      String   // players, financial, wallets, promotions, settings, etc.
+  actions       String   // JSON: ["read", "write", "delete", "approve"]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ============================================
+// MODULO BILLING & SUBSCRIPTION (4 tabelle)
+// ============================================
+
+model Subscription {
+  id                    String   @id @default(cuid())
+  casinoId              String
+  stripeCustomerId      String?  @unique
+  stripeSubscriptionId  String?  @unique
+  plan                  String   // starter, professional, enterprise
+  status                String   @default("incomplete") // incomplete, trialing, active, past_due, canceled, unpaid
+  currentPeriodStart    DateTime?
+  currentPeriodEnd      DateTime?
+  cancelAtPeriodEnd     Boolean  @default(false)
+  trialEndsAt           DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  casino                Casino   @relation(fields: [casinoId], references: [id])
+  invoices              Invoice[]
+  payments              Payment[]
+}
+
+model Invoice {
+  id                String   @id @default(cuid())
+  subscriptionId    String
+  stripeInvoiceId   String?  @unique
+  amount            Float
+  currency          String   @default("USD")
+  status            String   @default("draft") // draft, open, paid, void, uncollectible
+  description       String?
+  pdfUrl            String?
+  paidAt            DateTime?
+  dueDate           DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  subscription      Subscription @relation(fields: [subscriptionId], references: [id])
+}
+
+model Payment {
+  id                String   @id @default(cuid())
+  subscriptionId    String
+  stripePaymentId   String?  @unique
+  amount            Float
+  currency          String   @default("USD")
+  status            String   @default("pending") // succeeded, pending, failed, refunded
+  method            String?  // card, bank_transfer, crypto
+  receiptUrl        String?
+  createdAt         DateTime @default(now())
+  subscription      Subscription @relation(fields: [subscriptionId], references: [id])
+}
+
+model PlanFeature {
+  id            String   @id @default(cuid())
+  plan          String   // starter, professional, enterprise
+  feature       String   // ai_tutor, blockchain, custom_branding, priority_support, etc.
+  isEnabled     Boolean  @default(true)
+  limit         Int?     // null = unlimited
+  createdAt     DateTime @default(now())
+}
+
+// ============================================
+// MODULO BLOCKCHAIN (4 tabelle)
+// ============================================
+
+model CryptoWallet {
+  id            String   @id @default(cuid())
+  address       String   @unique
+  network       String   // ethereum, bitcoin, tron, solana, polygon, bsc
+  type          String   // hot, cold, multi_sig
+  label         String   // "Main Hot Wallet", "Cold Storage", "Player Deposit"
+  balance       Float    @default(0)
+  balanceUsd    Float    @default(0)
+  currency      String   @default("ETH")
+  isActive      Boolean  @default(true)
+  isVerified    Boolean  @default(false)
+  lastSyncAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  transactions  BlockchainTransaction[]
+}
+
+model BlockchainTransaction {
+  id            String   @id @default(cuid())
+  walletId      String
+  txHash        String?  @unique
+  type          String   // deposit, withdrawal, transfer, contract_call
+  fromAddress   String?
+  toAddress     String?
+  amount        Float
+  currency      String
+  amountUsd     Float    @default(0)
+  gasFee        Float    @default(0)
+  gasFeeUsd     Float    @default(0)
+  blockNumber   Int?
+  confirmations Int      @default(0)
+  status        String   @default("pending") // pending, confirming, confirmed, failed, expired
+  metadata      String?  // JSON
+  confirmedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  wallet        CryptoWallet @relation(fields: [walletId], references: [id])
+}
+
+model BlockchainNetwork {
+  id            String   @id @default(cuid())
+  name          String   // Ethereum Mainnet, Bitcoin, Tron, Solana
+  chainId       Int?     // 1 for ETH mainnet, 56 for BSC
+  symbol        String   // ETH, BTC, TRX, SOL
+  type          String   // mainnet, testnet
+  rpcUrl        String
+  explorerUrl   String
+  isSupported   Boolean  @default(true)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model SmartContract {
+  id            String   @id @default(cuid())
+  networkId     String
+  address       String
+  type          String   // escrow, token, nft, staking, governance
+  name          String
+  abi           String?  // JSON ABI
+  isVerified    Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  deployedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ============================================
+// MODULO ML PIPELINE (4 tabelle)
+// ============================================
+
+model MLModel {
+  id            String   @id @default(cuid())
+  name          String   // "Churn Predictor", "Revenue Forecaster", "Fraud Detector"
+  type          String   // classification, regression, anomaly_detection, nlp
+  algorithm     String   // random_forest, xgboost, neural_network, lstm
+  version       String   @default("1.0.0")
+  status        String   @default("draft") // draft, training, trained, deployed, deprecated
+  accuracy      Float?
+  precision     Float?
+  recall       Float?
+  f1Score      Float?
+  features      String   // JSON: list of input features
+  hyperparams   String?  // JSON: hyperparameters
+  trainingDataSize Int?
+  lastTrainedAt DateTime?
+  deployedAt    DateTime?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  predictions   MLPrediction[]
+  jobs          MLTrainingJob[]
+}
+
+model MLPrediction {
+  id            String   @id @default(cuid())
+  modelId       String
+  input         String   // JSON: input data
+  output        String   // JSON: prediction result
+  confidence    Float    // 0-1
+  entityId      String?  // playerId, gameId, etc.
+  entityType    String?  // player, game, transaction
+  executedAt    DateTime @default(now())
+  durationMs    Int      @default(0)
+  createdAt     DateTime @default(now())
+  model         MLModel  @relation(fields: [modelId], references: [id])
+}
+
+model MLTrainingJob {
+  id            String   @id @default(cuid())
+  modelId       String
+  status        String   @default("queued") // queued, running, completed, failed
+  progress      Float    @default(0) // 0-100
+  startDate     DateTime?
+  endDate       DateTime?
+  duration      Int?     // seconds
+  metrics       String?  // JSON: training metrics per epoch
+  error         String?
+  config        String?  // JSON: training config override
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  model         MLModel  @relation(fields: [modelId], references: [id])
+}
+
+model MLFeatureStore {
+  id            String   @id @default(cuid())
+  name          String   // "player_behavior", "transaction_patterns"
+  description   String?
+  schema        String   // JSON: feature schema
+  source        String   // database, api, stream
+  refreshInterval Int?   // minutes
+  lastRefreshAt DateTime?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}

@@ -1,0 +1,1196 @@
+# 🚀 Setup Completo Features Mancanti - TOLS Platform SaaS
+
+## Prompt Principale per Implementazione
+
+```markdown
+## CONTESTO
+Sei un senior full-stack developer specializzato in SaaS multi-tenant per il settore iGaming. 
+Devi implementare le features mancanti critiche per trasformare TOLS Platform da MVP a SaaS professionale vendibile.
+
+## TASK
+Implementa le seguenti 6 features critiche in ordine di priorità:
+
+1. **AUTHENTICATION SYSTEM** - Sistema completo di autenticazione
+2. **MULTI-TENANCY** - Isolamento dati per casino multipli
+3. **BILLING & SUBSCRIPTION** - Gestione pagamenti SaaS
+4. **ONBOARDING FLOW** - Wizard di setup iniziale
+5. **BLOCKCHAIN INTEGRATION** - Wallet crypto reali
+6. **ML PIPELINE** - Predizioni machine learning reali
+
+## REQUISITI TECNICI
+- Next.js 14+ con App Router
+- Prisma ORM con SQLite (sviluppo) / PostgreSQL (produzione)
+- NextAuth.js per autenticazione
+- Stripe per billing
+- Web3.js/Ethers.js per blockchain
+- Python FastAPI per ML service
+- Tailwind CSS per styling dark theme
+
+## STILE
+- Tema dark casino (sfondo #0f0f0f, oro #ffd700, verde #00ff88)
+- Componenti premium con gradienti
+- Animazioni fluide
+- Responsive design
+```
+
+---
+
+## 1️⃣ Authentication System Setup
+
+### Struttura Files
+
+```
+src/
+├── app/
+│   ├── api/
+│   │   └── auth/
+│   │       ├── [...nextauth]/
+│   │       │   └── route.ts          # NextAuth handler
+│   │       ├── register/
+│   │       │   └── route.ts          # Registrazione
+│   │       ├── login/
+│   │       │   └── route.ts          # Login
+│   │       ├── logout/
+│   │       │   └── route.ts          # Logout
+│   │       └── reset-password/
+│   │           └── route.ts          # Reset password
+│   ├── login/
+│   │   └── page.tsx                  # Pagina login
+│   ├── register/
+│   │   └── page.tsx                  # Pagina registrazione
+│   └── onboarding/
+│       └── page.tsx                  # Wizard onboarding
+├── components/
+│   └── auth/
+│       ├── LoginForm.tsx
+│       ├── RegisterForm.tsx
+│       └── ProtectedRoute.tsx
+├── lib/
+│   └── auth.ts                       # Config NextAuth
+└── middleware.ts                     # Route protection
+```
+
+### Implementazione NextAuth
+
+```typescript
+// src/lib/auth.ts
+import { NextAuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import { PrismaAdapter } from "@auth/prisma-adapter";
+import { prisma } from "./db";
+import bcrypt from "bcryptjs";
+import { JWT } from "next-auth/jwt";
+
+export const authOptions: NextAuthOptions = {
+    adapter: PrismaAdapter(prisma),
+    session: {
+        strategy: "jwt",
+        maxAge: 30 * 24 * 60 * 60, // 30 giorni
+    },
+    providers: [
+        CredentialsProvider({
+            name: "credentials",
+            credentials: {
+                email: { label: "Email", type: "email" },
+                password: { label: "Password", type: "password" }
+            },
+            async authorize(credentials) {
+                if (!credentials?.email || !credentials?.password) {
+                    throw new Error("Credenziali mancanti");
+                }
+
+                const user = await prisma.user.findUnique({
+                    where: { email: credentials.email }
+                });
+
+                if (!user || !user.passwordHash) {
+                    throw new Error("Utente non trovato");
+                }
+
+                const isValid = await bcrypt.compare(
+                    credentials.password,
+                    user.passwordHash
+                );
+
+                if (!isValid) {
+                    throw new Error("Password non valida");
+                }
+
+                return {
+                    id: user.id,
+                    email: user.email,
+                    name: user.name,
+                    role: user.role,
+                    casinoId: user.casinoId
+                };
+            }
+        })
+    ],
+    callbacks: {
+        async jwt({ token, user }) {
+            if (user) {
+                token.id = user.id;
+                token.role = user.role;
+                token.casinoId = user.casinoId;
+            }
+            return token;
+        },
+        async session({ session, token }) {
+            if (session.user) {
+                session.user.id = token.id as string;
+                session.user.role = token.role as string;
+                session.user.casinoId = token.casinoId as string;
+            }
+            return session;
+        }
+    },
+    pages: {
+        signIn: '/login',
+        error: '/login',
+    }
+};
+```
+
+### Middleware Protezione Route
+
+```typescript
+// src/middleware.ts
+import { withAuth } from "next-auth/middleware";
+import { NextResponse } from "next/server";
+
+export default withAuth(
+    function middleware(req) {
+        const token = req.nextauth.token;
+        const path = req.nextUrl.pathname;
+
+        // Proteggi route admin
+        if (path.startsWith('/admin') && token?.role !== 'admin') {
+            return NextResponse.redirect(new URL('/dashboard', req.url));
+        }
+
+        // Proteggi route finance
+        if (path.startsWith('/financial') && !['finance', 'controller', 'admin'].includes(token?.role as string)) {
+            return NextResponse.redirect(new URL('/dashboard', req.url));
+        }
+
+        return NextResponse.next();
+    },
+    {
+        callbacks: {
+            authorized: ({ token }) => !!token
+        }
+    }
+);
+
+export const config = {
+    matcher: [
+        '/dashboard/:path*',
+        '/financial/:path*',
+        '/players/:path*',
+        '/admin/:path*'
+    ]
+};
+```
+
+### Prisma Schema - Auth
+
+```prisma
+// prisma/schema.prisma
+model User {
+    id            String    @id @default(cuid())
+    email         String    @unique
+    passwordHash  String?
+    name          String?
+    role          Role      @default(VIEWER)
+    casinoId      String?
+    casino        Casino?   @relation(fields: [casinoId], references: [id])
+    emailVerified DateTime?
+    image         String?
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @updatedAt
+    
+    // Relazioni
+    sessions      Session[]
+    apiTokens     ApiToken[]
+    auditLogs     AuditLog[]
+    notifications Notification[]
+}
+
+enum Role {
+    ADMIN
+    CONTROLLER
+    FINANCE
+    MARKETING
+    SUPPORT
+    VIEWER
+}
+
+model Session {
+    id           String   @id @default(cuid())
+    userId       String
+    user         User     @relation(fields: [userId], references: [id])
+    token        String   @unique
+    expiresAt    DateTime
+    ipAddress    String?
+    userAgent    String?
+    createdAt    DateTime @default(now())
+}
+```
+
+---
+
+## 2️⃣ Multi-Tenancy Setup
+
+### Prisma Schema - Tenancy
+
+```prisma
+// prisma/schema.prisma
+model Casino {
+    id          String   @id @default(cuid())
+    name        String
+    slug        String   @unique
+    domain      String?  @unique
+    logo        String?
+    status      CasinoStatus @default(PENDING)
+    plan        Plan     @default(STARTER)
+    
+    // Configurazioni
+    config      Json?    // Configurazioni personalizzate
+    settings    Json?    // Impostazioni specifiche
+    
+    // Relazioni
+    users       User[]
+    players     PlayerProfile[]
+    transactions Transaction[]
+    games       GameControl[]
+    promotions  Promotion[]
+    affiliates  AffiliateProfile[]
+    vendors     GameProvider[]
+    wallets     PlayerWallet[]
+    
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+}
+
+enum CasinoStatus {
+    PENDING
+    ACTIVE
+    SUSPENDED
+    TERMINATED
+}
+
+enum Plan {
+    STARTER
+    PROFESSIONAL
+    ENTERPRISE
+}
+```
+
+### Tenant Isolation Middleware
+
+```typescript
+// src/lib/tenant.ts
+import { getServerSession } from "next-auth";
+import { authOptions } from "./auth";
+import { prisma } from "./db";
+
+export async function getCurrentTenant() {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.casinoId) {
+        throw new Error("Nessun tenant associato");
+    }
+    
+    const casino = await prisma.casino.findUnique({
+        where: { id: session.user.casinoId }
+    });
+    
+    if (!casino || casino.status !== 'ACTIVE') {
+        throw new Error("Tenant non attivo");
+    }
+    
+    return casino;
+}
+
+export async function withTenantScope(
+    table: string,
+    query: any
+) {
+    const casino = await getCurrentTenant();
+    
+    return {
+        ...query,
+        where: {
+            ...query.where,
+            casinoId: casino.id
+        }
+    };
+}
+```
+
+### Tenant Context Provider
+
+```typescript
+// src/components/providers/TenantProvider.tsx
+"use client";
+
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useSession } from 'next-auth/react';
+
+interface TenantContextType {
+    casino: Casino | null;
+    loading: boolean;
+    permissions: string[];
+    switchCasino: (casinoId: string) => void;
+}
+
+const TenantContext = createContext<TenantContextType>({
+    casino: null,
+    loading: true,
+    permissions: [],
+    switchCasino: () => {}
+});
+
+export const TenantProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { data: session } = useSession();
+    const [casino, setCasino] = useState<Casino | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (session?.user?.casinoId) {
+            fetchCasino(session.user.casinoId);
+        }
+    }, [session]);
+
+    const fetchCasino = async (casinoId: string) => {
+        try {
+            const response = await fetch(`/api/tenant/${casinoId}`);
+            const data = await response.json();
+            setCasino(data);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const permissions = casino?.permissions || [];
+
+    return (
+        <TenantContext.Provider value={{ casino, loading, permissions, switchCasino: fetchCasino }}>
+            {children}
+        </TenantContext.Provider>
+    );
+};
+
+export const useTenant = () => useContext(TenantContext);
+```
+
+---
+
+## 3️⃣ Billing & Subscription Setup
+
+### Prisma Schema - Billing
+
+```prisma
+// prisma/schema.prisma
+model Subscription {
+    id            String   @id @default(cuid())
+    casinoId      String
+    casino        Casino   @relation(fields: [casinoId], references: [id])
+    stripeCustomerId String @unique
+    stripeSubscriptionId String @unique
+    plan          Plan
+    status        SubscriptionStatus
+    currentPeriodStart DateTime
+    currentPeriodEnd   DateTime
+    cancelAtPeriodEnd  Boolean @default(false)
+    
+    invoices      Invoice[]
+    payments      Payment[]
+    createdAt     DateTime @default(now())
+    updatedAt     DateTime @updatedAt
+}
+
+enum SubscriptionStatus {
+    INCOMPLETE
+    INCOMPLETE_EXPIRED
+    TRIALING
+    ACTIVE
+    PAST_DUE
+    CANCELED
+    UNPAID
+}
+
+model Invoice {
+    id          String   @id @default(cuid())
+    subscriptionId String
+    subscription Subscription @relation(fields: [subscriptionId], references: [id])
+    stripeInvoiceId String @unique
+    amount      Decimal  @db.Decimal(10, 2)
+    currency    String   @default("USD")
+    status      InvoiceStatus
+    pdfUrl      String?
+    paidAt      DateTime?
+    createdAt   DateTime @default(now())
+}
+
+enum InvoiceStatus {
+    DRAFT
+    OPEN
+    PAID
+    VOID
+    UNCOLLECTIBLE
+}
+
+model Payment {
+    id          String   @id @default(cuid())
+    subscriptionId String
+    subscription Subscription @relation(fields: [subscriptionId], references: [id])
+    stripePaymentId String @unique
+    amount      Decimal  @db.Decimal(10, 2)
+    currency    String   @default("USD")
+    status      PaymentStatus
+    createdAt   DateTime @default(now())
+}
+
+enum PaymentStatus {
+    SUCCEEDED
+    PENDING
+    FAILED
+    REFUNDED
+}
+```
+
+### Stripe Integration
+
+```typescript
+// src/lib/stripe.ts
+import Stripe from 'stripe';
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    apiVersion: '2024-06-20',
+});
+
+export const PLANS = {
+    STARTER: {
+        name: 'Starter',
+        price: 499, // $499/mo
+        features: [
+            'Dashboard base',
+            'Gestione finanziaria',
+            'Fino a 1,000 giocatori',
+            'Report standard',
+            'Supporto email'
+        ]
+    },
+    PROFESSIONAL: {
+        name: 'Professional',
+        price: 1499, // $1,499/mo
+        features: [
+            'Tutto in Starter',
+            'AI Governance Engine',
+            'Revenue Optimizer',
+            'Player Intelligence',
+            'Fino a 10,000 giocatori',
+            'Supporto prioritario'
+        ]
+    },
+    ENTERPRISE: {
+        name: 'Enterprise',
+        price: null, // Custom
+        features: [
+            'Tutto in Professional',
+            'AI TUTOR avanzato',
+            'Blockchain integration',
+            'Compliance automatizzata',
+            'Giocatori illimitati',
+            'Supporto dedicato 24/7'
+        ]
+    }
+};
+
+export async function createCheckoutSession(
+    casinoId: string,
+    plan: keyof typeof PLANS
+) {
+    const casino = await prisma.casino.findUnique({
+        where: { id: casinoId }
+    });
+
+    if (!casino) throw new Error('Casino non trovato');
+
+    const session = await stripe.checkout.sessions.create({
+        customer: casino.stripeCustomerId,
+        payment_method_types: ['card'],
+        line_items: [{
+            price: process.env[`STRIPE_PRICE_${plan}`],
+            quantity: 1
+        }],
+        mode: 'subscription',
+        success_url: `${process.env.NEXT_PUBLIC_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.NEXT_PUBLIC_URL}/billing/cancel`,
+        metadata: {
+            casinoId,
+            plan
+        }
+    });
+
+    return session;
+}
+
+export async function handleWebhook(req: Request) {
+    const signature = req.headers.get('stripe-signature');
+    const body = await req.text();
+
+    if (!signature) throw new Error('Firma mancante');
+
+    const event = stripe.webhooks.constructEvent(
+        body,
+        signature,
+        process.env.STRIPE_WEBHOOK_SECRET!
+    );
+
+    switch (event.type) {
+        case 'checkout.session.completed':
+            await handleCheckoutCompleted(event.data.object);
+            break;
+        case 'invoice.paid':
+            await handleInvoicePaid(event.data.object);
+            break;
+        case 'invoice.payment_failed':
+            await handlePaymentFailed(event.data.object);
+            break;
+        case 'customer.subscription.deleted':
+            await handleSubscriptionDeleted(event.data.object);
+            break;
+    }
+
+    return { received: true };
+}
+```
+
+### API Billing Routes
+
+```typescript
+// src/app/api/billing/route.ts
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { createCheckoutSession, PLANS } from '@/lib/stripe';
+import { prisma } from '@/lib/db';
+
+export async function POST(req: Request) {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.casinoId) {
+        return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
+    }
+
+    const { plan } = await req.json();
+
+    try {
+        const checkoutSession = await createCheckoutSession(
+            session.user.casinoId,
+            plan
+        );
+
+        return NextResponse.json({ url: checkoutSession.url });
+    } catch (error) {
+        return NextResponse.json(
+            { error: 'Errore creazione sessione checkout' },
+            { status: 500 }
+        );
+    }
+}
+
+export async function GET(req: Request) {
+    const session = await getServerSession(authOptions);
+    
+    if (!session?.user?.casinoId) {
+        return NextResponse.json({ error: 'Non autorizzato' }, { status: 401 });
+    }
+
+    const subscription = await prisma.subscription.findUnique({
+        where: { casinoId: session.user.casinoId },
+        include: {
+            invoices: true,
+            payments: true
+        }
+    });
+
+    return NextResponse.json({
+        subscription,
+        plans: PLANS
+    });
+}
+```
+
+---
+
+## 4️⃣ Onboarding Flow Setup
+
+### Wizard Steps
+
+```typescript
+// src/components/onboarding/OnboardingWizard.tsx
+"use client";
+
+import React, { useState } from 'react';
+import { useRouter } from 'next/router';
+
+interface Step {
+    id: string;
+    title: string;
+    description: string;
+    component: React.FC;
+}
+
+const steps: Step[] = [
+    {
+        id: 'welcome',
+        title: 'Benvenuto in TOLS',
+        description: 'Configura la tua piattaforma casinò',
+        component: WelcomeStep
+    },
+    {
+        id: 'casino',
+        title: 'Configura Casinò',
+        description: 'Imposta il nome e il dominio',
+        component: CasinoStep
+    },
+    {
+        id: 'providers',
+        title: 'Integra Provider',
+        description: 'Connetti i tuoi game provider',
+        component: ProvidersStep
+    },
+    {
+        id: 'wallet',
+        title: 'Configura Wallet',
+        description: 'Imposta i wallet crypto',
+        component: WalletStep
+    },
+    {
+        id: 'payments',
+        title: 'Metodi di Pagamento',
+        description: 'Configura i metodi di pagamento',
+        component: PaymentsStep
+    },
+    {
+        id: 'ai',
+        title: 'AI Setup',
+        description: 'Attiva il TOLS TUTOR',
+        component: AIStep
+    },
+    {
+        id: 'complete',
+        title: 'Completato!',
+        description: 'La tua piattaforma è pronta',
+        component: CompleteStep
+    }
+];
+
+export const OnboardingWizard: React.FC = () => {
+    const [currentStep, setCurrentStep] = useState(0);
+    const [data, setData] = useState({});
+    const router = useRouter();
+
+    const handleNext = (stepData: any) => {
+        setData({ ...data, ...stepData });
+        setCurrentStep(prev => Math.min(prev + 1, steps.length - 1));
+    };
+
+    const handleBack = () => {
+        setCurrentStep(prev => Math.max(prev - 1, 0));
+    };
+
+    const handleComplete = async () => {
+        try {
+            await fetch('/api/onboarding/complete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            router.push('/dashboard');
+        } catch (error) {
+            console.error('Errore completamento onboarding:', error);
+        }
+    };
+
+    const CurrentStep = steps[currentStep].component;
+
+    return (
+        <div className="min-h-screen bg-casino-bg flex items-center justify-center p-4">
+            <div className="w-full max-w-2xl">
+                {/* Progress Bar */}
+                <div className="mb-8">
+                    <div className="flex items-center justify-between mb-2">
+                        <h1 className="text-2xl font-bold text-white">
+                            {steps[currentStep].title}
+                        </h1>
+                        <span className="text-sm text-gray-400">
+                            Step {currentStep + 1} di {steps.length}
+                        </span>
+                    </div>
+                    <div className="w-full h-2 bg-casino-surface rounded-full">
+                        <div
+                            className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all duration-500"
+                            style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+                        />
+                    </div>
+                </div>
+
+                {/* Step Content */}
+                <div className="bg-casino-surface border border-casino-border rounded-xl p-6 mb-6">
+                    <CurrentStep data={data} onNext={handleNext} />
+                </div>
+
+                {/* Navigation */}
+                <div className="flex justify-between">
+                    <button
+                        onClick={handleBack}
+                        disabled={currentStep === 0}
+                        className="px-6 py-3 bg-transparent border border-casino-border rounded-lg text-white disabled:opacity-50"
+                    >
+                        Indietro
+                    </button>
+                    {currentStep === steps.length - 1 ? (
+                        <button
+                            onClick={handleComplete}
+                            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg font-semibold"
+                        >
+                            Completa Setup
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => handleNext({})}
+                            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg font-semibold"
+                        >
+                            Avanti
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+```
+
+---
+
+## 5️⃣ Blockchain Integration Setup
+
+### Smart Contracts
+
+```solidity
+// blockchain/contracts/EscrowAccount.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.19;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract EscrowAccount is Ownable {
+    IERC20 public usdt;
+    IERC20 public usdc;
+    
+    mapping(address => uint256) public balances;
+    mapping(address => mapping(address => uint256)) public tokenBalances;
+    
+    event Deposited(address indexed from, address token, uint256 amount);
+    event Withdrawn(address indexed to, address token, uint256 amount);
+    event FundsReleased(address indexed to, address token, uint256 amount);
+    
+    constructor(address _usdt, address _usdc) {
+        usdt = IERC20(_usdt);
+        usdc = IERC20(_usdc);
+    }
+    
+    function deposit(address token, uint256 amount) external {
+        require(token == address(usdt) || token == address(usdc), "Token non supportato");
+        require(amount > 0, "Importo non valido");
+        
+        require(IERC20(token).transferFrom(msg.sender, address(this), amount), "Transfer fallito");
+        
+        tokenBalances[token][msg.sender] += amount;
+        emit Deposited(msg.sender, token, amount);
+    }
+    
+    function releaseFunds(address to, address token, uint256 amount) external onlyOwner {
+        require(tokenBalances[token][address(this)] >= amount, "Saldo insufficiente");
+        
+        tokenBalances[token][address(this)] -= amount;
+        require(IERC20(token).transfer(to, amount), "Transfer fallito");
+        
+        emit FundsReleased(to, token, amount);
+    }
+}
+```
+
+### Web3 Service
+
+```typescript
+// src/services/web3.service.ts
+import { ethers } from 'ethers';
+import { EscrowAccountABI } from './abis/EscrowAccount';
+
+export class Web3Service {
+    private provider: ethers.providers.JsonRpcProvider;
+    private signer: ethers.Signer;
+    private escrowContract: ethers.Contract;
+
+    constructor() {
+        this.provider = new ethers.providers.JsonRpcProvider(
+            process.env.NEXT_PUBLIC_RPC_URL
+        );
+        this.signer = this.provider.getSigner();
+        this.escrowContract = new ethers.Contract(
+            process.env.NEXT_PUBLIC_ESCROW_CONTRACT_ADDRESS!,
+            EscrowAccountABI,
+            this.signer
+        );
+    }
+
+    async depositToEscrow(
+        token: 'USDT' | 'USDC',
+        amount: number
+    ): Promise<ethers.providers.TransactionReceipt> {
+        const tokenAddress = token === 'USDT' 
+            ? process.env.NEXT_PUBLIC_USDT_ADDRESS!
+            : process.env.NEXT_PUBLIC_USDC_ADDRESS!;
+        
+        const amountInWei = ethers.utils.parseUnits(amount.toString(), 6);
+        
+        // Approve spending
+        const tokenContract = new ethers.Contract(
+            tokenAddress,
+            ['function approve(address spender, uint256 amount) returns (bool)'],
+            this.signer
+        );
+        
+        const approveTx = await tokenContract.approve(
+            process.env.NEXT_PUBLIC_ESCROW_CONTRACT_ADDRESS!,
+            amountInWei
+        );
+        await approveTx.wait();
+        
+        // Deposit
+        const depositTx = await this.escrowContract.deposit(
+            tokenAddress,
+            amountInWei
+        );
+        
+        return await depositTx.wait();
+    }
+
+    async getEscrowBalance(token: 'USDT' | 'USDC'): Promise<string> {
+        const tokenAddress = token === 'USDT'
+            ? process.env.NEXT_PUBLIC_USDT_ADDRESS!
+            : process.env.NEXT_PUBLIC_USDC_ADDRESS!;
+        
+        const balance = await this.escrowContract.tokenBalances(
+            tokenAddress,
+            await this.signer.getAddress()
+        );
+        
+        return ethers.utils.formatUnits(balance, 6);
+    }
+}
+```
+
+---
+
+## 6️⃣ ML Pipeline Setup
+
+### Python FastAPI Service
+
+```python
+# ai-engine/main.py
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import List, Dict, Any
+import joblib
+import numpy as np
+from datetime import datetime, timedelta
+
+app = FastAPI(title="TOLS ML Engine")
+
+# Carica modelli
+churn_model = joblib.load("models/churn_model.pkl")
+ltv_model = joblib.load("models/ltv_model.pkl")
+bonus_model = joblib.load("models/bonus_optimizer.pkl")
+segment_model = joblib.load("models/segmenter.pkl")
+fraud_model = joblib.load("models/fraud_detector.pkl")
+
+class PlayerData(BaseModel):
+    player_id: str
+    session_frequency: float
+    deposit_amount: float
+    game_preference: str
+    time_since_last_activity: int
+    bonus_utilization: float
+    support_interactions: int
+    average_bet: float
+    retention_days: int
+
+class ChurnPredictionRequest(BaseModel):
+    players: List[PlayerData]
+
+class ChurnPredictionResponse(BaseModel):
+    predictions: List[Dict[str, Any]]
+
+@app.post("/predict/churn", response_model=ChurnPredictionResponse)
+async def predict_churn(request: ChurnPredictionRequest):
+    try:
+        predictions = []
+        
+        for player in request.players:
+            features = np.array([[
+                player.session_frequency,
+                player.deposit_amount,
+                player.time_since_last_activity,
+                player.bonus_utilization,
+                player.support_interactions,
+                player.average_bet,
+                player.retention_days
+            ]])
+            
+            probability = churn_model.predict_proba(features)[0][1]
+            
+            predictions.append({
+                "player_id": player.player_id,
+                "churn_probability": float(probability),
+                "risk_level": get_risk_level(probability),
+                "recommended_actions": get_retention_actions(probability)
+            })
+        
+        return {"predictions": predictions}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/predict/ltv")
+async def predict_ltv(player_data: PlayerData):
+    try:
+        features = np.array([[
+            player_data.session_frequency,
+            player_data.deposit_amount,
+            player_data.average_bet,
+            player_data.retention_days
+        ]])
+        
+        ltv = ltv_model.predict(features)[0]
+        
+        return {
+            "player_id": player_data.player_id,
+            "predicted_ltv": float(ltv),
+            "confidence": 0.85,
+            "factors": get_ltv_factors(player_data)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/optimize/bonus")
+async def optimize_bonus(data: Dict[str, Any]):
+    try:
+        budget = data.get("budget", 10000)
+        players = data.get("players", [])
+        
+        if not players:
+            return {"allocations": []}
+        
+        # Ottimizza allocazione bonus
+        allocations = bonus_model.optimize(budget, players)
+        
+        return {
+            "total_budget": budget,
+            "allocations": allocations,
+            "expected_roi": calculate_roi(allocations)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/detect/fraud")
+async def detect_fraud(transactions: List[Dict[str, Any]]):
+    try:
+        fraud_patterns = []
+        
+        for tx in transactions:
+            features = extract_fraud_features(tx)
+            score = fraud_model.predict_proba([features])[0][1]
+            
+            if score > 0.7:
+                fraud_patterns.append({
+                    "transaction_id": tx.get("id"),
+                    "score": float(score),
+                    "pattern": classify_fraud_pattern(features),
+                    "recommended_action": get_fraud_action(score)
+                })
+        
+        return {"fraud_patterns": fraud_patterns}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+def get_risk_level(probability: float) -> str:
+    if probability > 0.7:
+        return "high"
+    elif probability > 0.4:
+        return "medium"
+    return "low"
+
+def get_retention_actions(probability: float) -> List[str]:
+    actions = []
+    if probability > 0.7:
+        actions = ["Send personalized bonus", "Contact VIP manager", "Schedule retention call"]
+    elif probability > 0.4:
+        actions = ["Send email campaign", "Offer free spins", "Push notification"]
+    else:
+        actions = ["Regular engagement", "Loyalty program"]
+    return actions
+
+def get_ltv_factors(player_data: PlayerData) -> List[Dict[str, Any]]:
+    return [
+        {"factor": "session_frequency", "impact": "high"},
+        {"factor": "deposit_amount", "impact": "high"},
+        {"factor": "average_bet", "impact": "medium"},
+        {"factor": "retention_days", "impact": "medium"}
+    ]
+
+def calculate_roi(allocations: List[Dict]) -> float:
+    total_investment = sum(a.get("amount", 0) for a in allocations)
+    total_expected_return = sum(a.get("expected_return", 0) for a in allocations)
+    return total_expected_return / total_investment if total_investment > 0 else 0
+
+def extract_fraud_features(tx: Dict) -> List[float]:
+    return [
+        float(tx.get("amount", 0)),
+        float(tx.get("frequency", 0)),
+        float(tx.get("time_since_last", 0)),
+        float(tx.get("location_score", 0)),
+        float(tx.get("device_score", 0))
+    ]
+
+def classify_fraud_pattern(features: List[float]) -> str:
+    if features[3] > 0.8:
+        return "location_anomaly"
+    elif features[4] > 0.8:
+        return "device_anomaly"
+    elif features[1] > 0.9:
+        return "rapid_transactions"
+    return "suspicious_activity"
+
+def get_fraud_action(score: float) -> str:
+    if score > 0.9:
+        return "block_transaction"
+    elif score > 0.7:
+        return "flag_for_review"
+    return "monitor"
+```
+
+### Docker Setup ML Engine
+
+```dockerfile
+# ai-engine/Dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY models/ ./models/
+COPY main.py .
+
+EXPOSE 8000
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+```txt
+# ai-engine/requirements.txt
+fastapi==0.104.1
+uvicorn==0.24.0
+scikit-learn==1.3.2
+numpy==1.26.2
+joblib==1.3.2
+pydantic==2.5.2
+```
+
+---
+
+## 📋 Checklist Implementazione
+
+```markdown
+## SETUP IMPLEMENTAZIONE TOLS SAAS
+
+### Fase 1: Autenticazione (Giorno 1-2)
+- [x] Prisma schema con User, Session, Role
+- [x] NextAuth configuration
+- [x] Login page + Register page
+- [x] Middleware route protection
+- [ ] Password reset flow
+- [ ] Email verification
+- [ ] 2FA setup
+
+### Fase 2: Multi-Tenancy (Giorno 3-4)
+- [x] Casino model in Prisma
+- [x] Tenant context provider
+- [x] Tenant isolation middleware
+- [ ] RLS policies
+- [ ] Tenant switching UI
+
+### Fase 3: Billing (Giorno 5)
+- [x] Stripe integration
+- [x] Subscription models
+- [x] Checkout session
+- [x] Webhook handling
+- [ ] Invoice UI
+- [ ] Plan upgrade/downgrade
+
+### Fase 4: Onboarding (Giorno 6-7)
+- [x] Wizard component
+- [x] Step components
+- [ ] API completion
+- [ ] Welcome emails
+
+### Fase 5: Blockchain (Giorno 8-9)
+- [x] Smart contracts
+- [x] Web3 service
+- [ ] Wallet connection UI
+- [ ] Transaction tracking
+
+### Fase 6: ML Pipeline (Giorno 10-13)
+- [x] FastAPI service
+- [x] Model endpoints
+- [ ] Model training
+- [ ] Integration with frontend
+```
+
+---
+
+## 🔧 Comandi Setup
+
+```bash
+# 1. Installa dipendenze
+npm install next-auth @auth/prisma-adapter bcryptjs stripe ethers
+
+# 2. Installa dipendenze Python
+cd ai-engine
+pip install -r requirements.txt
+
+# 3. Genera chiavi
+openssl rand -base64 32  # JWT_SECRET
+openssl rand -base64 32  # NEXTAUTH_SECRET
+
+# 4. Setup Stripe CLI
+stripe login
+stripe listen --forward-to localhost:3000/api/webhooks/stripe
+
+# 5. Push database
+npx prisma db push
+npx prisma generate
+
+# 6. Avvia servizi
+npm run dev                    # Frontend + Backend
+cd ai-engine && uvicorn main:app --reload  # ML Service
+```
+
+Questo setup completo trasforma TOLS da MVP a SaaS professionale completo, pronto per il lancio commerciale e la vendita ai proprietari di casinò.
