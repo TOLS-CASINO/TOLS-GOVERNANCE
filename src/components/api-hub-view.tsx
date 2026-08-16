@@ -938,6 +938,8 @@ function IntegrationsTab({ integrations }: { integrations: Integration[] }) {
   const [integrationList, setIntegrationList] = useState(integrations)
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [syncingId, setSyncingId] = useState<string | null>(null)
+  const [configureIntgId, setConfigureIntgId] = useState<string | null>(null)
+  const [configureSaved, setConfigureSaved] = useState(false)
 
   const platformOptions = [
     { name: 'MegaJackpot Slots', type: 'casino_slots', logo: '🎰' },
@@ -1051,7 +1053,7 @@ function IntegrationsTab({ integrations }: { integrations: Integration[] }) {
               </div>
 
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" className="flex-1 h-7 text-[10px] gap-1">
+                <Button variant="outline" size="sm" className="flex-1 h-7 text-[10px] gap-1" onClick={() => { setConfigureIntgId(intg.id); setConfigureSaved(false) }}>
                   <Settings className="size-3" />
                   Configure
                 </Button>
@@ -1074,6 +1076,53 @@ function IntegrationsTab({ integrations }: { integrations: Integration[] }) {
           </Card>
         ))}
       </div>
+
+      {/* Configure Integration Dialog */}
+      <Dialog open={configureIntgId !== null} onOpenChange={(open) => !open && setConfigureIntgId(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="size-4 text-primary" />
+              Configure {integrationList.find(i => i.id === configureIntgId)?.name || 'Integration'}
+            </DialogTitle>
+            <DialogDescription>Update integration settings and connection details.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="text-xs mb-1.5 block">API Key</Label>
+              <Input type="password" defaultValue="sk-••••••••••••••••" className="h-8 text-xs" />
+            </div>
+            <div>
+              <Label className="text-xs mb-1.5 block">Endpoint URL</Label>
+              <Input defaultValue="https://api.example.com/v1" className="h-8 text-xs" />
+            </div>
+            <div>
+              <Label className="text-xs mb-1.5 block">Sync Interval</Label>
+              <Select defaultValue="15min">
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="5min">Every 5 minutes</SelectItem>
+                  <SelectItem value="15min">Every 15 minutes</SelectItem>
+                  <SelectItem value="30min">Every 30 minutes</SelectItem>
+                  <SelectItem value="1hr">Every hour</SelectItem>
+                  <SelectItem value="6hr">Every 6 hours</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Active</Label>
+              <Switch defaultChecked />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button size="sm" className="gap-1" onClick={() => { setConfigureSaved(true); setTimeout(() => setConfigureIntgId(null), 1200) }}>
+              {configureSaved ? <><CheckCircle className="size-3" /> Saved!</> : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -1084,6 +1133,7 @@ function McpTab({ endpoints }: { endpoints: McpEndpoint[] }) {
   const [endpointList, setEndpointList] = useState(endpoints)
   const [expandedTools, setExpandedTools] = useState<Set<string>>(new Set())
   const [viewSchemaId, setViewSchemaId] = useState<string | null>(null)
+  const [openApiDocsId, setOpenApiDocsId] = useState<string | null>(null)
 
   function toggleTools(id: string) {
     setExpandedTools(prev => {
@@ -1183,7 +1233,7 @@ function McpTab({ endpoints }: { endpoints: McpEndpoint[] }) {
                   <Code className="size-3" />
                   View Schema
                 </Button>
-                <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1">
+                <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1" onClick={() => setOpenApiDocsId(endpoint.id)}>
                   <ExternalLink className="size-3" />
                   OpenAPI Docs
                 </Button>
@@ -1217,6 +1267,63 @@ ${endpoint.tools.map(t => `    "/${t.name}": {
           </Card>
         ))}
       </div>
+
+      {/* OpenAPI Docs Dialog */}
+      <Dialog open={openApiDocsId !== null} onOpenChange={(open) => !open && setOpenApiDocsId(null)}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Code className="size-4 text-primary" />
+              API Documentation — {endpointList.find(e => e.id === openApiDocsId)?.name || 'Endpoint'}
+            </DialogTitle>
+            <DialogDescription>Available endpoints and methods for this service.</DialogDescription>
+          </DialogHeader>
+          {openApiDocsId && (() => {
+            const ep = endpointList.find(e => e.id === openApiDocsId)
+            if (!ep) return null
+            return (
+              <div className="space-y-3 py-2">
+                <div className="p-2 rounded-md bg-muted/30 border border-border/50">
+                  <p className="text-[10px] font-medium text-muted-foreground mb-1">Base URL</p>
+                  <code className="text-xs font-mono text-cyan-400">{ep.baseUrl}</code>
+                </div>
+                <div className="space-y-2">
+                  {ep.tools.map((tool) => (
+                    <div key={tool.name} className="p-2.5 rounded-md border border-border/50 space-y-1.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-400 border-emerald-500/30">POST</Badge>
+                        <code className="text-[10px] font-mono text-foreground/80">/{tool.name}</code>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">{tool.description}</p>
+                    </div>
+                  ))}
+                  <div className="p-2.5 rounded-md border border-border/50 space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className="text-[9px] bg-sky-500/10 text-sky-400 border-sky-500/30">GET</Badge>
+                      <code className="text-[10px] font-mono text-foreground/80">/health</code>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Health check endpoint</p>
+                  </div>
+                  <div className="p-2.5 rounded-md border border-border/50 space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className="text-[9px] bg-amber-500/10 text-amber-400 border-amber-500/30">PUT</Badge>
+                      <code className="text-[10px] font-mono text-foreground/80">/config</code>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Update endpoint configuration</p>
+                  </div>
+                  <div className="p-2.5 rounded-md border border-border/50 space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className="text-[9px] bg-red-500/10 text-red-400 border-red-500/30">DELETE</Badge>
+                      <code className="text-[10px] font-mono text-foreground/80">/session</code>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Terminate active session</p>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

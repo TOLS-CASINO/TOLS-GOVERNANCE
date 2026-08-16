@@ -1,0 +1,1321 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useRef, useMemo } from 'react'
+     4→import {
+     5→  PieChart,
+     6→  Pie,
+     7→  Cell,
+     8→  BarChart,
+     9→  Bar,
+    10→  XAxis,
+    11→  YAxis,
+    12→  Tooltip,
+    13→  ResponsiveContainer,
+    14→  CartesianGrid,
+    15→} from 'recharts'
+    16→import {
+    17→  Users,
+    18→  Activity,
+    19→  Globe,
+    20→  Trophy,
+    21→  Crown,
+    22→  LogIn,
+    23→  Play,
+    24→  ArrowDown,
+    25→  ArrowUp,
+    26→  Gift,
+    27→  ChevronUp,
+    28→  Monitor,
+    29→  Smartphone,
+    30→  RefreshCw,
+    31→  Wifi,
+    32→  Clock,
+    33→  Zap,
+    34→  Search,
+    35→  AlertTriangle,
+    36→  Pause,
+    37→  Eye,
+    38→  Square,
+    39→  Percent,
+    40→  Timer,
+    41→  BarChart3,
+    42→  ShieldCheck,
+    43→} from 'lucide-react'
+    44→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    45→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    46→import { Badge } from '@/components/ui/badge'
+    47→import {
+    48→  Dialog,
+    49→  DialogContent,
+    50→  DialogDescription,
+    51→  DialogHeader,
+    52→  DialogTitle,
+    53→} from '@/components/ui/dialog'
+    54→import { Button } from '@/components/ui/button'
+    55→import { ScrollArea } from '@/components/ui/scroll-area'
+    56→import { Skeleton } from '@/components/ui/skeleton'
+    57→import { Input } from '@/components/ui/input'
+    58→import {
+    59→  Select,
+    60→  SelectContent,
+    61→  SelectItem,
+    62→  SelectTrigger,
+    63→  SelectValue,
+    64→} from '@/components/ui/select'
+    65→import {
+    66→  Table,
+    67→  TableBody,
+    68→  TableCell,
+    69→  TableHead,
+    70→  TableHeader,
+    71→  TableRow,
+    72→} from '@/components/ui/table'
+    73→import { useApi } from '@/hooks/use-api'
+    74→import { api } from '@/services/api'
+    75→
+    76→const fmt = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+    77→const fmtDec = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    78→
+    79→const COUNTRY_FLAGS: Record<string, string> = {
+    80→  US: '🇺🇸', GB: '🇬🇧', DE: '🇩🇪', FR: '🇫🇷', CA: '🇨🇦', AU: '🇦🇺',
+    81→  JP: '🇯🇵', BR: '🇧🇷', IN: '🇮🇳', MX: '🇲🇽', NL: '🇳🇱', SE: '🇸🇪',
+    82→  NO: '🇳🇴', FI: '🇫🇮', DK: '🇩🇰', IT: '🇮🇹', ES: '🇪🇸', PT: '🇵🇹',
+    83→  PL: '🇵🇱', CZ: '🇨🇿',
+    84→}
+    85→
+    86→const DEVICE_COLORS: Record<string, string> = {
+    87→  desktop: '#f59e0b',
+    88→  mobile: '#10b981',
+    89→  tablet: '#6366f1',
+    90→}
+    91→
+    92→const EVENT_CONFIG: Record<string, { color: string; icon: React.ElementType; label: string }> = {
+    93→  player_login: { color: 'text-blue-400', icon: LogIn, label: 'logged in' },
+    94→  game_start: { color: 'text-emerald-400', icon: Play, label: 'started playing' },
+    95→  big_win: { color: 'text-amber-400', icon: Trophy, label: 'won big on' },
+    96→  jackpot_win: { color: 'text-yellow-300', icon: Crown, label: 'hit JACKPOT on' },
+    97→  deposit: { color: 'text-emerald-500', icon: ArrowDown, label: 'deposited to' },
+    98→  withdrawal: { color: 'text-orange-400', icon: ArrowUp, label: 'withdrew from' },
+    99→  bonus_claim: { color: 'text-purple-400', icon: Gift, label: 'claimed bonus on' },
+   100→  level_up: { color: 'text-cyan-400', icon: ChevronUp, label: 'leveled up on' },
+   101→}
+   102→
+   103→const DEVICE_ICON: Record<string, React.ElementType> = {
+   104→  desktop: Monitor,
+   105→  mobile: Smartphone,
+   106→  tablet: Smartphone,
+   107→}
+   108→
+   109→function formatDuration(start: string, end: string): string {
+   110→  const ms = new Date(end).getTime() - new Date(start).getTime()
+   111→  const mins = Math.floor(ms / 60000)
+   112→  if (mins < 60) return `${mins}m`
+   113→  const hrs = Math.floor(mins / 60)
+   114→  const remMins = mins % 60
+   115→  return `${hrs}h ${remMins}m`
+   116→}
+   117→
+   118→function formatTimeAgo(dateStr: string): string {
+   119→  const diff = Date.now() - new Date(dateStr).getTime()
+   120→  const secs = Math.floor(diff / 1000)
+   121→  if (secs < 60) return `${secs}s ago`
+   122→  const mins = Math.floor(secs / 60)
+   123→  if (mins < 60) return `${mins}m ago`
+   124→  const hrs = Math.floor(mins / 60)
+   125→  return `${hrs}h ago`
+   126→}
+   127→
+   128→function isNew(dateStr: string): boolean {
+   129→  return Date.now() - new Date(dateStr).getTime() < 30000
+   130→}
+   131→
+   132→interface LiveSession {
+   133→  id: string; playerId: string; playerName: string; gameId: string; gameName: string;
+   134→  country: string; city: string; latitude: number; longitude: number;
+   135→  deviceType: string; browser: string; os: string; entryPoint: string;
+   136→  wagerAmount: number; winAmount: number; spinsPlayed: number;
+   137→  startedAt: string; lastActivityAt: string; status: string;
+   138→}
+   139→
+   140→interface LiveEvent {
+   141→  id: string; eventType: string; playerName: string; gameName: string;
+   142→  amount: number; currency: string; country: string; createdAt: string;
+   143→}
+   144→
+   145→interface LiveStats {
+   146→  totalOnline: number; activeGames: number; avgSessionDuration: number;
+   147→  peakConcurrent: number; totalWageredLive: number; totalWonLive: number;
+   148→  byDevice: { desktop: number; mobile: number; tablet: number };
+   149→  byCountry: Array<{ country: string; count: number }>;
+   150→  byGame: Array<{ game: string; count: number }>;
+   151→}
+   152→
+   153→interface RtpMonitoring {
+   154→  id: string; gameId: string; gameName: string; provider: string; gameType: string;
+   155→  theoreticalRtp: number; actualRtp24h: number; actualRtp7d: number; actualRtp30d: number;
+   156→  totalSpins: number; totalWagered: number; totalWon: number; variance: number;
+   157→  status: 'normal' | 'warning' | 'alert' | 'critical'; lastCheckedAt: string;
+   158→}
+   159→
+   160→interface TrackingSession {
+   161→  id: string; playerId: string; playerUsername: string; gameId: string; gameName: string;
+   162→  provider: string; gameType: string; status: 'active' | 'idle' | 'ended';
+   163→  startedAt: string; lastActivityAt: string; durationMinutes: number;
+   164→  totalBets: number; totalWagered: number; totalWon: number; netResult: number;
+   165→  rtp: number; ip: string; country: string; device: string;
+   166→  betRange: string; avgBetSize: number;
+   167→}
+   168→
+   169→interface TrackingBet {
+   170→  id: string; sessionId: string; playerId: string; playerUsername: string;
+   171→  gameId: string; gameName: string; roundId: string; betAmount: number;
+   172→  winAmount: number; netResult: number; currency: string; multiplier: number;
+   173→  isFreeSpin: boolean; isBonus: boolean; createdAt: string;
+   174→}
+   175→
+   176→export function LivePlayersView() {
+   177→  const { data, loading, error, refetch } = useApi(() => api.livePlayers.get())
+   178→  const { data: trackingData } = useApi(() => api.playerTracking.get())
+   179→  const [expandedRow, setExpandedRow] = useState<string | null>(null)
+   180→  const [gameFilter, setGameFilter] = useState('all')
+   181→  const [countryFilter, setCountryFilter] = useState('all')
+   182→  const [deviceFilter, setDeviceFilter] = useState('all')
+   183→  const [statusFilter, setStatusFilter] = useState('all')
+   184→  const [searchQuery, setSearchQuery] = useState('')
+   185→  const [autoRefresh, setAutoRefresh] = useState(true)
+   186→  const feedEndRef = useRef<HTMLDivElement>(null)
+   187→  const [now, setNow] = useState(Date.now())
+   188→
+   189→  // RTP Control filters
+   190→  const [rtpStatusFilter, setRtpStatusFilter] = useState('all')
+   191→  const [rtpGameTypeFilter, setRtpGameTypeFilter] = useState('all')
+   192→  const [rtpSearch, setRtpSearch] = useState('')
+   193→
+   194→  // Session Control filters
+   195→  const [scStatusFilter, setScStatusFilter] = useState('active')
+   196→  const [scGameTypeFilter, setScGameTypeFilter] = useState('all')
+   197→  const [scDeviceFilter, setScDeviceFilter] = useState('all')
+   198→  const [scSearch, setScSearch] = useState('')
+   199→  const [selectedSession, setSelectedSession] = useState<TrackingSession | null>(null)
+   200→
+   201→  useEffect(() => {
+   202→    const interval = setInterval(() => setNow(Date.now()), 1000)
+   203→    return () => clearInterval(interval)
+   204→  }, [])
+   205→
+   206→  useEffect(() => {
+   207→    if (!autoRefresh) return
+   208→    const interval = setInterval(() => refetch(), 15000)
+   209→    return () => clearInterval(interval)
+   210→  }, [autoRefresh, refetch])
+   211→
+   212→  useEffect(() => {
+   213→    feedEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+   214→  }, [data?.liveEvents])
+   215→
+   216→  const sessions: LiveSession[] = data?.activeSessions ?? []
+   217→  const events: LiveEvent[] = data?.liveEvents ?? []
+   218→  const stats: LiveStats | null = data?.stats ?? null
+   219→
+   220→  const uniqueGames = useMemo(() => [...new Set(sessions.map(s => s.gameName))].sort(), [sessions])
+   221→  const uniqueCountries = useMemo(() => [...new Set(sessions.map(s => s.country))].sort(), [sessions])
+   222→
+   223→  const filteredSessions = useMemo(() => {
+   224→    return sessions.filter(s => {
+   225→      if (gameFilter !== 'all' && s.gameName !== gameFilter) return false
+   226→      if (countryFilter !== 'all' && s.country !== countryFilter) return false
+   227→      if (deviceFilter !== 'all' && s.deviceType !== deviceFilter) return false
+   228→      if (statusFilter !== 'all' && s.status !== statusFilter) return false
+   229→      if (searchQuery && !s.playerName.toLowerCase().includes(searchQuery.toLowerCase())) return false
+   230→      return true
+   231→    })
+   232→  }, [sessions, gameFilter, countryFilter, deviceFilter, statusFilter, searchQuery])
+   233→
+   234→  if (loading) {
+   235→    return (
+   236→      <div className="space-y-4">
+   237→        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+   238→          {Array.from({ length: 4 }).map((_, i) => (
+   239→            <Card key={i}><CardContent className="p-4 sm:p-6"><Skeleton className="h-20 w-full" /></CardContent></Card>
+   240→          ))}
+   241→        </div>
+   242→        <Card><CardContent className="p-6"><Skeleton className="h-64 w-full" /></CardContent></Card>
+   243→      </div>
+   244→    )
+   245→  }
+   246→
+   247→  if (error || !data) {
+   248→    return (
+   249→      <Card className="border-destructive/40">
+   250→        <CardContent className="p-6 text-center">
+   251→          <Activity className="size-8 text-destructive mx-auto mb-2" />
+   252→          <p className="text-sm font-medium text-destructive">Failed to load live player data</p>
+   253→          <p className="text-xs text-muted-foreground mt-1">{error}</p>
+   254→          <Button variant="outline" size="sm" className="mt-3 gap-1" onClick={refetch}>
+   255→            <RefreshCw className="size-3" /> Retry
+   256→          </Button>
+   257→        </CardContent>
+   258→      </Card>
+   259→    )
+   260→  }
+   261→
+   262→  const statusBadge = (status: string) => {
+   263→    if (status === 'active') {
+   264→      return (
+   265→        <Badge className="text-[9px] h-4 bg-emerald-500/20 text-emerald-400 border-emerald-500/30 gap-1">
+   266→          <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+   267→          Active
+   268→        </Badge>
+   269→      )
+   270→    }
+   271→    if (status === 'idle') {
+   272→      return <Badge className="text-[9px] h-4 bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Idle</Badge>
+   273→    }
+   274→    return <Badge variant="secondary" className="text-[9px] h-4">Ended</Badge>
+   275→  }
+   276→
+   277→  const devicePct = (type: string) => {
+   278→    if (!stats) return 0
+   279→    const total = stats.byDevice.desktop + stats.byDevice.mobile + stats.byDevice.tablet
+   280→    return total > 0 ? Math.round((stats.byDevice[type as keyof typeof stats.byDevice] / total) * 100) : 0
+   281→  }
+   282→
+   283→  return (
+   284→    <div className="space-y-4">
+   285→      {/* Header Bar */}
+   286→      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+   287→        <div className="flex items-center gap-2">
+   288→          <Wifi className="size-4 text-emerald-400" />
+   289→          <span className="text-sm font-medium text-emerald-400">LIVE</span>
+   290→          <Badge variant="secondary" className="text-[10px]">{stats?.totalOnline ?? 0} online</Badge>
+   291→        </div>
+   292→        <div className="flex items-center gap-2">
+   293→          <Button
+   294→            variant="outline"
+   295→            size="sm"
+   296→            className="gap-1 text-xs h-7"
+   297→            onClick={() => setAutoRefresh(!autoRefresh)}
+   298→          >
+   299→            <RefreshCw className={`size-3 ${autoRefresh ? 'animate-spin' : ''}`} />
+   300→            {autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
+   301→          </Button>
+   302→          <Button variant="outline" size="sm" className="gap-1 text-xs h-7" onClick={refetch}>
+   303→            <RefreshCw className="size-3" /> Refresh
+   304→          </Button>
+   305→        </div>
+   306→      </div>
+   307→
+   308→      {/* Main Tabs */}
+   309→      <Tabs defaultValue="sessions" className="w-full">
+   310→        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 h-9">
+   311→          <TabsTrigger value="sessions" className="text-xs gap-1">
+   312→            <Users className="size-3" /> Sessions
+   313→          </TabsTrigger>
+   314→          <TabsTrigger value="feed" className="text-xs gap-1">
+   315→            <Activity className="size-3" /> Feed
+   316→          </TabsTrigger>
+   317→          <TabsTrigger value="region" className="text-xs gap-1">
+   318→            <Globe className="size-3" /> By Region
+   319→          </TabsTrigger>
+   320→          <TabsTrigger value="analytics" className="text-xs gap-1">
+   321→            <Zap className="size-3" /> Analytics
+   322→          </TabsTrigger>
+   323→          <TabsTrigger value="rtp-control" className="text-xs gap-1">
+   324→            <Percent className="size-3" /> RTP Control
+   325→          </TabsTrigger>
+   326→          <TabsTrigger value="session-control" className="text-xs gap-1">
+   327→            <Timer className="size-3" /> Session Ctrl
+   328→          </TabsTrigger>
+   329→        </TabsList>
+   330→
+   331→        {/* Tab 1: Active Sessions */}
+   332→        <TabsContent value="sessions" className="mt-4 space-y-4">
+   333→          {/* Filters */}
+   334→          <Card>
+   335→            <CardContent className="p-3">
+   336→              <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
+   337→                <div className="relative flex-1 min-w-[140px]">
+   338→                  <Users className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
+   339→                  <Input
+   340→                    placeholder="Search player..."
+   341→                    value={searchQuery}
+   342→                    onChange={(e) => setSearchQuery(e.target.value)}
+   343→                    className="pl-8 h-8 text-xs"
+   344→                  />
+   345→                </div>
+   346→                <Select value={gameFilter} onValueChange={setGameFilter}>
+   347→                  <SelectTrigger className="w-full sm:w-[150px] h-8 text-xs"><SelectValue placeholder="All Games" /></SelectTrigger>
+   348→                  <SelectContent>
+   349→                    <SelectItem value="all">All Games</SelectItem>
+   350→                    {uniqueGames.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+   351→                  </SelectContent>
+   352→                </Select>
+   353→                <Select value={countryFilter} onValueChange={setCountryFilter}>
+   354→                  <SelectTrigger className="w-full sm:w-[100px] h-8 text-xs"><SelectValue placeholder="Country" /></SelectTrigger>
+   355→                  <SelectContent>
+   356→                    <SelectItem value="all">All Countries</SelectItem>
+   357→                    {uniqueCountries.map(c => <SelectItem key={c} value={c}>{COUNTRY_FLAGS[c] || ''} {c}</SelectItem>)}
+   358→                  </SelectContent>
+   359→                </Select>
+   360→                <Select value={deviceFilter} onValueChange={setDeviceFilter}>
+   361→                  <SelectTrigger className="w-full sm:w-[100px] h-8 text-xs"><SelectValue placeholder="Device" /></SelectTrigger>
+   362→                  <SelectContent>
+   363→                    <SelectItem value="all">All Devices</SelectItem>
+   364→                    <SelectItem value="desktop">Desktop</SelectItem>
+   365→                    <SelectItem value="mobile">Mobile</SelectItem>
+   366→                    <SelectItem value="tablet">Tablet</SelectItem>
+   367→                  </SelectContent>
+   368→                </Select>
+   369→                <Select value={statusFilter} onValueChange={setStatusFilter}>
+   370→                  <SelectTrigger className="w-full sm:w-[100px] h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+   371→                  <SelectContent>
+   372→                    <SelectItem value="all">All Status</SelectItem>
+   373→                    <SelectItem value="active">Active</SelectItem>
+   374→                    <SelectItem value="idle">Idle</SelectItem>
+   375→                    <SelectItem value="ended">Ended</SelectItem>
+   376→                  </SelectContent>
+   377→                </Select>
+   378→              </div>
+   379→            </CardContent>
+   380→          </Card>
+   381→
+   382→          {/* Sessions Table */}
+   383→          <Card>
+   384→            <CardHeader className="pb-2">
+   385→              <div className="flex items-center justify-between">
+   386→                <CardTitle className="text-sm">Active Sessions</CardTitle>
+   387→                <div className="flex items-center gap-2">
+   388→                  <Badge variant="secondary" className="text-[10px]">{filteredSessions.length} sessions</Badge>
+   389→                  {autoRefresh && (
+   390→                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+   391→                      <RefreshCw className="size-3 animate-spin text-primary" />
+   392→                      Live
+   393→                    </span>
+   394→                  )}
+   395→                </div>
+   396→              </div>
+   397→            </CardHeader>
+   398→            <CardContent>
+   399→              <div className="overflow-x-auto">
+   400→                <Table>
+   401→                  <TableHeader>
+   402→                    <TableRow>
+   403→                      <TableHead className="text-xs">Player</TableHead>
+   404→                      <TableHead className="text-xs">Game</TableHead>
+   405→                      <TableHead className="text-xs">Country</TableHead>
+   406→                      <TableHead className="text-xs">Device</TableHead>
+   407→                      <TableHead className="text-xs text-right">Wager</TableHead>
+   408→                      <TableHead className="text-xs text-right">Win</TableHead>
+   409→                      <TableHead className="text-xs text-right">Spins</TableHead>
+   410→                      <TableHead className="text-xs">Duration</TableHead>
+   411→                      <TableHead className="text-xs">Status</TableHead>
+   412→                    </TableRow>
+   413→                  </TableHeader>
+   414→                  <TableBody>
+   415→                    {filteredSessions.map(session => {
+   416→                      const DeviceIcon = DEVICE_ICON[session.deviceType] || Monitor
+   417→                      const isExpanded = expandedRow === session.id
+   418→                      return (
+   419→                        <TableRow
+   420→                          key={session.id}
+   421→                          className="cursor-pointer hover:bg-muted/80"
+   422→                          onClick={() => setExpandedRow(isExpanded ? null : session.id)}
+   423→                        >
+   424→                          <TableCell>
+   425→                            <div className="flex items-center gap-1.5">
+   426→                              <span className="size-5 rounded-full bg-primary/20 text-primary text-[8px] font-bold flex items-center justify-center shrink-0">
+   427→                                {session.playerName.slice(0, 2).toUpperCase()}
+   428→                              </span>
+   429→                              <span className="text-xs font-medium truncate max-w-[80px]">{session.playerName}</span>
+   430→                            </div>
+   431→                          </TableCell>
+   432→                          <TableCell className="text-xs truncate max-w-[100px]">{session.gameName}</TableCell>
+   433→                          <TableCell>
+   434→                            <span className="text-xs">{COUNTRY_FLAGS[session.country] || session.country}</span>
+   435→                          </TableCell>
+   436→                          <TableCell>
+   437→                            <DeviceIcon className="size-3.5 text-muted-foreground" />
+   438→                          </TableCell>
+   439→                          <TableCell className="text-xs text-right font-mono">{fmtDec(session.wagerAmount)}</TableCell>
+   440→                          <TableCell className="text-xs text-right font-mono">{fmtDec(session.winAmount)}</TableCell>
+   441→                          <TableCell className="text-xs text-right">{session.spinsPlayed}</TableCell>
+   442→                          <TableCell className="text-xs text-muted-foreground">
+   443→                            {formatDuration(session.startedAt, session.lastActivityAt)}
+   444→                          </TableCell>
+   445→                          <TableCell>{statusBadge(session.status)}</TableCell>
+   446→                        </TableRow>
+   447→                      )
+   448→                    })}
+   449→                  </TableBody>
+   450→                </Table>
+   451→              </div>
+   452→
+   453→              {/* Expanded Row Detail */}
+   454→              {expandedRow && (() => {
+   455→                const session = filteredSessions.find(s => s.id === expandedRow)
+   456→                if (!session) return null
+   457→                return (
+   458→                  <div className="mt-3 p-3 rounded-lg border border-primary/20 bg-muted/30 space-y-2">
+   459→                    <div className="flex items-center justify-between">
+   460→                      <h4 className="text-xs font-semibold text-primary">Session Details — {session.playerName}</h4>
+   461→                      <Badge variant="outline" className="text-[9px] h-4">{session.id}</Badge>
+   462→                    </div>
+   463→                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+   464→                      <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">Player ID</span><br /><span className="font-medium">{session.playerId}</span></div>
+   465→                      <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">City</span><br /><span className="font-medium">{session.city}, {session.country}</span></div>
+   466→                      <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">Browser</span><br /><span className="font-medium">{session.browser}</span></div>
+   467→                      <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">OS</span><br /><span className="font-medium">{session.os}</span></div>
+   468→                      <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">Entry Point</span><br /><span className="font-medium">{session.entryPoint}</span></div>
+   469→                      <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">Started</span><br /><span className="font-medium">{new Date(session.startedAt).toLocaleTimeString()}</span></div>
+   470→                      <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">Last Activity</span><br /><span className="font-medium">{new Date(session.lastActivityAt).toLocaleTimeString()}</span></div>
+   471→                      <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">Net Result</span><br /><span className={`font-mono font-bold ${session.winAmount - session.wagerAmount >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmtDec(session.winAmount - session.wagerAmount)}</span></div>
+   472→                    </div>
+   473→                  </div>
+   474→                )
+   475→              })()}
+   476→            </CardContent>
+   477→          </Card>
+   478→        </TabsContent>
+   479→
+   480→        {/* Tab 2: Activity Feed */}
+   481→        <TabsContent value="feed" className="mt-4">
+   482→          <Card>
+   483→            <CardHeader className="pb-2">
+   484→              <div className="flex items-center justify-between">
+   485→                <CardTitle className="text-sm">Activity Feed</CardTitle>
+   486→                <div className="flex items-center gap-2">
+   487→                  <Badge variant="secondary" className="text-[10px]">{events.length} events</Badge>
+   488→                  {autoRefresh && (
+   489→                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+   490→                      <RefreshCw className="size-3 animate-spin text-primary" /> Live
+   491→                    </span>
+   492→                  )}
+   493→                </div>
+   494→              </div>
+   495→            </CardHeader>
+   496→            <CardContent>
+   497→              <ScrollArea className="h-[500px]">
+   498→                <div className="space-y-1.5 pr-3">
+   499→                  {events.map(event => {
+   500→                    const config = EVENT_CONFIG[event.eventType]
+   501→                    if (!config) return null
+   502→                    const EventIcon = config.icon
+   503→                    const eventIsNew = isNew(event.createdAt)
+   504→                    const isJackpot = event.eventType === 'jackpot_win'
+   505→                    const isBigWin = event.eventType === 'big_win'
+   506→
+   507→                    return (
+   508→                      <div
+   509→                        key={event.id}
+   510→                        className={`flex items-start gap-2.5 p-2 rounded-md transition-colors ${
+   511→                          eventIsNew ? 'bg-primary/5 border border-primary/10' : 'hover:bg-muted/30'
+   512→                        }`}
+   513→                      >
+   514→                        <div className={`mt-0.5 shrink-0 ${config.color} ${isBigWin ? 'animate-pulse' : ''}`}>
+   515→                          <EventIcon className={`size-4 ${isJackpot ? 'animate-pulse' : ''}`} />
+   516→                        </div>
+   517→                        <div className="flex-1 min-w-0">
+   518→                          <div className="flex items-center gap-1.5 flex-wrap">
+   519→                            <span className="text-xs font-medium">{event.playerName}</span>
+   520→                            <span className={`text-[10px] ${config.color}`}>{config.label}</span>
+   521→                            {event.amount > 0 && (
+   522→                              <span className="text-xs font-mono font-bold text-primary">
+   523→                                {fmtDec(event.amount)}
+   524→                              </span>
+   525→                            )}
+   526→                            {eventIsNew && (
+   527→                              <Badge className="text-[8px] h-3.5 px-1 bg-primary/20 text-primary border-primary/30 animate-pulse">
+   528→                                NEW
+   529→                              </Badge>
+   530→                            )}
+   531→                          </div>
+   532→                          <div className="flex items-center gap-2 mt-0.5">
+   533→                            <span className="text-[10px] text-muted-foreground truncate">{event.gameName}</span>
+   534→                            <span className="text-[10px]">{COUNTRY_FLAGS[event.country] || ''}</span>
+   535→                          </div>
+   536→                        </div>
+   537→                        <div className="shrink-0 text-[10px] text-muted-foreground flex items-center gap-1">
+   538→                          <Clock className="size-2.5" />
+   539→                          {formatTimeAgo(event.createdAt)}
+   540→                        </div>
+   541→                      </div>
+   542→                    )
+   543→                  })}
+   544→                  <div ref={feedEndRef} />
+   545→                </div>
+   546→              </ScrollArea>
+   547→            </CardContent>
+   548→          </Card>
+   549→        </TabsContent>
+   550→
+   551→        {/* Tab 3: By Region */}
+   552→        <TabsContent value="region" className="mt-4">
+   553→          <Card>
+   554→            <CardHeader className="pb-2">
+   555→              <div className="flex items-center justify-between">
+   556→                <CardTitle className="text-sm">Players by Region</CardTitle>
+   557→                <Badge variant="secondary" className="text-[10px]">Top 10</Badge>
+   558→              </div>
+   559→            </CardHeader>
+   560→            <CardContent>
+   561→              {stats ? (
+   562→                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+   563→                  {stats.byCountry.slice(0, 10).map((item, index) => {
+   564→                    const maxCount = stats.byCountry[0]?.count || 1
+   565→                    const intensity = Math.max(0.15, item.count / maxCount)
+   566→                    const countryWagered = sessions
+   567→                      .filter(s => s.country === item.country)
+   568→                      .reduce((sum, s) => sum + s.wagerAmount, 0)
+   569→                    return (
+   570→                      <div
+   571→                        key={item.country}
+   572→                        className="p-3 rounded-lg border border-border hover:border-primary/30 transition-all cursor-default"
+   573→                        style={{ backgroundColor: `rgba(245, 158, 11, ${intensity * 0.12})` }}
+   574→                      >
+   575→                        <div className="flex items-center gap-1.5 mb-2">
+   576→                          <span className="text-lg">{COUNTRY_FLAGS[item.country] || '🌍'}</span>
+   577→                          <span className="text-xs font-semibold">{item.country}</span>
+   578→                          {index === 0 && <Trophy className="size-3 text-amber-400" />}
+   579→                        </div>
+   580→                        <div className="space-y-1">
+   581→                          <div className="flex items-center justify-between">
+   582→                            <span className="text-[10px] text-muted-foreground">Players</span>
+   583→                            <span className="text-xs font-bold text-primary">{item.count}</span>
+   584→                          </div>
+   585→                          <div className="flex items-center justify-between">
+   586→                            <span className="text-[10px] text-muted-foreground">Wagered</span>
+   587→                            <span className="text-[10px] font-mono font-medium">{fmt(countryWagered)}</span>
+   588→                          </div>
+   589→                          <div className="w-full bg-muted rounded-full h-1 mt-1">
+   590→                            <div
+   591→                              className="h-full rounded-full bg-primary/70 transition-all"
+   592→                              style={{ width: `${intensity * 100}%` }}
+   593→                            />
+   594→                          </div>
+   595→                        </div>
+   596→                      </div>
+   597→                    )
+   598→                  })}
+   599→                </div>
+   600→              ) : (
+   601→                <div className="py-8 text-center text-xs text-muted-foreground">No region data</div>
+   602→              )}
+   603→            </CardContent>
+   604→          </Card>
+   605→        </TabsContent>
+   606→
+   607→        {/* Tab 4: Session Analytics */}
+   608→        <TabsContent value="analytics" className="mt-4 space-y-4">
+   609→          {/* KPI Cards */}
+   610→          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+   611→            <Card>
+   612→              <CardContent className="p-3 sm:p-4">
+   613→                <div className="flex items-center gap-2 mb-1">
+   614→                  <Clock className="size-3.5 text-primary" />
+   615→                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Avg Duration</span>
+   616→                </div>
+   617→                <p className="text-base sm:text-lg font-bold">{stats?.avgSessionDuration ?? 0}<span className="text-xs font-normal text-muted-foreground ml-1">min</span></p>
+   618→              </CardContent>
+   619→            </Card>
+   620→            <Card>
+   621→              <CardContent className="p-3 sm:p-4">
+   622→                <div className="flex items-center gap-2 mb-1">
+   623→                  <Users className="size-3.5 text-primary" />
+   624→                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Peak Concurrent</span>
+   625→                </div>
+   626→                <p className="text-base sm:text-lg font-bold">{stats?.peakConcurrent ?? 0}</p>
+   627→              </CardContent>
+   628→            </Card>
+   629→            <Card>
+   630→              <CardContent className="p-3 sm:p-4">
+   631→                <div className="flex items-center gap-2 mb-1">
+   632→                  <Trophy className="size-3.5 text-amber-400" />
+   633→                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Wagered</span>
+   634→                </div>
+   635→                <p className="text-base sm:text-lg font-bold">{fmt(stats?.totalWageredLive ?? 0)}</p>
+   636→              </CardContent>
+   637→            </Card>
+   638→            <Card>
+   639→              <CardContent className="p-3 sm:p-4">
+   640→                <div className="flex items-center gap-2 mb-1">
+   641→                  <Crown className="size-3.5 text-emerald-400" />
+   642→                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Won</span>
+   643→                </div>
+   644→                <p className="text-base sm:text-lg font-bold">{fmt(stats?.totalWonLive ?? 0)}</p>
+   645→              </CardContent>
+   646→            </Card>
+   647→          </div>
+   648→
+   649→          {/* Charts Row */}
+   650→          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   651→            {/* Device Distribution PieChart */}
+   652→            <Card>
+   653→              <CardHeader className="pb-2">
+   654→                <CardTitle className="text-sm">Device Distribution</CardTitle>
+   655→              </CardHeader>
+   656→              <CardContent>
+   657→                {stats ? (
+   658→                  <div className="flex flex-col items-center">
+   659→                    <ResponsiveContainer width="100%" height={220}>
+   660→                      <PieChart>
+   661→                        <Pie
+   662→                          data={[
+   663→                            { name: 'Desktop', value: stats.byDevice.desktop },
+   664→                            { name: 'Mobile', value: stats.byDevice.mobile },
+   665→                            { name: 'Tablet', value: stats.byDevice.tablet },
+   666→                          ]}
+   667→                          cx="50%"
+   668→                          cy="50%"
+   669→                          innerRadius={55}
+   670→                          outerRadius={85}
+   671→                          paddingAngle={3}
+   672→                          dataKey="value"
+   673→                          stroke="none"
+   674→                        >
+   675→                          <Cell fill={DEVICE_COLORS.desktop} />
+   676→                          <Cell fill={DEVICE_COLORS.mobile} />
+   677→                          <Cell fill={DEVICE_COLORS.tablet} />
+   678→                        </Pie>
+   679→                        <Tooltip
+   680→                          contentStyle={{
+   681→                            backgroundColor: 'hsl(var(--popover))',
+   682→                            border: '1px solid hsl(var(--border))',
+   683→                            borderRadius: '6px',
+   684→                            fontSize: '11px',
+   685→                          }}
+   686→                          formatter={(value: number) => [value, 'Players']}
+   687→                        />
+   688→                      </PieChart>
+   689→                    </ResponsiveContainer>
+   690→                    <div className="flex items-center gap-4 mt-2 flex-wrap">
+   691→                      {(['desktop', 'mobile', 'tablet'] as const).map(type => (
+   692→                        <div key={type} className="flex items-center gap-1.5">
+   693→                          <span className="size-2.5 rounded-full" style={{ backgroundColor: DEVICE_COLORS[type] }} />
+   694→                          <span className="text-[10px] text-muted-foreground capitalize">{type}</span>
+   695→                          <span className="text-[10px] font-bold">{devicePct(type)}%</span>
+   696→                        </div>
+   697→                      ))}
+   698→                    </div>
+   699→                  </div>
+   700→                ) : (
+   701→                  <Skeleton className="h-48 w-full" />
+   702→                )}
+   703→              </CardContent>
+   704→            </Card>
+   705→
+   706→            {/* Players by Game BarChart */}
+   707→            <Card>
+   708→              <CardHeader className="pb-2">
+   709→                <CardTitle className="text-sm">Players by Game</CardTitle>
+   710→              </CardHeader>
+   711→              <CardContent>
+   712→                {stats ? (
+   713→                  <ResponsiveContainer width="100%" height={220}>
+   714→                    <BarChart
+   715→                      data={stats.byGame.slice(0, 8)}
+   716→                      layout="vertical"
+   717→                      margin={{ top: 0, right: 20, bottom: 0, left: 0 }}
+   718→                    >
+   719→                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+   720→                      <XAxis type="number" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+   721→                      <YAxis
+   722→                        type="category"
+   723→                        dataKey="game"
+   724→                        tick={{ fontSize: 9 }}
+   725→                        stroke="hsl(var(--muted-foreground))"
+   726→                        width={90}
+   727→                      />
+   728→                      <Tooltip
+   729→                        contentStyle={{
+   730→                          backgroundColor: 'hsl(var(--popover))',
+   731→                          border: '1px solid hsl(var(--border))',
+   732→                          borderRadius: '6px',
+   733→                          fontSize: '11px',
+   734→                        }}
+   735→                        formatter={(value: number) => [value, 'Players']}
+   736→                      />
+   737→                      <Bar dataKey="count" fill="#f59e0b" radius={[0, 4, 4, 0]} barSize={14} />
+   738→                    </BarChart>
+   739→                  </ResponsiveContainer>
+   740→                ) : (
+   741→                  <Skeleton className="h-48 w-full" />
+   742→                )}
+   743→              </CardContent>
+   744→            </Card>
+   745→          </div>
+   746→
+   747→          {/* Session Duration Histogram */}
+   748→          <Card>
+   749→            <CardHeader className="pb-2">
+   750→              <CardTitle className="text-sm">Session Duration Distribution</CardTitle>
+   751→            </CardHeader>
+   752→            <CardContent>
+   753→              {(() => {
+   754→                const buckets = [
+   755→                  { label: '0-5m', min: 0, max: 5 },
+   756→                  { label: '5-15m', min: 5, max: 15 },
+   757→                  { label: '15-30m', min: 15, max: 30 },
+   758→                  { label: '30-60m', min: 30, max: 60 },
+   759→                  { label: '60-120m', min: 60, max: 120 },
+   760→                  { label: '120m+', min: 120, max: Infinity },
+   761→                ]
+   762→                const histogram = buckets.map(b => {
+   763→                  const count = sessions.filter(s => {
+   764→                    const dur = (new Date(s.lastActivityAt).getTime() - new Date(s.startedAt).getTime()) / 60000
+   765→                    return dur >= b.min && dur < b.max
+   766→                  }).length
+   767→                  return { label: b.label, count }
+   768→                })
+   769→                return (
+   770→                  <ResponsiveContainer width="100%" height={200}>
+   771→                    <BarChart data={histogram} margin={{ top: 0, right: 20, bottom: 0, left: 0 }}>
+   772→                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+   773→                      <XAxis dataKey="label" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+   774→                      <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+   775→                      <Tooltip
+   776→                        contentStyle={{
+   777→                          backgroundColor: 'hsl(var(--popover))',
+   778→                          border: '1px solid hsl(var(--border))',
+   779→                          borderRadius: '6px',
+   780→                          fontSize: '11px',
+   781→                        }}
+   782→                        formatter={(value: number) => [value, 'Sessions']}
+   783→                      />
+   784→                      <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} barSize={32} />
+   785→                    </BarChart>
+   786→                  </ResponsiveContainer>
+   787→                )
+   788→              })()}
+   789→            </CardContent>
+   790→          </Card>
+   791→        </TabsContent>
+   792→
+   793→        {/* Tab 5: RTP Control */}
+   794→        <TabsContent value="rtp-control" className="mt-4 space-y-4">
+   795→          {(() => {
+   796→            const rtpData: RtpMonitoring[] = trackingData?.rtpMonitoring ?? []
+   797→            const filteredRtp = rtpData.filter(r => {
+   798→              if (rtpStatusFilter !== 'all' && r.status !== rtpStatusFilter) return false
+   799→              if (rtpGameTypeFilter !== 'all' && r.gameType !== rtpGameTypeFilter) return false
+   800→              if (rtpSearch && !r.gameName.toLowerCase().includes(rtpSearch.toLowerCase()) && !r.provider.toLowerCase().includes(rtpSearch.toLowerCase())) return false
+   801→              return true
+   802→            })
+   803→            const normalCount = rtpData.filter(r => r.status === 'normal').length
+   804→            const warningCount = rtpData.filter(r => r.status === 'warning').length
+   805→            const alertCount = rtpData.filter(r => r.status === 'alert' || r.status === 'critical').length
+   806→            const alertGames = rtpData.filter(r => r.status === 'warning' || r.status === 'alert' || r.status === 'critical')
+   807→
+   808→            const rtpColor = (actual: number, theoretical: number) => {
+   809→              const diff = Math.abs(actual - theoretical)
+   810→              if (diff <= 1) return 'text-emerald-400'
+   811→              if (diff <= 3) return 'text-yellow-400'
+   812→              return 'text-red-400'
+   813→            }
+   814→
+   815→            const rtpStatusBadge = (status: string) => {
+   816→              if (status === 'normal') return <Badge className="text-[9px] h-4 bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Normal</Badge>
+   817→              if (status === 'warning') return <Badge variant="outline" className="text-[9px] h-4 border-yellow-500/30 text-yellow-400">Warning</Badge>
+   818→              if (status === 'alert') return <Badge variant="secondary" className="text-[9px] h-4 bg-orange-500/20 text-orange-400">Alert</Badge>
+   819→              return <Badge variant="destructive" className="text-[9px] h-4">Critical</Badge>
+   820→            }
+   821→
+   822→            return (
+   823→              <>
+   824→                {/* Summary Stats */}
+   825→                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+   826→                  <Card>
+   827→                    <CardContent className="p-3 sm:p-4">
+   828→                      <div className="flex items-center gap-2 mb-1">
+   829→                        <BarChart3 className="size-3.5 text-primary" />
+   830→                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Games Monitored</span>
+   831→                      </div>
+   832→                      <p className="text-base sm:text-lg font-bold">{rtpData.length}</p>
+   833→                    </CardContent>
+   834→                  </Card>
+   835→                  <Card>
+   836→                    <CardContent className="p-3 sm:p-4">
+   837→                      <div className="flex items-center gap-2 mb-1">
+   838→                        <ShieldCheck className="size-3.5 text-emerald-400" />
+   839→                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Normal</span>
+   840→                      </div>
+   841→                      <p className="text-base sm:text-lg font-bold text-emerald-400">{normalCount}</p>
+   842→                    </CardContent>
+   843→                  </Card>
+   844→                  <Card>
+   845→                    <CardContent className="p-3 sm:p-4">
+   846→                      <div className="flex items-center gap-2 mb-1">
+   847→                        <AlertTriangle className="size-3.5 text-yellow-400" />
+   848→                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Warning</span>
+   849→                      </div>
+   850→                      <p className="text-base sm:text-lg font-bold text-yellow-400">{warningCount}</p>
+   851→                    </CardContent>
+   852→                  </Card>
+   853→                  <Card>
+   854→                    <CardContent className="p-3 sm:p-4">
+   855→                      <div className="flex items-center gap-2 mb-1">
+   856→                        <AlertTriangle className="size-3.5 text-red-400" />
+   857→                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Alert/Critical</span>
+   858→                      </div>
+   859→                      <p className="text-base sm:text-lg font-bold text-red-400">{alertCount}</p>
+   860→                    </CardContent>
+   861→                  </Card>
+   862→                </div>
+   863→
+   864→                {/* Filters */}
+   865→                <Card>
+   866→                  <CardContent className="p-3">
+   867→                    <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
+   868→                      <div className="relative flex-1 min-w-[140px]">
+   869→                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
+   870→                        <Input
+   871→                          placeholder="Search game or provider..."
+   872→                          value={rtpSearch}
+   873→                          onChange={(e) => setRtpSearch(e.target.value)}
+   874→                          className="pl-8 h-8 text-xs"
+   875→                        />
+   876→                      </div>
+   877→                      <Select value={rtpStatusFilter} onValueChange={setRtpStatusFilter}>
+   878→                        <SelectTrigger className="w-full sm:w-[120px] h-8 text-xs"><SelectValue placeholder="All Status" /></SelectTrigger>
+   879→                        <SelectContent>
+   880→                          <SelectItem value="all">All Status</SelectItem>
+   881→                          <SelectItem value="normal">Normal</SelectItem>
+   882→                          <SelectItem value="warning">Warning</SelectItem>
+   883→                          <SelectItem value="alert">Alert</SelectItem>
+   884→                          <SelectItem value="critical">Critical</SelectItem>
+   885→                        </SelectContent>
+   886→                      </Select>
+   887→                      <Select value={rtpGameTypeFilter} onValueChange={setRtpGameTypeFilter}>
+   888→                        <SelectTrigger className="w-full sm:w-[120px] h-8 text-xs"><SelectValue placeholder="All Types" /></SelectTrigger>
+   889→                        <SelectContent>
+   890→                          <SelectItem value="all">All Types</SelectItem>
+   891→                          <SelectItem value="slot">Slot</SelectItem>
+   892→                          <SelectItem value="live_table">Live Table</SelectItem>
+   893→                        </SelectContent>
+   894→                      </Select>
+   895→                    </div>
+   896→                  </CardContent>
+   897→                </Card>
+   898→
+   899→                {/* RTP Monitoring Table */}
+   900→                <Card>
+   901→                  <CardHeader className="pb-2">
+   902→                    <div className="flex items-center justify-between">
+   903→                      <CardTitle className="text-sm">RTP Monitoring</CardTitle>
+   904→                      <Badge variant="secondary" className="text-[10px]">{filteredRtp.length} games</Badge>
+   905→                    </div>
+   906→                  </CardHeader>
+   907→                  <CardContent>
+   908→                    <div className="overflow-x-auto">
+   909→                      <Table>
+   910→                        <TableHeader>
+   911→                          <TableRow>
+   912→                            <TableHead className="text-xs">Game</TableHead>
+   913→                            <TableHead className="text-xs hidden sm:table-cell">Provider</TableHead>
+   914→                            <TableHead className="text-xs">Type</TableHead>
+   915→                            <TableHead className="text-xs text-right">Theo. RTP</TableHead>
+   916→                            <TableHead className="text-xs text-right">24h</TableHead>
+   917→                            <TableHead className="text-xs text-right hidden sm:table-cell">7d</TableHead>
+   918→                            <TableHead className="text-xs text-right hidden md:table-cell">30d</TableHead>
+   919→                            <TableHead className="text-xs text-right hidden lg:table-cell">Variance</TableHead>
+   920→                            <TableHead className="text-xs text-right hidden md:table-cell">Spins</TableHead>
+   921→                            <TableHead className="text-xs">Status</TableHead>
+   922→                            <TableHead className="text-xs hidden sm:table-cell">Actions</TableHead>
+   923→                          </TableRow>
+   924→                        </TableHeader>
+   925→                        <TableBody>
+   926→                          {filteredRtp.map(rtp => (
+   927→                            <TableRow key={rtp.id}>
+   928→                              <TableCell className="text-xs font-medium truncate max-w-[120px]">{rtp.gameName}</TableCell>
+   929→                              <TableCell className="text-xs text-muted-foreground hidden sm:table-cell">{rtp.provider}</TableCell>
+   930→                              <TableCell>
+   931→                                <Badge variant="outline" className="text-[9px] h-4">
+   932→                                  {rtp.gameType === 'slot' ? 'Slot' : 'Live'}
+   933→                                </Badge>
+   934→                              </TableCell>
+   935→                              <TableCell className="text-xs text-right font-mono">{rtp.theoreticalRtp.toFixed(2)}%</TableCell>
+   936→                              <TableCell className={`text-xs text-right font-mono ${rtpColor(rtp.actualRtp24h, rtp.theoreticalRtp)}`}>
+   937→                                {rtp.actualRtp24h.toFixed(1)}%
+   938→                              </TableCell>
+   939→                              <TableCell className={`text-xs text-right font-mono hidden sm:table-cell ${rtpColor(rtp.actualRtp7d, rtp.theoreticalRtp)}`}>
+   940→                                {rtp.actualRtp7d.toFixed(1)}%
+   941→                              </TableCell>
+   942→                              <TableCell className={`text-xs text-right font-mono hidden md:table-cell ${rtpColor(rtp.actualRtp30d, rtp.theoreticalRtp)}`}>
+   943→                                {rtp.actualRtp30d.toFixed(1)}%
+   944→                              </TableCell>
+   945→                              <TableCell className="text-xs text-right font-mono hidden lg:table-cell">
+   946→                                <span className={rtp.variance >= 0 ? 'text-emerald-400' : 'text-red-400'}>
+   947→                                  {rtp.variance >= 0 ? '+' : ''}{rtp.variance.toFixed(2)}%
+   948→                                </span>
+   949→                              </TableCell>
+   950→                              <TableCell className="text-xs text-right hidden md:table-cell">{rtp.totalSpins.toLocaleString()}</TableCell>
+   951→                              <TableCell>{rtpStatusBadge(rtp.status)}</TableCell>
+   952→                              <TableCell className="hidden sm:table-cell">
+   953→                                {(rtp.status === 'warning' || rtp.status === 'alert' || rtp.status === 'critical') && (
+   954→                                  <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1">
+   955→                                    <Search className="size-3" /> Investigate
+   956→                                  </Button>
+   957→                                )}
+   958→                              </TableCell>
+   959→                            </TableRow>
+   960→                          ))}
+   961→                        </TableBody>
+   962→                      </Table>
+   963→                    </div>
+   964→                  </CardContent>
+   965→                </Card>
+   966→
+   967→                {/* RTP Alert Panel */}
+   968→                {alertGames.length > 0 && (
+   969→                  <Card className="border-yellow-500/30">
+   970→                    <CardHeader className="pb-2">
+   971→                      <div className="flex items-center gap-2">
+   972→                        <AlertTriangle className="size-4 text-yellow-400" />
+   973→                        <CardTitle className="text-sm">RTP Alert Panel</CardTitle>
+   974→                        <Badge variant="destructive" className="text-[10px]">{alertGames.length} alerts</Badge>
+   975→                      </div>
+   976→                    </CardHeader>
+   977→                    <CardContent>
+   978→                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+   979→                        {alertGames.map(rtp => (
+   980→                          <div key={rtp.id} className="p-3 rounded-lg border border-yellow-500/20 bg-yellow-500/5 space-y-2">
+   981→                            <div className="flex items-center justify-between">
+   982→                              <span className="text-xs font-semibold">{rtp.gameName}</span>
+   983→                              {rtpStatusBadge(rtp.status)}
+   984→                            </div>
+   985→                            <div className="text-[10px] text-muted-foreground">{rtp.provider} • {rtp.gameType === 'slot' ? 'Slot' : 'Live Table'}</div>
+   986→                            <div className="grid grid-cols-2 gap-2 text-[10px]">
+   987→                              <div><span className="text-muted-foreground">Theoretical</span><br /><span className="font-mono font-medium">{rtp.theoreticalRtp.toFixed(2)}%</span></div>
+   988→                              <div><span className="text-muted-foreground">Actual 24h</span><br /><span className={`font-mono font-medium ${rtpColor(rtp.actualRtp24h, rtp.theoreticalRtp)}`}>{rtp.actualRtp24h.toFixed(1)}%</span></div>
+   989→                              <div><span className="text-muted-foreground">Variance</span><br /><span className={`font-mono font-medium ${rtp.variance >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{rtp.variance >= 0 ? '+' : ''}{rtp.variance.toFixed(2)}%</span></div>
+   990→                              <div><span className="text-muted-foreground">Spins</span><br /><span className="font-mono font-medium">{rtp.totalSpins.toLocaleString()}</span></div>
+   991→                            </div>
+   992→                            <div className="flex gap-2">
+   993→                              <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1 flex-1">
+   994→                                <Search className="size-3" /> Investigate
+   995→                              </Button>
+   996→                              <Button variant="destructive" size="sm" className="h-6 text-[10px] gap-1 flex-1">
+   997→                                <Pause className="size-3" /> Pause Game
+   998→                              </Button>
+   999→                            </div>
+  1000→                          </div>
+  1001→                        ))}
+  1002→                      </div>
+  1003→                    </CardContent>
+  1004→                  </Card>
+  1005→                )}
+  1006→              </>
+  1007→            )
+  1008→          })()}
+  1009→        </TabsContent>
+  1010→
+  1011→        {/* Tab 6: Session Control */}
+  1012→        <TabsContent value="session-control" className="mt-4 space-y-4">
+  1013→          {(() => {
+  1014→            const scSessions: TrackingSession[] = trackingData?.sessions ?? []
+  1015→            const scBets: TrackingBet[] = trackingData?.bets ?? []
+  1016→            const activeSessions = scSessions.filter(s => s.status === 'active')
+  1017→            const idleSessions = scSessions.filter(s => s.status === 'idle')
+  1018→            const totalActiveWagered = activeSessions.reduce((sum, s) => sum + s.totalWagered, 0)
+  1019→            const avgActiveRtp = activeSessions.length > 0 ? activeSessions.reduce((sum, s) => sum + s.rtp, 0) / activeSessions.length : 0
+  1020→
+  1021→            const filteredScSessions = scSessions.filter(s => {
+  1022→              if (scStatusFilter !== 'all' && s.status !== scStatusFilter) return false
+  1023→              if (scGameTypeFilter !== 'all' && s.gameType !== scGameTypeFilter) return false
+  1024→              if (scDeviceFilter !== 'all' && s.device !== scDeviceFilter) return false
+  1025→              if (scSearch && !s.playerUsername.toLowerCase().includes(scSearch.toLowerCase())) return false
+  1026→              return true
+  1027→            })
+  1028→
+  1029→            const scRtpColor = (rtp: number) => {
+  1030→              if (rtp > 100) return 'text-blue-400'
+  1031→              if (rtp > 95) return 'text-emerald-400'
+  1032→              if (rtp >= 85) return 'text-yellow-400'
+  1033→              return 'text-red-400'
+  1034→            }
+  1035→
+  1036→            const scStatusBadge = (status: string) => {
+  1037→              if (status === 'active') return <Badge className="text-[9px] h-4 bg-emerald-500/20 text-emerald-400 border-emerald-500/30 gap-1"><span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />Active</Badge>
+  1038→              if (status === 'idle') return <Badge className="text-[9px] h-4 bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Idle</Badge>
+  1039→              return <Badge variant="secondary" className="text-[9px] h-4">Ended</Badge>
+  1040→            }
+  1041→
+  1042→            return (
+  1043→              <>
+  1044→                {/* Summary Stats */}
+  1045→                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+  1046→                  <Card>
+  1047→                    <CardContent className="p-3 sm:p-4">
+  1048→                      <div className="flex items-center gap-2 mb-1">
+  1049→                        <Activity className="size-3.5 text-emerald-400" />
+  1050→                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Active Sessions</span>
+  1051→                      </div>
+  1052→                      <p className="text-base sm:text-lg font-bold text-emerald-400">{activeSessions.length}</p>
+  1053→                    </CardContent>
+  1054→                  </Card>
+  1055→                  <Card>
+  1056→                    <CardContent className="p-3 sm:p-4">
+  1057→                      <div className="flex items-center gap-2 mb-1">
+  1058→                        <Clock className="size-3.5 text-yellow-400" />
+  1059→                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Idle Sessions</span>
+  1060→                      </div>
+  1061→                      <p className="text-base sm:text-lg font-bold text-yellow-400">{idleSessions.length}</p>
+  1062→                    </CardContent>
+  1063→                  </Card>
+  1064→                  <Card>
+  1065→                    <CardContent className="p-3 sm:p-4">
+  1066→                      <div className="flex items-center gap-2 mb-1">
+  1067→                        <Trophy className="size-3.5 text-primary" />
+  1068→                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Active Wagered</span>
+  1069→                      </div>
+  1070→                      <p className="text-base sm:text-lg font-bold">{fmt(totalActiveWagered)}</p>
+  1071→                    </CardContent>
+  1072→                  </Card>
+  1073→                  <Card>
+  1074→                    <CardContent className="p-3 sm:p-4">
+  1075→                      <div className="flex items-center gap-2 mb-1">
+  1076→                        <Percent className="size-3.5 text-primary" />
+  1077→                        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Avg Session RTP</span>
+  1078→                      </div>
+  1079→                      <p className="text-base sm:text-lg font-bold">{avgActiveRtp.toFixed(1)}%</p>
+  1080→                    </CardContent>
+  1081→                  </Card>
+  1082→                </div>
+  1083→
+  1084→                {/* Filters */}
+  1085→                <Card>
+  1086→                  <CardContent className="p-3">
+  1087→                    <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
+  1088→                      <div className="relative flex-1 min-w-[140px]">
+  1089→                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
+  1090→                        <Input
+  1091→                          placeholder="Search player..."
+  1092→                          value={scSearch}
+  1093→                          onChange={(e) => setScSearch(e.target.value)}
+  1094→                          className="pl-8 h-8 text-xs"
+  1095→                        />
+  1096→                      </div>
+  1097→                      <Select value={scStatusFilter} onValueChange={setScStatusFilter}>
+  1098→                        <SelectTrigger className="w-full sm:w-[100px] h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+  1099→                        <SelectContent>
+  1100→                          <SelectItem value="all">All</SelectItem>
+  1101→                          <SelectItem value="active">Active</SelectItem>
+  1102→                          <SelectItem value="idle">Idle</SelectItem>
+  1103→                          <SelectItem value="ended">Ended</SelectItem>
+  1104→                        </SelectContent>
+  1105→                      </Select>
+  1106→                      <Select value={scGameTypeFilter} onValueChange={setScGameTypeFilter}>
+  1107→                        <SelectTrigger className="w-full sm:w-[120px] h-8 text-xs"><SelectValue placeholder="All Types" /></SelectTrigger>
+  1108→                        <SelectContent>
+  1109→                          <SelectItem value="all">All Types</SelectItem>
+  1110→                          <SelectItem value="slot">Slot</SelectItem>
+  1111→                          <SelectItem value="live_table">Live Table</SelectItem>
+  1112→                        </SelectContent>
+  1113→                      </Select>
+  1114→                      <Select value={scDeviceFilter} onValueChange={setScDeviceFilter}>
+  1115→                        <SelectTrigger className="w-full sm:w-[100px] h-8 text-xs"><SelectValue placeholder="Device" /></SelectTrigger>
+  1116→                        <SelectContent>
+  1117→                          <SelectItem value="all">All</SelectItem>
+  1118→                          <SelectItem value="desktop">Desktop</SelectItem>
+  1119→                          <SelectItem value="mobile">Mobile</SelectItem>
+  1120→                        </SelectContent>
+  1121→                      </Select>
+  1122→                    </div>
+  1123→                  </CardContent>
+  1124→                </Card>
+  1125→
+  1126→                {/* Active Sessions Table */}
+  1127→                <Card>
+  1128→                  <CardHeader className="pb-2">
+  1129→                    <div className="flex items-center justify-between">
+  1130→                      <CardTitle className="text-sm">Session Control</CardTitle>
+  1131→                      <Badge variant="secondary" className="text-[10px]">{filteredScSessions.length} sessions</Badge>
+  1132→                    </div>
+  1133→                  </CardHeader>
+  1134→                  <CardContent>
+  1135→                    <div className="overflow-x-auto">
+  1136→                      <Table>
+  1137→                        <TableHeader>
+  1138→                          <TableRow>
+  1139→                            <TableHead className="text-xs">Player</TableHead>
+  1140→                            <TableHead className="text-xs">Game</TableHead>
+  1141→                            <TableHead className="text-xs hidden sm:table-cell">Provider</TableHead>
+  1142→                            <TableHead className="text-xs hidden sm:table-cell">Type</TableHead>
+  1143→                            <TableHead className="text-xs text-right hidden md:table-cell">Duration</TableHead>
+  1144→                            <TableHead className="text-xs text-right hidden lg:table-cell">Bets</TableHead>
+  1145→                            <TableHead className="text-xs text-right">Wagered</TableHead>
+  1146→                            <TableHead className="text-xs text-right hidden sm:table-cell">Won</TableHead>
+  1147→                            <TableHead className="text-xs text-right">Net</TableHead>
+  1148→                            <TableHead className="text-xs text-right">RTP</TableHead>
+  1149→                            <TableHead className="text-xs hidden md:table-cell">Device</TableHead>
+  1150→                            <TableHead className="text-xs hidden lg:table-cell">IP</TableHead>
+  1151→                            <TableHead className="text-xs">Actions</TableHead>
+  1152→                          </TableRow>
+  1153→                        </TableHeader>
+  1154→                        <TableBody>
+  1155→                          {filteredScSessions.map(session => {
+  1156→                            const DeviceIcon = session.device === 'desktop' ? Monitor : Smartphone
+  1157→                            return (
+  1158→                              <TableRow key={session.id}>
+  1159→                                <TableCell>
+  1160→                                  <div className="flex items-center gap-1.5">
+  1161→                                    <span className="size-5 rounded-full bg-primary/20 text-primary text-[8px] font-bold flex items-center justify-center shrink-0">
+  1162→                                      {session.playerUsername.slice(0, 2).toUpperCase()}
+  1163→                                    </span>
+  1164→                                    <span className="text-xs font-medium truncate max-w-[70px]">{session.playerUsername}</span>
+  1165→                                  </div>
+  1166→                                </TableCell>
+  1167→                                <TableCell className="text-xs truncate max-w-[100px]">{session.gameName}</TableCell>
+  1168→                                <TableCell className="text-xs text-muted-foreground hidden sm:table-cell">{session.provider}</TableCell>
+  1169→                                <TableCell className="hidden sm:table-cell">
+  1170→                                  <Badge variant="outline" className="text-[9px] h-4">{session.gameType === 'slot' ? 'Slot' : 'Live'}</Badge>
+  1171→                                </TableCell>
+  1172→                                <TableCell className="text-xs text-right text-muted-foreground hidden md:table-cell">{session.durationMinutes}m</TableCell>
+  1173→                                <TableCell className="text-xs text-right hidden lg:table-cell">{session.totalBets}</TableCell>
+  1174→                                <TableCell className="text-xs text-right font-mono">{fmt(session.totalWagered)}</TableCell>
+  1175→                                <TableCell className="text-xs text-right font-mono hidden sm:table-cell">{fmt(session.totalWon)}</TableCell>
+  1176→                                <TableCell className={`text-xs text-right font-mono font-medium ${session.netResult >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+  1177→                                  {fmt(Math.abs(session.netResult))}
+  1178→                                </TableCell>
+  1179→                                <TableCell className={`text-xs text-right font-mono ${scRtpColor(session.rtp)}`}>
+  1180→                                  {session.rtp.toFixed(1)}%
+  1181→                                </TableCell>
+  1182→                                <TableCell className="hidden md:table-cell"><DeviceIcon className="size-3.5 text-muted-foreground" /></TableCell>
+  1183→                                <TableCell className="text-xs text-muted-foreground font-mono hidden lg:table-cell">{session.ip}</TableCell>
+  1184→                                <TableCell>
+  1185→                                  <div className="flex items-center gap-1">
+  1186→                                    <Button
+  1187→                                      variant="ghost"
+  1188→                                      size="sm"
+  1189→                                      className="h-6 w-6 p-0"
+  1190→                                      onClick={() => setSelectedSession(session)}
+  1191→                                    >
+  1192→                                      <Eye className="size-3" />
+  1193→                                    </Button>
+  1194→                                    {session.status === 'active' && (
+  1195→                                      <Button
+  1196→                                        variant="ghost"
+  1197→                                        size="sm"
+  1198→                                        className="h-6 w-6 p-0 text-red-400 hover:text-red-300"
+  1199→                                      >
+  1200→                                        <Square className="size-3" />
+  1201→                                      </Button>
+  1202→                                    )}
+  1203→                                  </div>
+  1204→                                </TableCell>
+  1205→                              </TableRow>
+  1206→                            )
+  1207→                          })}
+  1208→                        </TableBody>
+  1209→                      </Table>
+  1210→                    </div>
+  1211→                  </CardContent>
+  1212→                </Card>
+  1213→
+  1214→                {/* Session Detail Dialog */}
+  1215→                <Dialog open={!!selectedSession} onOpenChange={(open) => !open && setSelectedSession(null)}>
+  1216→                  <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+  1217→                    {selectedSession && (() => {
+  1218→                      const sessionBets = scBets.filter(b => b.sessionId === selectedSession.id)
+  1219→                      return (
+  1220→                        <>
+  1221→                          <DialogHeader>
+  1222→                            <DialogTitle className="text-sm">Session Details — {selectedSession.playerUsername}</DialogTitle>
+  1223→                            <DialogDescription className="text-xs">
+  1224→                              {selectedSession.gameName} • {selectedSession.provider} • {selectedSession.gameType === 'slot' ? 'Slot' : 'Live Table'}
+  1225→                            </DialogDescription>
+  1226→                          </DialogHeader>
+  1227→                          <div className="space-y-4">
+  1228→                            {/* Session Info */}
+  1229→                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+  1230→                              <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">Player ID</span><br /><span className="font-medium">{selectedSession.playerId}</span></div>
+  1231→                              <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">IP</span><br /><span className="font-mono font-medium">{selectedSession.ip}</span></div>
+  1232→                              <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">Country</span><br /><span className="font-medium">{COUNTRY_FLAGS[selectedSession.country] || ''} {selectedSession.country}</span></div>
+  1233→                              <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">Device</span><br /><span className="font-medium capitalize">{selectedSession.device}</span></div>
+  1234→                              <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">Started</span><br /><span className="font-medium">{new Date(selectedSession.startedAt).toLocaleString()}</span></div>
+  1235→                              <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">Last Activity</span><br /><span className="font-medium">{new Date(selectedSession.lastActivityAt).toLocaleString()}</span></div>
+  1236→                            </div>
+  1237→
+  1238→                            {/* Session Stats */}
+  1239→                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+  1240→                              <div className="p-2 rounded border border-border"><span className="text-muted-foreground">Duration</span><br /><span className="font-bold">{selectedSession.durationMinutes}m</span></div>
+  1241→                              <div className="p-2 rounded border border-border"><span className="text-muted-foreground">Total Bets</span><br /><span className="font-bold">{selectedSession.totalBets}</span></div>
+  1242→                              <div className="p-2 rounded border border-border"><span className="text-muted-foreground">Bet Range</span><br /><span className="font-bold">{selectedSession.betRange}</span></div>
+  1243→                              <div className="p-2 rounded border border-border"><span className="text-muted-foreground">Avg Bet</span><br /><span className="font-bold font-mono">{fmtDec(selectedSession.avgBetSize)}</span></div>
+  1244→                            </div>
+  1245→
+  1246→                            {/* RTP Analysis */}
+  1247→                            <div className="grid grid-cols-3 gap-2 text-xs">
+  1248→                              <div className="p-2 rounded border border-border"><span className="text-muted-foreground">Wagered</span><br /><span className="font-bold font-mono">{fmt(selectedSession.totalWagered)}</span></div>
+  1249→                              <div className="p-2 rounded border border-border"><span className="text-muted-foreground">Won</span><br /><span className="font-bold font-mono">{fmt(selectedSession.totalWon)}</span></div>
+  1250→                              <div className="p-2 rounded border border-border">
+  1251→                                <span className="text-muted-foreground">Net Result</span><br />
+  1252→                                <span className={`font-bold font-mono ${selectedSession.netResult >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+  1253→                                  {selectedSession.netResult >= 0 ? '+' : ''}{fmt(Math.abs(selectedSession.netResult))}
+  1254→                                </span>
+  1255→                              </div>
+  1256→                            </div>
+  1257→
+  1258→                            {/* Session RTP */}
+  1259→                            <div className="p-3 rounded-lg border border-primary/20 bg-primary/5">
+  1260→                              <div className="flex items-center justify-between">
+  1261→                                <span className="text-xs font-semibold">Session RTP</span>
+  1262→                                <span className={`text-lg font-bold font-mono ${scRtpColor(selectedSession.rtp)}`}>{selectedSession.rtp.toFixed(1)}%</span>
+  1263→                              </div>
+  1264→                            </div>
+  1265→
+  1266→                            {/* Bets Table */}
+  1267→                            {sessionBets.length > 0 && (
+  1268→                              <div>
+  1269→                                <h4 className="text-xs font-semibold mb-2">Bet History ({sessionBets.length})</h4>
+  1270→                                <div className="overflow-x-auto">
+  1271→                                  <Table>
+  1272→                                    <TableHeader>
+  1273→                                      <TableRow>
+  1274→                                        <TableHead className="text-[10px]">Round</TableHead>
+  1275→                                        <TableHead className="text-[10px] text-right">Bet</TableHead>
+  1276→                                        <TableHead className="text-[10px] text-right">Win</TableHead>
+  1277→                                        <TableHead className="text-[10px] text-right">Net</TableHead>
+  1278→                                        <TableHead className="text-[10px] text-right hidden sm:table-cell">Mult</TableHead>
+  1279→                                        <TableHead className="text-[10px] hidden sm:table-cell">Flags</TableHead>
+  1280→                                        <TableHead className="text-[10px] hidden md:table-cell">Time</TableHead>
+  1281→                                      </TableRow>
+  1282→                                    </TableHeader>
+  1283→                                    <TableBody>
+  1284→                                      {sessionBets.map(bet => (
+  1285→                                        <TableRow key={bet.id}>
+  1286→                                          <TableCell className="text-[10px] font-mono">{bet.roundId}</TableCell>
+  1287→                                          <TableCell className="text-[10px] text-right font-mono">{fmtDec(bet.betAmount)}</TableCell>
+  1288→                                          <TableCell className="text-[10px] text-right font-mono">{fmtDec(bet.winAmount)}</TableCell>
+  1289→                                          <TableCell className={`text-[10px] text-right font-mono font-medium ${bet.netResult >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+  1290→                                            {bet.netResult >= 0 ? '+' : ''}{fmtDec(Math.abs(bet.netResult))}
+  1291→                                          </TableCell>
+  1292→                                          <TableCell className="text-[10px] text-right font-mono hidden sm:table-cell">{bet.multiplier > 0 ? `${bet.multiplier}x` : '-'}</TableCell>
+  1293→                                          <TableCell className="hidden sm:table-cell">
+  1294→                                            <div className="flex gap-1">
+  1295→                                              {bet.isFreeSpin && <Badge className="text-[8px] h-3.5 px-1 bg-purple-500/20 text-purple-400 border-purple-500/30">FS</Badge>}
+  1296→                                              {bet.isBonus && <Badge className="text-[8px] h-3.5 px-1 bg-amber-500/20 text-amber-400 border-amber-500/30">Bonus</Badge>}
+  1297→                                            </div>
+  1298→                                          </TableCell>
+  1299→                                          <TableCell className="text-[10px] text-muted-foreground hidden md:table-cell">{new Date(bet.createdAt).toLocaleTimeString()}</TableCell>
+  1300→                                        </TableRow>
+  1301→                                      ))}
+  1302→                                    </TableBody>
+  1303→                                  </Table>
+  1304→                                </div>
+  1305→                              </div>
+  1306→                            )}
+  1307→                          </div>
+  1308→                        </>
+  1309→                      )
+  1310→                    })()}
+  1311→                  </DialogContent>
+  1312→                </Dialog>
+  1313→              </>
+  1314→            )
+  1315→          })()}
+  1316→        </TabsContent>
+  1317→      </Tabs>
+  1318→    </div>
+  1319→  )
+  1320→}
+  1321→

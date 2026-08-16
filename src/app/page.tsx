@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useAppStore, type Section } from '@/lib/store'
 import { AppSidebar } from '@/components/app-sidebar'
 import { DashboardView } from '@/components/dashboard-view'
@@ -52,6 +53,7 @@ import {
   Brain,
 } from 'lucide-react'
 import { NotificationPanel } from '@/components/notification-panel'
+import { SettingsDialog } from '@/components/settings-dialog'
 
 const sectionMeta: Record<Section, { title: string; description: string; icon: React.ElementType }> = {
   dashboard: { title: 'Dashboard', description: 'Platform overview and KPIs', icon: LayoutDashboard },
@@ -105,6 +107,7 @@ export default function Home() {
   const { activeSection, activeRole } = useAppStore()
   const meta = sectionMeta[activeSection]
   const Icon = meta.icon
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   return (
     <SidebarProvider>
@@ -126,7 +129,7 @@ export default function Home() {
               {activeRole === 'super_admin' ? 'SUPER ADMIN' : activeRole.toUpperCase()}
             </Badge>
             <NotificationPanel />
-            <button className="p-2 sm:p-2.5 rounded-md hover:bg-muted transition-colors">
+            <button className="p-2 sm:p-2.5 rounded-md hover:bg-muted transition-colors" onClick={() => setSettingsOpen(true)}>
               <Settings className="size-4 text-muted-foreground" />
             </button>
           </div>
@@ -166,6 +169,7 @@ export default function Home() {
           </div>
         </footer>
       </SidebarInset>
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </SidebarProvider>
   )
 }

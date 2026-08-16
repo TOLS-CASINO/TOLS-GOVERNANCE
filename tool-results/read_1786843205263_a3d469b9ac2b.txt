@@ -1,0 +1,1089 @@
+     1→'use client'
+     2→
+     3→import { useState } from 'react'
+     4→import {
+     5→  Search,
+     6→  Filter,
+     7→  ChevronUp,
+     8→  ChevronDown,
+     9→  AlertCircle,
+    10→  ShieldCheck,
+    11→  MessageSquare,
+    12→  Clock,
+    13→  X,
+    14→  Crown,
+    15→  RefreshCw,
+    16→  LogIn,
+    17→  Play,
+    18→  DollarSign,
+    19→  Trophy,
+    20→  TrendingDown,
+    21→  ArrowDownToLine,
+    22→  ArrowUpFromLine,
+    23→  Gift,
+    24→  Shield,
+    25→  Monitor,
+    26→  Smartphone,
+    27→  Wallet,
+    28→  Activity,
+    29→  Gamepad2,
+    30→  Coins,
+    31→  CheckCircle2,
+    32→  XCircle,
+    33→  Users,
+    34→} from 'lucide-react'
+    35→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    36→import { Badge } from '@/components/ui/badge'
+    37→import { Button } from '@/components/ui/button'
+    38→import { Input } from '@/components/ui/input'
+    39→import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+    40→import {
+    41→  Table,
+    42→  TableBody,
+    43→  TableCell,
+    44→  TableHead,
+    45→  TableHeader,
+    46→  TableRow,
+    47→} from '@/components/ui/table'
+    48→import {
+    49→  Select,
+    50→  SelectContent,
+    51→  SelectItem,
+    52→  SelectTrigger,
+    53→  SelectValue,
+    54→} from '@/components/ui/select'
+    55→import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet'
+    56→import { Separator } from '@/components/ui/separator'
+    57→import { Progress } from '@/components/ui/progress'
+    58→import { Skeleton } from '@/components/ui/skeleton'
+    59→import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+    60→import { usePlayers } from '@/hooks/use-players'
+    61→import { useApi } from '@/hooks/use-api'
+    62→import { api } from '@/services/api'
+    63→
+    64→// ─── Helpers ───
+    65→
+    66→const fmt = (n: number) => `$${n.toLocaleString('en-US')}`
+    67→const fmtNum = (n: number) => n.toLocaleString('en-US')
+    68→
+    69→function truncateAddr(addr: string, start = 8, end = 6): string {
+    70→  if (!addr || addr.length <= start + end + 3) return addr
+    71→  return `${addr.slice(0, start)}...${addr.slice(-end)}`
+    72→}
+    73→
+    74→function formatTimeAgo(dateStr: string) {
+    75→  const diff = Date.now() - new Date(dateStr).getTime()
+    76→  const days = Math.floor(diff / 86400000)
+    77→  if (days > 30) return `${Math.floor(days / 30)}mo ago`
+    78→  if (days > 0) return `${days}d ago`
+    79→  const hours = Math.floor(diff / 3600000)
+    80→  if (hours > 0) return `${hours}h ago`
+    81→  const mins = Math.floor(diff / 60000)
+    82→  if (mins > 0) return `${mins}m ago`
+    83→  return 'just now'
+    84→}
+    85→
+    86→function formatShortDate(dateStr: string) {
+    87→  const d = new Date(dateStr)
+    88→  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    89→}
+    90→
+    91→// ─── Roster Types ───
+    92→
+    93→type VipLevel = 1 | 2 | 3 | 4 | 5
+    94→type PlayerStatus = 'active' | 'dormant' | 'suspended' | 'self_excluded'
+    95→
+    96→const statusColor: Record<string, string> = {
+    97→  active: 'text-emerald-400',
+    98→  dormant: 'text-yellow-400',
+    99→  suspended: 'text-destructive',
+   100→  self_excluded: 'text-muted-foreground',
+   101→  selfexcluded: 'text-muted-foreground',
+   102→}
+   103→
+   104→const vipStars = (level: number) => '★'.repeat(level)
+   105→
+   106→function mapVipLevel(vip: string): VipLevel {
+   107→  const lvl = parseInt(vip, 10)
+   108→  if (lvl >= 1 && lvl <= 5) return lvl as VipLevel
+   109→  const lower = vip.toLowerCase()
+   110→  if (lower.includes('elite') || lower.includes('platinum')) return 5
+   111→  if (lower.includes('gold') || lower.includes('vip')) return 4
+   112→  if (lower.includes('silver')) return 3
+   113→  if (lower.includes('bronze')) return 2
+   114→  return 1
+   115→}
+   116→
+   117→// ─── Action Icons & Colors ───
+   118→
+   119→const actionConfig: Record<string, { icon: React.ElementType; color: string }> = {
+   120→  login: { icon: LogIn, color: 'text-blue-400' },
+   121→  game_launch: { icon: Play, color: 'text-emerald-400' },
+   122→  bet_placed: { icon: DollarSign, color: 'text-primary' },
+   123→  win: { icon: Trophy, color: 'text-emerald-400' },
+   124→  loss: { icon: TrendingDown, color: 'text-red-400' },
+   125→  deposit: { icon: ArrowDownToLine, color: 'text-primary' },
+   126→  withdrawal_request: { icon: ArrowUpFromLine, color: 'text-yellow-400' },
+   127→  bonus_claim: { icon: Gift, color: 'text-primary' },
+   128→  game_switch: { icon: RefreshCw, color: 'text-gray-400' },
+   129→  jackpot_trigger: { icon: Crown, color: 'text-primary' },
+   130→  limit_increase_request: { icon: Shield, color: 'text-orange-400' },
+   131→}
+   132→
+   133→const categoryColors: Record<string, string> = {
+   134→  auth: 'bg-blue-500/20 text-blue-400',
+   135→  game: 'bg-emerald-500/20 text-emerald-400',
+   136→  wager: 'bg-primary/20 text-primary',
+   137→  payment: 'bg-yellow-500/20 text-yellow-400',
+   138→  promotion: 'bg-purple-500/20 text-purple-400',
+   139→  compliance: 'bg-orange-500/20 text-orange-400',
+   140→}
+   141→
+   142→const chainColors: Record<string, string> = {
+   143→  Bitcoin: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+   144→  Ethereum: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+   145→  Tron: 'bg-red-500/20 text-red-400 border-red-500/30',
+   146→  SEPA: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+   147→}
+   148→
+   149→// ─── Risk Score Color ───
+   150→
+   151→function riskScoreColor(score: number): string {
+   152→  if (score < 20) return 'text-emerald-400'
+   153→  if (score <= 50) return 'text-yellow-400'
+   154→  return 'text-red-400'
+   155→}
+   156→
+   157→function riskScoreBg(score: number): string {
+   158→  if (score < 20) return 'bg-emerald-500/20 text-emerald-400'
+   159→  if (score <= 50) return 'bg-yellow-500/20 text-yellow-400'
+   160→  return 'bg-red-500/20 text-red-400'
+   161→}
+   162→
+   163→// ─── RTP Color ───
+   164→
+   165→function rtpColor(rtp: number): string {
+   166→  if (rtp > 100) return 'text-blue-400'
+   167→  if (rtp > 95) return 'text-emerald-400'
+   168→  if (rtp >= 85) return 'text-yellow-400'
+   169→  return 'text-red-400'
+   170→}
+   171→
+   172→// ─── Deposit Status Badge ───
+   173→
+   174→function depositStatusBadge(status: string) {
+   175→  if (status === 'confirmed') return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[9px] h-4">{status}</Badge>
+   176→  if (status === 'pending') return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-[9px] h-4">{status}</Badge>
+   177→  return <Badge variant="destructive" className="text-[9px] h-4">{status}</Badge>
+   178→}
+   179→
+   180→// ─── Session Status Badge ───
+   181→
+   182→function sessionStatusBadge(status: string) {
+   183→  if (status === 'active') return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-[9px] h-4">{status}</Badge>
+   184→  if (status === 'idle') return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 text-[9px] h-4">{status}</Badge>
+   185→  return <Badge variant="secondary" className="text-[9px] h-4">{status}</Badge>
+   186→}
+   187→
+   188→// ─── Net Result ───
+   189→
+   190→function netResultCell(value: number, prefix = false) {
+   191→  if (value > 0) return <span className="text-emerald-400 text-xs font-mono">{prefix ? '+' : ''}{fmtNum(value)}</span>
+   192→  if (value < 0) return <span className="text-red-400 text-xs font-mono">{fmtNum(value)}</span>
+   193→  return <span className="text-xs font-mono text-muted-foreground">$0</span>
+   194→}
+   195→
+   196→// ─── Main Component ───
+   197→
+   198→export function PlayersView() {
+   199→  const { data: playersData, loading: playersLoading, error: playersError, refetch: playersRefetch } = usePlayers()
+   200→  const { data: trackingData, loading: trackingLoading, error: trackingError, refetch: trackingRefetch } = useApi(() => api.playerTracking.get())
+   201→
+   202→  const deposits = trackingData?.deposits ?? []
+   203→  const actions = trackingData?.actions ?? []
+   204→  const sessions = trackingData?.sessions ?? []
+   205→  const bets = trackingData?.bets ?? []
+   206→  const walletTracker = trackingData?.walletTracker ?? []
+   207→
+   208→  // ─── Roster State ───
+   209→  const [search, setSearch] = useState('')
+   210→  const [vipFilter, setVipFilter] = useState('all')
+   211→  const [statusFilter, setStatusFilter] = useState('all')
+   212→  const [segmentFilter, setSegmentFilter] = useState('all')
+   213→  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null)
+   214→  const [sortKey, setSortKey] = useState<'ltv' | 'churnRisk' | 'totalDeposits'>('ltv')
+   215→  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
+   216→
+   217→  // ─── Deposits State ───
+   218→  const [depSearch, setDepSearch] = useState('')
+   219→  const [depMethod, setDepMethod] = useState('all')
+   220→  const [depStatus, setDepStatus] = useState('all')
+   221→  const [depRisk, setDepRisk] = useState('all')
+   222→
+   223→  // ─── Actions State ───
+   224→  const [actSearch, setActSearch] = useState('')
+   225→  const [actCategory, setActCategory] = useState('all')
+   226→  const [actType, setActType] = useState('all')
+   227→
+   228→  // ─── Sessions State ───
+   229→  const [sesStatus, setSesStatus] = useState('all')
+   230→  const [sesGameType, setSesGameType] = useState('all')
+   231→  const [sesDevice, setSesDevice] = useState('all')
+   232→
+   233→  // ─── Bets State ───
+   234→  const [betSearch, setBetSearch] = useState('')
+   235→  const [betGame, setBetGame] = useState('all')
+   236→  const [betPlayer, setBetPlayer] = useState('all')
+   237→  const [betType, setBetType] = useState('all')
+   238→
+   239→  // ─── Wallet State ───
+   240→  const [wtSearch, setWtSearch] = useState('')
+   241→  const [wtType, setWtType] = useState('all')
+   242→  const [wtChain, setWtChain] = useState('all')
+   243→  const [wtVerified, setWtVerified] = useState('all')
+   244→
+   245→  // ─── Roster Logic ───
+   246→  const players = (playersData || []).map((p) => ({
+   247→    id: p.id,
+   248→    username: p.username,
+   249→    email: p.email || `${p.username.toLowerCase()}@email.com`,
+   250→    vipLevel: mapVipLevel(p.vipLevel),
+   251→    ltv: Math.round(p.lifetimeValue),
+   252→    churnRisk: Math.round(p.churnRisk),
+   253→    status: (p.status === 'self_excluded' ? 'self_excluded' : p.status) as PlayerStatus,
+   254→    segment: p.segments?.[0]?.segment?.name || 'Unassigned',
+   255→    totalDeposits: Math.round(p.totalDeposits),
+   256→    totalWagers: Math.round(p.totalWagers),
+   257→    lastActive: p.lastActivityAt ? formatTimeAgo(p.lastActivityAt) : 'N/A',
+   258→    country: p.country || 'US',
+   259→    notes: p.notes?.map((n) => n.content) || [],
+   260→    deposits: p.deposits || [],
+   261→  }))
+   262→
+   263→  const uniqueSegments = [...new Set(players.map((p) => p.segment))].sort()
+   264→  const selectedPlayer = players.find((p) => p.id === selectedPlayerId) || null
+   265→
+   266→  const filtered = players
+   267→    .filter((p) => {
+   268→      if (search && !p.username.toLowerCase().includes(search.toLowerCase())) return false
+   269→      if (vipFilter !== 'all' && p.vipLevel !== Number(vipFilter)) return false
+   270→      if (statusFilter !== 'all' && p.status !== statusFilter) return false
+   271→      if (segmentFilter !== 'all' && p.segment !== segmentFilter) return false
+   272→      return true
+   273→    })
+   274→    .sort((a, b) => {
+   275→      const diff = a[sortKey] - b[sortKey]
+   276→      return sortDir === 'desc' ? -diff : diff
+   277→    })
+   278→
+   279→  const toggleSort = (key: 'ltv' | 'churnRisk' | 'totalDeposits') => {
+   280→    if (sortKey === key) setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'))
+   281→    else { setSortKey(key); setSortDir('desc') }
+   282→  }
+   283→
+   284→  // ─── Deposits Filtered ───
+   285→  const filteredDeposits = deposits.filter((d: any) => {
+   286→    if (depSearch) {
+   287→      const q = depSearch.toLowerCase()
+   288→      if (!d.playerUsername.toLowerCase().includes(q) && !d.walletAddress.toLowerCase().includes(q)) return false
+   289→    }
+   290→    if (depMethod !== 'all' && d.method !== depMethod) return false
+   291→    if (depStatus !== 'all' && d.status !== depStatus) return false
+   292→    if (depRisk !== 'all') {
+   293→      if (depRisk === 'low' && d.riskScore >= 20) return false
+   294→      if (depRisk === 'medium' && (d.riskScore < 20 || d.riskScore > 50)) return false
+   295→      if (depRisk === 'high' && d.riskScore <= 50) return false
+   296→    }
+   297→    return true
+   298→  })
+   299→
+   300→  // ─── Actions Filtered ───
+   301→  const filteredActions = actions.filter((a: any) => {
+   302→    if (actSearch) {
+   303→      const q = actSearch.toLowerCase()
+   304→      if (!a.playerUsername.toLowerCase().includes(q) && !a.ip.toLowerCase().includes(q)) return false
+   305→    }
+   306→    if (actCategory !== 'all' && a.category !== actCategory) return false
+   307→    if (actType !== 'all' && a.action !== actType) return false
+   308→    return true
+   309→  })
+   310→
+   311→  // ─── Sessions Filtered ───
+   312→  const filteredSessions = sessions.filter((s: any) => {
+   313→    if (sesStatus !== 'all' && s.status !== sesStatus) return false
+   314→    if (sesGameType !== 'all' && s.gameType !== sesGameType) return false
+   315→    if (sesDevice !== 'all' && s.device !== sesDevice) return false
+   316→    return true
+   317→  })
+   318→
+   319→  // ─── Bets Filtered ───
+   320→  const uniqueBetGames = [...new Set(bets.map((b: any) => b.gameName))].sort()
+   321→  const uniqueBetPlayers = [...new Set(bets.map((b: any) => b.playerUsername))].sort()
+   322→
+   323→  const filteredBets = bets.filter((b: any) => {
+   324→    if (betSearch) {
+   325→      const q = betSearch.toLowerCase()
+   326→      if (!b.playerUsername.toLowerCase().includes(q) && !b.roundId.toLowerCase().includes(q)) return false
+   327→    }
+   328→    if (betGame !== 'all' && b.gameName !== betGame) return false
+   329→    if (betPlayer !== 'all' && b.playerUsername !== betPlayer) return false
+   330→    if (betType !== 'all') {
+   331→      if (betType === 'normal' && (b.isFreeSpin || b.isBonus)) return false
+   332→      if (betType === 'free_spin' && !b.isFreeSpin) return false
+   333→      if (betType === 'bonus' && !b.isBonus) return false
+   334→    }
+   335→    return true
+   336→  })
+   337→
+   338→  // ─── Wallets Filtered ───
+   339→  const filteredWallets = walletTracker.filter((w: any) => {
+   340→    if (wtSearch) {
+   341→      const q = wtSearch.toLowerCase()
+   342→      if (!w.playerUsername.toLowerCase().includes(q) && !w.address.toLowerCase().includes(q)) return false
+   343→    }
+   344→    if (wtType !== 'all' && w.walletType !== wtType) return false
+   345→    if (wtChain !== 'all' && w.chain !== wtChain) return false
+   346→    if (wtVerified !== 'all') {
+   347→      if (wtVerified === 'true' && !w.verified) return false
+   348→      if (wtVerified === 'false' && w.verified) return false
+   349→    }
+   350→    return true
+   351→  })
+   352→
+   353→  // ─── Unique Action Types ───
+   354→  const uniqueActionTypes = [...new Set(actions.map((a: any) => a.action))].sort()
+   355→
+   356→  // ─── Loading ───
+   357→  if (playersLoading || trackingLoading) {
+   358→    return (
+   359→      <div className="space-y-4">
+   360→        <Skeleton className="h-10 w-full" />
+   361→        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+   362→          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}
+   363→        </div>
+   364→        <Skeleton className="h-64 w-full" />
+   365→      </div>
+   366→    )
+   367→  }
+   368→
+   369→  // ─── Error ───
+   370→  if (playersError || trackingError) {
+   371→    return (
+   372→      <Card className="border-destructive/40">
+   373→        <CardContent className="p-6 text-center">
+   374→          <AlertCircle className="size-8 text-destructive mx-auto mb-2" />
+   375→          <p className="text-sm font-medium text-destructive">Failed to load player data</p>
+   376→          <p className="text-xs text-muted-foreground mt-1">{playersError || trackingError}</p>
+   377→          <Button variant="outline" size="sm" className="mt-3 gap-1" onClick={() => { playersRefetch(); trackingRefetch() }}>
+   378→            <RefreshCw className="size-3" /> Retry
+   379→          </Button>
+   380→        </CardContent>
+   381→      </Card>
+   382→    )
+   383→  }
+   384→
+   385→  return (
+   386→    <div className="space-y-4">
+   387→      <Tabs defaultValue="roster" className="w-full">
+   388→        <TabsList className="grid grid-cols-3 sm:grid-cols-6 w-full">
+   389→          <TabsTrigger value="roster" className="gap-1"><Users className="size-3.5" /> <span className="hidden sm:inline">Roster</span><span className="sm:hidden">Roster</span></TabsTrigger>
+   390→          <TabsTrigger value="deposits" className="gap-1"><ArrowDownToLine className="size-3.5" /> <span className="hidden sm:inline">Deposits</span><span className="sm:hidden">Deposits</span></TabsTrigger>
+   391→          <TabsTrigger value="activity" className="gap-1"><Activity className="size-3.5" /> <span className="hidden sm:inline">Activity</span><span className="sm:hidden">Activity</span></TabsTrigger>
+   392→          <TabsTrigger value="sessions" className="gap-1"><Gamepad2 className="size-3.5" /> <span className="hidden sm:inline">Sessions</span><span className="sm:hidden">Sessions</span></TabsTrigger>
+   393→          <TabsTrigger value="bets" className="gap-1"><Coins className="size-3.5" /> <span className="hidden sm:inline">Bets</span><span className="sm:hidden">Bets</span></TabsTrigger>
+   394→          <TabsTrigger value="wallets" className="gap-1"><Wallet className="size-3.5" /> <span className="hidden sm:inline">Wallets</span><span className="sm:hidden">Wallets</span></TabsTrigger>
+   395→        </TabsList>
+   396→
+   397→        {/* ═══════════ TAB 1: ROSTER ═══════════ */}
+   398→        <TabsContent value="roster" className="space-y-4">
+   399→          <Card>
+   400→            <CardContent className="p-4">
+   401→              <div className="flex flex-col sm:flex-row gap-2">
+   402→                <div className="relative flex-1">
+   403→                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   404→                  <Input
+   405→                    placeholder="Search players..."
+   406→                    value={search}
+   407→                    onChange={(e) => setSearch(e.target.value)}
+   408→                    className="pl-9 h-9 text-xs"
+   409→                  />
+   410→                </div>
+   411→                <Select value={vipFilter} onValueChange={setVipFilter}>
+   412→                  <SelectTrigger className="w-full sm:w-[110px] h-9 text-xs"><SelectValue placeholder="VIP Level" /></SelectTrigger>
+   413→                  <SelectContent>
+   414→                    <SelectItem value="all">All VIP</SelectItem>
+   415→                    {[1, 2, 3, 4, 5].map((v) => (
+   416→                      <SelectItem key={v} value={String(v)}>VIP {v}</SelectItem>
+   417→                    ))}
+   418→                  </SelectContent>
+   419→                </Select>
+   420→                <Select value={statusFilter} onValueChange={setStatusFilter}>
+   421→                  <SelectTrigger className="w-full sm:w-[120px] h-9 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+   422→                  <SelectContent>
+   423→                    <SelectItem value="all">All Status</SelectItem>
+   424→                    <SelectItem value="active">Active</SelectItem>
+   425→                    <SelectItem value="dormant">Dormant</SelectItem>
+   426→                    <SelectItem value="suspended">Suspended</SelectItem>
+   427→                    <SelectItem value="self_excluded">Self-Excluded</SelectItem>
+   428→                  </SelectContent>
+   429→                </Select>
+   430→                <Select value={segmentFilter} onValueChange={setSegmentFilter}>
+   431→                  <SelectTrigger className="w-full sm:w-[130px] h-9 text-xs"><SelectValue placeholder="Segment" /></SelectTrigger>
+   432→                  <SelectContent>
+   433→                    <SelectItem value="all">All Segments</SelectItem>
+   434→                    {uniqueSegments.map((s) => (
+   435→                      <SelectItem key={s} value={s}>{s}</SelectItem>
+   436→                    ))}
+   437→                  </SelectContent>
+   438→                </Select>
+   439→              </div>
+   440→            </CardContent>
+   441→          </Card>
+   442→
+   443→          <Card>
+   444→            <CardHeader className="pb-2">
+   445→              <div className="flex items-center justify-between">
+   446→                <CardTitle className="text-sm">Player Roster</CardTitle>
+   447→                <Badge variant="secondary" className="text-[10px]">{filtered.length} players</Badge>
+   448→              </div>
+   449→            </CardHeader>
+   450→            <CardContent>
+   451→              <div className="overflow-x-auto">
+   452→                <Table>
+   453→                  <TableHeader>
+   454→                    <TableRow>
+   455→                      <TableHead className="text-xs">Player</TableHead>
+   456→                      <TableHead className="text-xs">VIP</TableHead>
+   457→                      <TableHead className="text-xs cursor-pointer" onClick={() => toggleSort('ltv')}>
+   458→                        <span className="flex items-center gap-1">LTV {sortKey === 'ltv' && (sortDir === 'desc' ? <ChevronDown className="size-3" /> : <ChevronUp className="size-3" />)}</span>
+   459→                      </TableHead>
+   460→                      <TableHead className="text-xs cursor-pointer" onClick={() => toggleSort('churnRisk')}>
+   461→                        <span className="flex items-center gap-1">Churn {sortKey === 'churnRisk' && (sortDir === 'desc' ? <ChevronDown className="size-3" /> : <ChevronUp className="size-3" />)}</span>
+   462→                      </TableHead>
+   463→                      <TableHead className="text-xs hidden sm:table-cell">Segment</TableHead>
+   464→                      <TableHead className="text-xs">Status</TableHead>
+   465→                      <TableHead className="text-xs hidden sm:table-cell">Last Active</TableHead>
+   466→                    </TableRow>
+   467→                  </TableHeader>
+   468→                  <TableBody>
+   469→                    {filtered.map((player) => (
+   470→                      <TableRow
+   471→                        key={player.id}
+   472→                        className="cursor-pointer hover:bg-muted/80"
+   473→                        onClick={() => setSelectedPlayerId(player.id)}
+   474→                      >
+   475→                        <TableCell>
+   476→                          <div className="flex items-center gap-2">
+   477→                            <Avatar className="size-7">
+   478→                              <AvatarFallback className="text-[9px] bg-primary/20 text-primary">
+   479→                                {player.username.slice(0, 2).toUpperCase()}
+   480→                              </AvatarFallback>
+   481→                            </Avatar>
+   482→                            <div>
+   483→                              <p className="text-xs font-medium">{player.username}</p>
+   484→                              <p className="text-[10px] text-muted-foreground">{player.country}</p>
+   485→                            </div>
+   486→                          </div>
+   487→                        </TableCell>
+   488→                        <TableCell>
+   489→                          <span className="text-[10px] text-primary" title={`VIP ${player.vipLevel}`}>
+   490→                            {vipStars(player.vipLevel)}
+   491→                          </span>
+   492→                        </TableCell>
+   493→                        <TableCell className="text-xs font-mono">{fmt(player.ltv)}</TableCell>
+   494→                        <TableCell>
+   495→                          <div className="flex items-center gap-1">
+   496→                            <div className="w-12 bg-muted rounded-full h-1.5">
+   497→                              <div
+   498→                                className={`h-full rounded-full ${player.churnRisk > 60 ? 'bg-destructive' : player.churnRisk > 30 ? 'bg-yellow-400' : 'bg-emerald-400'}`}
+   499→                                style={{ width: `${player.churnRisk}%` }}
+   500→                              />
+   501→                            </div>
+   502→                            <span className="text-[10px] text-muted-foreground">{player.churnRisk}%</span>
+   503→                          </div>
+   504→                        </TableCell>
+   505→                        <TableCell className="hidden sm:table-cell"><Badge variant="outline" className="text-[9px] h-4">{player.segment}</Badge></TableCell>
+   506→                        <TableCell>
+   507→                          <span className={`text-[10px] font-medium ${statusColor[player.status] || 'text-muted-foreground'}`}>
+   508→                            {player.status.replace('_', ' ')}
+   509→                          </span>
+   510→                        </TableCell>
+   511→                        <TableCell className="text-xs text-muted-foreground hidden sm:table-cell">{player.lastActive}</TableCell>
+   512→                      </TableRow>
+   513→                    ))}
+   514→                  </TableBody>
+   515→                </Table>
+   516→              </div>
+   517→            </CardContent>
+   518→          </Card>
+   519→
+   520→          {/* Player Detail Sheet */}
+   521→          <Sheet open={!!selectedPlayer} onOpenChange={(open) => { if (!open) setSelectedPlayerId(null) }}>
+   522→            <SheetContent className="w-full sm:max-w-md overflow-y-auto">
+   523→              {selectedPlayer && (
+   524→                <>
+   525→                  <SheetHeader>
+   526→                    <SheetTitle className="flex items-center gap-2">
+   527→                      <Avatar className="size-8">
+   528→                        <AvatarFallback className="text-xs bg-primary/20 text-primary">
+   529→                          {selectedPlayer.username.slice(0, 2).toUpperCase()}
+   530→                        </AvatarFallback>
+   531→                      </Avatar>
+   532→                      {selectedPlayer.username}
+   533→                      <Badge variant="secondary" className="text-[9px]">VIP {selectedPlayer.vipLevel}</Badge>
+   534→                    </SheetTitle>
+   535→                    <SheetDescription>{selectedPlayer.email}</SheetDescription>
+   536→                  </SheetHeader>
+   537→
+   538→                  <div className="space-y-4 mt-4">
+   539→                    <div className="space-y-2">
+   540→                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Profile</h4>
+   541→                      <div className="grid grid-cols-2 gap-2 text-xs">
+   542→                        <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">LTV</span><br /><span className="font-bold">{fmt(selectedPlayer.ltv)}</span></div>
+   543→                        <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">Deposits</span><br /><span className="font-bold">{fmt(selectedPlayer.totalDeposits)}</span></div>
+   544→                        <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">Wagers</span><br /><span className="font-bold">{fmt(selectedPlayer.totalWagers)}</span></div>
+   545→                        <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">Country</span><br /><span className="font-bold">{selectedPlayer.country}</span></div>
+   546→                      </div>
+   547→                    </div>
+   548→                    <Separator />
+   549→                    <div className="space-y-2">
+   550→                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+   551→                        <Clock className="size-3" /> Recent Deposits
+   552→                      </h4>
+   553→                      {selectedPlayer.deposits.length > 0 ? (
+   554→                        selectedPlayer.deposits.slice(0, 5).map((d) => (
+   555→                          <div key={d.id} className="flex items-center gap-2 text-xs p-1.5 rounded bg-muted/30">
+   556→                            <Badge variant="outline" className="text-[9px] h-4">{d.method}</Badge>
+   557→                            <span className="font-mono ml-auto">{fmt(d.amount)}</span>
+   558→                            <Badge variant={d.status === 'confirmed' ? 'default' : 'secondary'} className="text-[9px] h-4 px-1">{d.status}</Badge>
+   559→                          </div>
+   560→                        ))
+   561→                      ) : (
+   562→                        <p className="text-xs text-muted-foreground">No recent deposits</p>
+   563→                      )}
+   564→                    </div>
+   565→                    <Separator />
+   566→                    <div className="space-y-2">
+   567→                      <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+   568→                        <Filter className="size-3" /> Segment
+   569→                      </h4>
+   570→                      <Badge variant="secondary">{selectedPlayer.segment}</Badge>
+   571→                    </div>
+   572→                    <Separator />
+   573→                    {selectedPlayer.notes.length > 0 && (
+   574→                      <div className="space-y-2">
+   575→                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+   576→                          <MessageSquare className="size-3" /> Notes
+   577→                        </h4>
+   578→                        {selectedPlayer.notes.map((note, i) => (
+   579→                          <p key={i} className="text-xs p-2 rounded bg-muted/50">{note}</p>
+   580→                        ))}
+   581→                      </div>
+   582→                    )}
+   583→                  </div>
+   584→                </>
+   585→              )}
+   586→            </SheetContent>
+   587→          </Sheet>
+   588→        </TabsContent>
+   589→
+   590→        {/* ═══════════ TAB 2: DEPOSITS ═══════════ */}
+   591→        <TabsContent value="deposits" className="space-y-4">
+   592→          <Card>
+   593→            <CardContent className="p-4">
+   594→              <div className="flex flex-col sm:flex-row gap-2">
+   595→                <div className="relative flex-1">
+   596→                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   597→                  <Input
+   598→                    placeholder="Search player or wallet..."
+   599→                    value={depSearch}
+   600→                    onChange={(e) => setDepSearch(e.target.value)}
+   601→                    className="pl-9 h-9 text-xs"
+   602→                  />
+   603→                </div>
+   604→                <Select value={depMethod} onValueChange={setDepMethod}>
+   605→                  <SelectTrigger className="w-full sm:w-[140px] h-9 text-xs"><SelectValue placeholder="Method" /></SelectTrigger>
+   606→                  <SelectContent>
+   607→                    <SelectItem value="all">All Methods</SelectItem>
+   608→                    <SelectItem value="crypto_btc">Crypto BTC</SelectItem>
+   609→                    <SelectItem value="crypto_eth">Crypto ETH</SelectItem>
+   610→                    <SelectItem value="crypto_usdt">Crypto USDT</SelectItem>
+   611→                    <SelectItem value="credit_card">Credit Card</SelectItem>
+   612→                    <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+   613→                  </SelectContent>
+   614→                </Select>
+   615→                <Select value={depStatus} onValueChange={setDepStatus}>
+   616→                  <SelectTrigger className="w-full sm:w-[120px] h-9 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+   617→                  <SelectContent>
+   618→                    <SelectItem value="all">All Status</SelectItem>
+   619→                    <SelectItem value="confirmed">Confirmed</SelectItem>
+   620→                    <SelectItem value="pending">Pending</SelectItem>
+   621→                    <SelectItem value="failed">Failed</SelectItem>
+   622→                  </SelectContent>
+   623→                </Select>
+   624→                <Select value={depRisk} onValueChange={setDepRisk}>
+   625→                  <SelectTrigger className="w-full sm:w-[120px] h-9 text-xs"><SelectValue placeholder="Risk" /></SelectTrigger>
+   626→                  <SelectContent>
+   627→                    <SelectItem value="all">All Risk</SelectItem>
+   628→                    <SelectItem value="low">Low (&lt;20)</SelectItem>
+   629→                    <SelectItem value="medium">Medium (20-50)</SelectItem>
+   630→                    <SelectItem value="high">High (&gt;50)</SelectItem>
+   631→                  </SelectContent>
+   632→                </Select>
+   633→              </div>
+   634→            </CardContent>
+   635→          </Card>
+   636→
+   637→          <Card>
+   638→            <CardHeader className="pb-2">
+   639→              <div className="flex items-center justify-between">
+   640→                <CardTitle className="text-sm flex items-center gap-1.5"><ArrowDownToLine className="size-4" /> Deposits</CardTitle>
+   641→                <Badge variant="secondary" className="text-[10px]">{filteredDeposits.length} records</Badge>
+   642→              </div>
+   643→            </CardHeader>
+   644→            <CardContent>
+   645→              <div className="overflow-x-auto">
+   646→                <Table>
+   647→                  <TableHeader>
+   648→                    <TableRow>
+   649→                      <TableHead className="text-xs">Player</TableHead>
+   650→                      <TableHead className="text-xs">Amount</TableHead>
+   651→                      <TableHead className="text-xs hidden sm:table-cell">Currency</TableHead>
+   652→                      <TableHead className="text-xs hidden sm:table-cell">Method</TableHead>
+   653→                      <TableHead className="text-xs">Wallet</TableHead>
+   654→                      <TableHead className="text-xs hidden sm:table-cell">TX Hash</TableHead>
+   655→                      <TableHead className="text-xs">Status</TableHead>
+   656→                      <TableHead className="text-xs">Risk</TableHead>
+   657→                      <TableHead className="text-xs hidden sm:table-cell">KYC</TableHead>
+   658→                      <TableHead className="text-xs">Time</TableHead>
+   659→                    </TableRow>
+   660→                  </TableHeader>
+   661→                  <TableBody>
+   662→                    {filteredDeposits.map((d: any) => (
+   663→                      <TableRow key={d.id}>
+   664→                        <TableCell className="text-xs font-medium">{d.playerUsername}</TableCell>
+   665→                        <TableCell className="text-xs font-mono">{fmt(d.amount)}</TableCell>
+   666→                        <TableCell className="text-xs hidden sm:table-cell"><Badge variant="outline" className="text-[9px] h-4">{d.currency}</Badge></TableCell>
+   667→                        <TableCell className="text-xs hidden sm:table-cell"><Badge variant="outline" className="text-[9px] h-4">{d.method.replace('crypto_', '').replace('_', ' ').toUpperCase()}</Badge></TableCell>
+   668→                        <TableCell className="text-xs font-mono truncate max-w-[120px] sm:max-w-[200px]" title={d.walletAddress}>{truncateAddr(d.walletAddress)}</TableCell>
+   669→                        <TableCell className="text-xs font-mono truncate max-w-[120px] sm:max-w-[200px] hidden sm:table-cell" title={d.txHash}>{truncateAddr(d.txHash, 10, 4)}</TableCell>
+   670→                        <TableCell>{depositStatusBadge(d.status)}</TableCell>
+   671→                        <TableCell><span className={`text-xs font-mono ${riskScoreColor(d.riskScore)}`}>{d.riskScore}</span></TableCell>
+   672→                        <TableCell className="hidden sm:table-cell"><Badge variant="outline" className="text-[9px] h-4">{d.kycLevel}</Badge></TableCell>
+   673→                        <TableCell className="text-xs text-muted-foreground">{formatTimeAgo(d.createdAt)}</TableCell>
+   674→                      </TableRow>
+   675→                    ))}
+   676→                  </TableBody>
+   677→                </Table>
+   678→              </div>
+   679→            </CardContent>
+   680→          </Card>
+   681→        </TabsContent>
+   682→
+   683→        {/* ═══════════ TAB 3: ACTIVITY LOG ═══════════ */}
+   684→        <TabsContent value="activity" className="space-y-4">
+   685→          <Card>
+   686→            <CardContent className="p-4">
+   687→              <div className="flex flex-col sm:flex-row gap-2">
+   688→                <div className="relative flex-1">
+   689→                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   690→                  <Input
+   691→                    placeholder="Search player or IP..."
+   692→                    value={actSearch}
+   693→                    onChange={(e) => setActSearch(e.target.value)}
+   694→                    className="pl-9 h-9 text-xs"
+   695→                  />
+   696→                </div>
+   697→                <Select value={actCategory} onValueChange={setActCategory}>
+   698→                  <SelectTrigger className="w-full sm:w-[130px] h-9 text-xs"><SelectValue placeholder="Category" /></SelectTrigger>
+   699→                  <SelectContent>
+   700→                    <SelectItem value="all">All Categories</SelectItem>
+   701→                    <SelectItem value="auth">Auth</SelectItem>
+   702→                    <SelectItem value="game">Game</SelectItem>
+   703→                    <SelectItem value="wager">Wager</SelectItem>
+   704→                    <SelectItem value="payment">Payment</SelectItem>
+   705→                    <SelectItem value="promotion">Promotion</SelectItem>
+   706→                    <SelectItem value="compliance">Compliance</SelectItem>
+   707→                  </SelectContent>
+   708→                </Select>
+   709→                <Select value={actType} onValueChange={setActType}>
+   710→                  <SelectTrigger className="w-full sm:w-[160px] h-9 text-xs"><SelectValue placeholder="Action Type" /></SelectTrigger>
+   711→                  <SelectContent>
+   712→                    <SelectItem value="all">All Actions</SelectItem>
+   713→                    {uniqueActionTypes.map((t: string) => (
+   714→                      <SelectItem key={t} value={t}>{t.replace(/_/g, ' ')}</SelectItem>
+   715→                    ))}
+   716→                  </SelectContent>
+   717→                </Select>
+   718→              </div>
+   719→            </CardContent>
+   720→          </Card>
+   721→
+   722→          <Card>
+   723→            <CardHeader className="pb-2">
+   724→              <div className="flex items-center justify-between">
+   725→                <CardTitle className="text-sm flex items-center gap-1.5"><Activity className="size-4" /> Activity Log</CardTitle>
+   726→                <Badge variant="secondary" className="text-[10px]">{filteredActions.length} events</Badge>
+   727→              </div>
+   728→            </CardHeader>
+   729→            <CardContent>
+   730→              <div className="overflow-x-auto">
+   731→                <Table>
+   732→                  <TableHeader>
+   733→                    <TableRow>
+   734→                      <TableHead className="text-xs">Time</TableHead>
+   735→                      <TableHead className="text-xs">Player</TableHead>
+   736→                      <TableHead className="text-xs">Action</TableHead>
+   737→                      <TableHead className="text-xs hidden sm:table-cell">Category</TableHead>
+   738→                      <TableHead className="text-xs">Details</TableHead>
+   739→                      <TableHead className="text-xs hidden sm:table-cell">IP</TableHead>
+   740→                      <TableHead className="text-xs hidden lg:table-cell">Country</TableHead>
+   741→                      <TableHead className="text-xs hidden lg:table-cell">Session</TableHead>
+   742→                    </TableRow>
+   743→                  </TableHeader>
+   744→                  <TableBody>
+   745→                    {filteredActions.map((a: any) => {
+   746→                      const cfg = actionConfig[a.action] || { icon: Activity, color: 'text-muted-foreground' }
+   747→                      const Icon = cfg.icon
+   748→                      return (
+   749→                        <TableRow key={a.id}>
+   750→                          <TableCell className="text-[10px] text-muted-foreground whitespace-nowrap">{formatTimeAgo(a.createdAt)}</TableCell>
+   751→                          <TableCell className="text-xs font-medium">{a.playerUsername}</TableCell>
+   752→                          <TableCell>
+   753→                            <div className="flex items-center gap-1.5">
+   754→                              <Icon className={`size-3.5 ${cfg.color}`} />
+   755→                              <span className="text-xs">{a.action.replace(/_/g, ' ')}</span>
+   756→                            </div>
+   757→                          </TableCell>
+   758→                          <TableCell className="hidden sm:table-cell">
+   759→                            <Badge className={`text-[9px] h-4 ${categoryColors[a.category] || 'bg-muted text-muted-foreground'}`}>{a.category}</Badge>
+   760→                          </TableCell>
+   761→                          <TableCell className="text-xs text-muted-foreground truncate max-w-[120px] sm:max-w-[200px] lg:max-w-[300px]" title={a.details}>{a.details}</TableCell>
+   762→                          <TableCell className="text-xs font-mono text-muted-foreground hidden sm:table-cell">{a.ip}</TableCell>
+   763→                          <TableCell className="hidden lg:table-cell"><Badge variant="outline" className="text-[9px] h-4">{a.country}</Badge></TableCell>
+   764→                          <TableCell className="text-[10px] text-muted-foreground hidden lg:table-cell">{a.sessionId}</TableCell>
+   765→                        </TableRow>
+   766→                      )
+   767→                    })}
+   768→                  </TableBody>
+   769→                </Table>
+   770→              </div>
+   771→            </CardContent>
+   772→          </Card>
+   773→        </TabsContent>
+   774→
+   775→        {/* ═══════════ TAB 4: SESSIONS ═══════════ */}
+   776→        <TabsContent value="sessions" className="space-y-4">
+   777→          <Card>
+   778→            <CardContent className="p-4">
+   779→              <div className="flex flex-col sm:flex-row gap-2">
+   780→                <Select value={sesStatus} onValueChange={setSesStatus}>
+   781→                  <SelectTrigger className="w-full sm:w-[120px] h-9 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+   782→                  <SelectContent>
+   783→                    <SelectItem value="all">All Status</SelectItem>
+   784→                    <SelectItem value="active">Active</SelectItem>
+   785→                    <SelectItem value="idle">Idle</SelectItem>
+   786→                    <SelectItem value="ended">Ended</SelectItem>
+   787→                  </SelectContent>
+   788→                </Select>
+   789→                <Select value={sesGameType} onValueChange={setSesGameType}>
+   790→                  <SelectTrigger className="w-full sm:w-[130px] h-9 text-xs"><SelectValue placeholder="Game Type" /></SelectTrigger>
+   791→                  <SelectContent>
+   792→                    <SelectItem value="all">All Types</SelectItem>
+   793→                    <SelectItem value="slot">Slot</SelectItem>
+   794→                    <SelectItem value="live_table">Live Table</SelectItem>
+   795→                  </SelectContent>
+   796→                </Select>
+   797→                <Select value={sesDevice} onValueChange={setSesDevice}>
+   798→                  <SelectTrigger className="w-full sm:w-[120px] h-9 text-xs"><SelectValue placeholder="Device" /></SelectTrigger>
+   799→                  <SelectContent>
+   800→                    <SelectItem value="all">All Devices</SelectItem>
+   801→                    <SelectItem value="desktop">Desktop</SelectItem>
+   802→                    <SelectItem value="mobile">Mobile</SelectItem>
+   803→                  </SelectContent>
+   804→                </Select>
+   805→              </div>
+   806→            </CardContent>
+   807→          </Card>
+   808→
+   809→          <Card>
+   810→            <CardHeader className="pb-2">
+   811→              <div className="flex items-center justify-between">
+   812→                <CardTitle className="text-sm flex items-center gap-1.5"><Gamepad2 className="size-4" /> Gaming Sessions</CardTitle>
+   813→                <Badge variant="secondary" className="text-[10px]">{filteredSessions.length} sessions</Badge>
+   814→              </div>
+   815→            </CardHeader>
+   816→            <CardContent>
+   817→              <div className="overflow-x-auto">
+   818→                <Table>
+   819→                  <TableHeader>
+   820→                    <TableRow>
+   821→                      <TableHead className="text-xs">Player</TableHead>
+   822→                      <TableHead className="text-xs">Game</TableHead>
+   823→                      <TableHead className="text-xs hidden sm:table-cell">Provider</TableHead>
+   824→                      <TableHead className="text-xs hidden sm:table-cell">Type</TableHead>
+   825→                      <TableHead className="text-xs">Status</TableHead>
+   826→                      <TableHead className="text-xs hidden sm:table-cell">Duration</TableHead>
+   827→                      <TableHead className="text-xs hidden sm:table-cell">Bets</TableHead>
+   828→                      <TableHead className="text-xs hidden lg:table-cell">Wagered</TableHead>
+   829→                      <TableHead className="text-xs hidden lg:table-cell">Won</TableHead>
+   830→                      <TableHead className="text-xs">Net</TableHead>
+   831→                      <TableHead className="text-xs">RTP</TableHead>
+   832→                      <TableHead className="text-xs hidden sm:table-cell">Device</TableHead>
+   833→                    </TableRow>
+   834→                  </TableHeader>
+   835→                  <TableBody>
+   836→                    {filteredSessions.map((s: any) => (
+   837→                      <TableRow key={s.id}>
+   838→                        <TableCell className="text-xs font-medium">{s.playerUsername}</TableCell>
+   839→                        <TableCell>
+   840→                          <div>
+   841→                            <p className="text-xs font-medium">{s.gameName}</p>
+   842→                          </div>
+   843→                        </TableCell>
+   844→                        <TableCell className="text-xs text-muted-foreground hidden sm:table-cell">{s.provider}</TableCell>
+   845→                        <TableCell className="hidden sm:table-cell">
+   846→                          <Badge variant="outline" className="text-[9px] h-4">{s.gameType === 'live_table' ? 'Live' : 'Slot'}</Badge>
+   847→                        </TableCell>
+   848→                        <TableCell>{sessionStatusBadge(s.status)}</TableCell>
+   849→                        <TableCell className="text-xs text-muted-foreground hidden sm:table-cell">{s.durationMinutes}m</TableCell>
+   850→                        <TableCell className="text-xs font-mono hidden sm:table-cell">{fmtNum(s.totalBets)}</TableCell>
+   851→                        <TableCell className="text-xs font-mono hidden lg:table-cell">{fmt(s.totalWagered)}</TableCell>
+   852→                        <TableCell className="text-xs font-mono hidden lg:table-cell">{fmt(s.totalWon)}</TableCell>
+   853→                        <TableCell>{netResultCell(s.netResult)}</TableCell>
+   854→                        <TableCell><span className={`text-xs font-mono ${rtpColor(s.rtp)}`}>{s.rtp.toFixed(1)}%</span></TableCell>
+   855→                        <TableCell className="hidden sm:table-cell">
+   856→                          {s.device === 'desktop' ? <Monitor className="size-4 text-muted-foreground" /> : <Smartphone className="size-4 text-muted-foreground" />}
+   857→                        </TableCell>
+   858→                      </TableRow>
+   859→                    ))}
+   860→                  </TableBody>
+   861→                </Table>
+   862→              </div>
+   863→            </CardContent>
+   864→          </Card>
+   865→        </TabsContent>
+   866→
+   867→        {/* ═══════════ TAB 5: BETS (GIOCATE) ═══════════ */}
+   868→        <TabsContent value="bets" className="space-y-4">
+   869→          <Card>
+   870→            <CardContent className="p-4">
+   871→              <div className="flex flex-col sm:flex-row gap-2">
+   872→                <div className="relative flex-1">
+   873→                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   874→                  <Input
+   875→                    placeholder="Search player or round ID..."
+   876→                    value={betSearch}
+   877→                    onChange={(e) => setBetSearch(e.target.value)}
+   878→                    className="pl-9 h-9 text-xs"
+   879→                  />
+   880→                </div>
+   881→                <Select value={betGame} onValueChange={setBetGame}>
+   882→                  <SelectTrigger className="w-full sm:w-[160px] h-9 text-xs"><SelectValue placeholder="Game" /></SelectTrigger>
+   883→                  <SelectContent>
+   884→                    <SelectItem value="all">All Games</SelectItem>
+   885→                    {uniqueBetGames.map((g: string) => (
+   886→                      <SelectItem key={g} value={g}>{g}</SelectItem>
+   887→                    ))}
+   888→                  </SelectContent>
+   889→                </Select>
+   890→                <Select value={betPlayer} onValueChange={setBetPlayer}>
+   891→                  <SelectTrigger className="w-full sm:w-[140px] h-9 text-xs"><SelectValue placeholder="Player" /></SelectTrigger>
+   892→                  <SelectContent>
+   893→                    <SelectItem value="all">All Players</SelectItem>
+   894→                    {uniqueBetPlayers.map((p: string) => (
+   895→                      <SelectItem key={p} value={p}>{p}</SelectItem>
+   896→                    ))}
+   897→                  </SelectContent>
+   898→                </Select>
+   899→                <Select value={betType} onValueChange={setBetType}>
+   900→                  <SelectTrigger className="w-full sm:w-[120px] h-9 text-xs"><SelectValue placeholder="Type" /></SelectTrigger>
+   901→                  <SelectContent>
+   902→                    <SelectItem value="all">All Types</SelectItem>
+   903→                    <SelectItem value="normal">Normal</SelectItem>
+   904→                    <SelectItem value="free_spin">Free Spin</SelectItem>
+   905→                    <SelectItem value="bonus">Bonus</SelectItem>
+   906→                  </SelectContent>
+   907→                </Select>
+   908→              </div>
+   909→            </CardContent>
+   910→          </Card>
+   911→
+   912→          <Card>
+   913→            <CardHeader className="pb-2">
+   914→              <div className="flex items-center justify-between">
+   915→                <CardTitle className="text-sm flex items-center gap-1.5"><Coins className="size-4" /> Bets (Giocate)</CardTitle>
+   916→                <Badge variant="secondary" className="text-[10px]">{filteredBets.length} bets</Badge>
+   917→              </div>
+   918→            </CardHeader>
+   919→            <CardContent>
+   920→              <div className="overflow-x-auto">
+   921→                <Table>
+   922→                  <TableHeader>
+   923→                    <TableRow>
+   924→                      <TableHead className="text-xs">Time</TableHead>
+   925→                      <TableHead className="text-xs">Player</TableHead>
+   926→                      <TableHead className="text-xs">Game</TableHead>
+   927→                      <TableHead className="text-xs hidden sm:table-cell">Round</TableHead>
+   928→                      <TableHead className="text-xs">Bet</TableHead>
+   929→                      <TableHead className="text-xs hidden sm:table-cell">Win</TableHead>
+   930→                      <TableHead className="text-xs">Net</TableHead>
+   931→                      <TableHead className="text-xs hidden sm:table-cell">Multiplier</TableHead>
+   932→                      <TableHead className="text-xs">Type</TableHead>
+   933→                    </TableRow>
+   934→                  </TableHeader>
+   935→                  <TableBody>
+   936→                    {filteredBets.map((b: any) => {
+   937→                      const isNormal = !b.isFreeSpin && !b.isBonus
+   938→                      return (
+   939→                        <TableRow key={b.id}>
+   940→                          <TableCell className="text-[10px] text-muted-foreground whitespace-nowrap">{formatTimeAgo(b.createdAt)}</TableCell>
+   941→                          <TableCell className="text-xs font-medium">{b.playerUsername}</TableCell>
+   942→                          <TableCell>
+   943→                            <p className="text-xs">{b.gameName}</p>
+   944→                          </TableCell>
+   945→                          <TableCell className="text-xs font-mono text-muted-foreground hidden sm:table-cell">{b.roundId}</TableCell>
+   946→                          <TableCell className="text-xs font-mono">{fmt(b.betAmount)}</TableCell>
+   947→                          <TableCell className="text-xs font-mono hidden sm:table-cell">{fmt(b.winAmount)}</TableCell>
+   948→                          <TableCell>{netResultCell(b.netResult, true)}</TableCell>
+   949→                          <TableCell className="hidden sm:table-cell">
+   950→                            <span className={`text-xs font-mono ${b.multiplier > 5 ? 'text-yellow-400' : 'text-muted-foreground'}`}>
+   951→                              {b.multiplier > 0 ? `${b.multiplier}x` : '-'}
+   952→                            </span>
+   953→                          </TableCell>
+   954→                          <TableCell>
+   955→                            {b.isFreeSpin ? (
+   956→                              <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-[9px] h-4">free spin</Badge>
+   957→                            ) : b.isBonus ? (
+   958→                              <Badge className="bg-purple-500/20 text-purple-400 border-purple-500/30 text-[9px] h-4">bonus</Badge>
+   959→                            ) : (
+   960→                              <Badge variant="outline" className="text-[9px] h-4">normal</Badge>
+   961→                            )}
+   962→                          </TableCell>
+   963→                        </TableRow>
+   964→                      )
+   965→                    })}
+   966→                  </TableBody>
+   967→                </Table>
+   968→              </div>
+   969→            </CardContent>
+   970→          </Card>
+   971→        </TabsContent>
+   972→
+   973→        {/* ═══════════ TAB 6: WALLET TRACKER ═══════════ */}
+   974→        <TabsContent value="wallets" className="space-y-4">
+   975→          <Card>
+   976→            <CardContent className="p-4">
+   977→              <div className="flex flex-col sm:flex-row gap-2">
+   978→                <div className="relative flex-1">
+   979→                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+   980→                  <Input
+   981→                    placeholder="Search player or address..."
+   982→                    value={wtSearch}
+   983→                    onChange={(e) => setWtSearch(e.target.value)}
+   984→                    className="pl-9 h-9 text-xs"
+   985→                  />
+   986→                </div>
+   987→                <Select value={wtType} onValueChange={setWtType}>
+   988→                  <SelectTrigger className="w-full sm:w-[140px] h-9 text-xs"><SelectValue placeholder="Wallet Type" /></SelectTrigger>
+   989→                  <SelectContent>
+   990→                    <SelectItem value="all">All Types</SelectItem>
+   991→                    <SelectItem value="crypto_btc">Crypto BTC</SelectItem>
+   992→                    <SelectItem value="crypto_eth">Crypto ETH</SelectItem>
+   993→                    <SelectItem value="crypto_usdt">Crypto USDT</SelectItem>
+   994→                    <SelectItem value="bank">Bank</SelectItem>
+   995→                  </SelectContent>
+   996→                </Select>
+   997→                <Select value={wtChain} onValueChange={setWtChain}>
+   998→                  <SelectTrigger className="w-full sm:w-[120px] h-9 text-xs"><SelectValue placeholder="Chain" /></SelectTrigger>
+   999→                  <SelectContent>
+  1000→                    <SelectItem value="all">All Chains</SelectItem>
+  1001→                    <SelectItem value="Bitcoin">Bitcoin</SelectItem>
+  1002→                    <SelectItem value="Ethereum">Ethereum</SelectItem>
+  1003→                    <SelectItem value="Tron">Tron</SelectItem>
+  1004→                    <SelectItem value="SEPA">SEPA</SelectItem>
+  1005→                  </SelectContent>
+  1006→                </Select>
+  1007→                <Select value={wtVerified} onValueChange={setWtVerified}>
+  1008→                  <SelectTrigger className="w-full sm:w-[120px] h-9 text-xs"><SelectValue placeholder="Verified" /></SelectTrigger>
+  1009→                  <SelectContent>
+  1010→                    <SelectItem value="all">All</SelectItem>
+  1011→                    <SelectItem value="true">Verified</SelectItem>
+  1012→                    <SelectItem value="false">Unverified</SelectItem>
+  1013→                  </SelectContent>
+  1014→                </Select>
+  1015→              </div>
+  1016→            </CardContent>
+  1017→          </Card>
+  1018→
+  1019→          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+  1020→            {filteredWallets.map((w: any) => (
+  1021→              <Card key={w.id} className="border-border/60">
+  1022→                <CardHeader className="pb-2">
+  1023→                  <div className="flex items-center justify-between">
+  1024→                    <CardTitle className="text-sm flex items-center gap-1.5">
+  1025→                      <Wallet className="size-4 text-primary" />
+  1026→                      {w.playerUsername}
+  1027→                    </CardTitle>
+  1028→                    <div className="flex items-center gap-1.5">
+  1029→                      {w.verified ? (
+  1030→                        <CheckCircle2 className="size-4 text-emerald-400" />
+  1031→                      ) : (
+  1032→                        <XCircle className="size-4 text-red-400" />
+  1033→                      )}
+  1034→                    </div>
+  1035→                  </div>
+  1036→                </CardHeader>
+  1037→                <CardContent className="space-y-3">
+  1038→                  <div className="flex items-center gap-2">
+  1039→                    <Badge className={`text-[9px] h-4 ${chainColors[w.chain] || 'bg-muted text-muted-foreground'}`}>{w.chain}</Badge>
+  1040→                    <Badge variant="outline" className="text-[9px] h-4">{w.walletType.replace('crypto_', '').replace(/_/g, ' ').toUpperCase()}</Badge>
+  1041→                    {w.label && <span className="text-[10px] text-muted-foreground truncate">{w.label}</span>}
+  1042→                  </div>
+  1043→
+  1044→                  <div className="text-xs font-mono text-muted-foreground truncate" title={w.address}>
+  1045→                    {truncateAddr(w.address, 12, 8)}
+  1046→                  </div>
+  1047→
+  1048→                  <div className="grid grid-cols-2 gap-2">
+  1049→                    <div className="p-2 rounded bg-muted/50 text-xs">
+  1050→                      <span className="text-muted-foreground">Deposited</span>
+  1051→                      <p className="font-bold font-mono">{fmt(w.totalDeposited)}</p>
+  1052→                    </div>
+  1053→                    <div className="p-2 rounded bg-muted/50 text-xs">
+  1054→                      <span className="text-muted-foreground">Withdrawn</span>
+  1055→                      <p className="font-bold font-mono">{fmt(w.totalWithdrawn)}</p>
+  1056→                    </div>
+  1057→                  </div>
+  1058→
+  1059→                  {w.riskFlags && w.riskFlags.length > 0 && (
+  1060→                    <div className="flex flex-wrap gap-1">
+  1061→                      {w.riskFlags.map((flag: string, i: number) => (
+  1062→                        <Badge key={i} className="bg-red-500/20 text-red-400 border-red-500/30 text-[8px] h-3.5 px-1">{flag.replace(/_/g, ' ')}</Badge>
+  1063→                      ))}
+  1064→                    </div>
+  1065→                  )}
+  1066→
+  1067→                  <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+  1068→                    <span>First: {formatTimeAgo(w.firstSeen)}</span>
+  1069→                    <span>Last: {formatTimeAgo(w.lastUsed)}</span>
+  1070→                  </div>
+  1071→                </CardContent>
+  1072→              </Card>
+  1073→            ))}
+  1074→          </div>
+  1075→
+  1076→          {filteredWallets.length === 0 && (
+  1077→            <Card>
+  1078→              <CardContent className="p-8 text-center">
+  1079→                <Wallet className="size-8 text-muted-foreground mx-auto mb-2" />
+  1080→                <p className="text-sm text-muted-foreground">No wallets match your filters</p>
+  1081→              </CardContent>
+  1082→            </Card>
+  1083→          )}
+  1084→        </TabsContent>
+  1085→      </Tabs>
+  1086→    </div>
+  1087→  )
+  1088→}
+  1089→

@@ -41,6 +41,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import {
@@ -316,6 +318,12 @@ export function MLPipelineView() {
   const [addModelOpen, setAddModelOpen] = useState(false)
   const [newModel, setNewModel] = useState({ name: '', type: 'classification' as ModelType, algorithm: '', description: '' })
   const [searchQuery, setSearchQuery] = useState('')
+
+  /* State for dialog buttons */
+  const [configureStoreId, setConfigureStoreId] = useState<string | null>(null)
+  const [configureStoreSaved, setConfigureStoreSaved] = useState(false)
+  const [logsJobId, setLogsJobId] = useState<string | null>(null)
+  const [refreshLoading, setRefreshLoading] = useState(false)
 
   /* useApi for data fetching */
   const { data: pipelineData, loading, error, refetch } = useApi(
@@ -925,6 +933,7 @@ export function MLPipelineView() {
                                 size="sm"
                                 variant="ghost"
                                 className="h-6 text-[9px] gap-0.5 text-zinc-500 hover:text-zinc-300 px-1.5"
+                                onClick={() => setLogsJobId(job.id)}
                               >
                                 <Eye className="size-3" /> Logs
                               </Button>
@@ -1005,6 +1014,7 @@ export function MLPipelineView() {
                       size="sm"
                       variant="ghost"
                       className="h-6 text-[9px] gap-1 text-zinc-500 hover:text-zinc-300"
+                      onClick={() => { setConfigureStoreId(store.id); setConfigureStoreSaved(false) }}
                     >
                       <Settings className="size-3" /> Configure
                     </Button>
@@ -1056,14 +1066,114 @@ export function MLPipelineView() {
                   size="sm"
                   variant="outline"
                   className="h-7 text-[10px] gap-1 border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600"
+                  disabled={refreshLoading}
+                  onClick={() => {
+                    setRefreshLoading(true)
+                    refetch()
+                    setTimeout(() => setRefreshLoading(false), 1500)
+                  }}
                 >
-                  <RefreshCw className="size-3" /> Refresh All
+                  {refreshLoading ? <Loader2 className="size-3 animate-spin" /> : <RefreshCw className="size-3" />} Refresh All
                 </Button>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Configure Feature Store Dialog */}
+      <Dialog open={configureStoreId !== null} onOpenChange={(open) => !open && setConfigureStoreId(null)}>
+        <DialogContent className="bg-zinc-950 border-zinc-800 sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-zinc-100 flex items-center gap-2">
+              <Settings className="size-4 text-amber-400" /> Configure Feature Store
+            </DialogTitle>
+            <DialogDescription className="text-zinc-500">{featureStores.find(s => s.id === configureStoreId)?.name} settings</DialogDescription>
+          </DialogHeader>
+          {configureStoreId && (() => {
+            const store = featureStores.find(s => s.id === configureStoreId)
+            if (!store) return null
+            return (
+              <div className="space-y-4 py-2">
+                <div>
+                  <Label className="text-xs text-zinc-400 mb-1.5 block">Data Source</Label>
+                  <Select defaultValue={store.source}>
+                    <SelectTrigger className="h-8 text-xs bg-zinc-900 border-zinc-800 text-zinc-100">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-zinc-800">
+                      <SelectItem value="database">Database</SelectItem>
+                      <SelectItem value="stream">Event Stream</SelectItem>
+                      <SelectItem value="api">External API</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs text-zinc-400 mb-1.5 block">Refresh Interval</Label>
+                  <Select defaultValue={store.refreshInterval}>
+                    <SelectTrigger className="h-8 text-xs bg-zinc-900 border-zinc-800 text-zinc-100">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-zinc-800">
+                      <SelectItem value="5">5 minutes</SelectItem>
+                      <SelectItem value="15">15 minutes</SelectItem>
+                      <SelectItem value="30">30 minutes</SelectItem>
+                      <SelectItem value="60">1 hour</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-xs text-zinc-400 mb-1.5 block">Schema Version</Label>
+                  <Input defaultValue="v2.3.1" className="h-8 text-xs bg-zinc-900 border-zinc-800 text-zinc-100" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-zinc-400">Active</Label>
+                  <Switch defaultChecked={store.active} />
+                </div>
+              </div>
+            )
+          })()}
+          <DialogFooter>
+            <Button size="sm" className="gap-1 text-xs bg-amber-600 hover:bg-amber-500 text-zinc-950 font-semibold" onClick={() => { setConfigureStoreSaved(true); setTimeout(() => setConfigureStoreId(null), 1200) }}>
+              {configureStoreSaved ? <><CheckCircle className="size-3" /> Saved!</> : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Training Logs Dialog */}
+      <Dialog open={logsJobId !== null} onOpenChange={(open) => !open && setLogsJobId(null)}>
+        <DialogContent className="bg-zinc-950 border-zinc-800 sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-zinc-100 flex items-center gap-2">
+              <Eye className="size-4 text-amber-400" /> Training Logs
+            </DialogTitle>
+            <DialogDescription className="text-zinc-500">Job {logsJobId}</DialogDescription>
+          </DialogHeader>
+          <div className="py-2">
+            <pre className="text-[10px] font-mono text-zinc-300 bg-zinc-900 p-3 rounded-md overflow-x-auto max-h-[400px] overflow-y-auto whitespace-pre-wrap leading-relaxed">{`[2025-01-15 10:23:01] INFO  Starting training pipeline...
+[2025-01-15 10:23:01] INFO  Loading dataset: player_features_v3 (1.2M rows)
+[2025-01-15 10:23:02] INFO  Feature engineering: 42 features extracted
+[2025-01-15 10:23:02] INFO  Split: train=960K, val=120K, test=120K
+[2025-01-15 10:23:03] INFO  Model: XGBoost (depth=8, trees=500, lr=0.05)
+[2025-01-15 10:23:05] INFO  Epoch 1/50 - loss: 0.6931 - val_loss: 0.6928
+[2025-01-15 10:23:07] INFO  Epoch 5/50 - loss: 0.4123 - val_loss: 0.4189
+[2025-01-15 10:23:09] INFO  Epoch 10/50 - loss: 0.2847 - val_loss: 0.2934
+[2025-01-15 10:23:12] INFO  Epoch 15/50 - loss: 0.2156 - val_loss: 0.2312
+[2025-01-15 10:23:14] INFO  Epoch 20/50 - loss: 0.1834 - val_loss: 0.2047
+[2025-01-15 10:23:17] INFO  Epoch 25/50 - loss: 0.1623 - val_loss: 0.1891
+[2025-01-15 10:23:19] INFO  Epoch 30/50 - loss: 0.1489 - val_loss: 0.1823
+[2025-01-15 10:23:22] INFO  Epoch 35/50 - loss: 0.1378 - val_loss: 0.1767
+[2025-01-15 10:23:24] INFO  Epoch 40/50 - loss: 0.1291 - val_loss: 0.1734
+[2025-01-15 10:23:27] INFO  Epoch 45/50 - loss: 0.1234 - val_loss: 0.1712
+[2025-01-15 10:23:29] INFO  Epoch 50/50 - loss: 0.1198 - val_loss: 0.1701
+[2025-01-15 10:23:29] INFO  Training complete. Best iteration: 47
+[2025-01-15 10:23:30] INFO  Validation metrics: acc=0.9412, f1=0.9234, auc=0.9718
+[2025-01-15 10:23:30] INFO  Model artifact saved: churn_v2.3.1.pkl (12.4MB)
+[2025-01-15 10:23:30] INFO  Pipeline finished successfully.`}</pre>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

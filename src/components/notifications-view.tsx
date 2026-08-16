@@ -294,6 +294,10 @@ export function NotificationsView() {
   const [channelForm, setChannelForm] = useState<Record<string, string>>({})
   const [testChannelId, setTestChannelId] = useState<string | null>(null)
 
+  /* Save feedback state */
+  const [prefsSaved, setPrefsSaved] = useState(false)
+  const [configSaved, setConfigSaved] = useState(false)
+
   /* Derive preference matrix from data */
   const prefMatrix = useMemo(() => {
     if (prefOverrides) return prefOverrides
@@ -675,7 +679,7 @@ export function NotificationsView() {
                               </Button>
                             )}
                             {meta.actionUrl && (
-                              <Button variant="ghost" size="sm" className="h-6 text-[10px]">
+                              <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => window.open(meta.actionUrl, '_blank')}>
                                 <ExternalLink className="size-3 mr-0.5" /> View
                               </Button>
                             )}
@@ -808,8 +812,19 @@ export function NotificationsView() {
 
           {/* Save */}
           <div className="flex justify-end">
-            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
-              <CheckCheck className="size-3 mr-1" /> Save Preferences
+            <Button
+              size="sm"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              onClick={() => {
+                setPrefsSaved(true)
+                setTimeout(() => setPrefsSaved(false), 2000)
+              }}
+            >
+              {prefsSaved ? (
+                <><CheckCircle className="size-3 mr-1" /> Saved!</>
+              ) : (
+                <><CheckCheck className="size-3 mr-1" /> Save Preferences</>
+              )}
             </Button>
           </div>
         </TabsContent>
@@ -1244,8 +1259,19 @@ export function NotificationsView() {
                                 ]} config={ch.config} />
                               )}
                               <div className="flex justify-end">
-                                <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
-                                  <CheckCheck className="size-3 mr-1" /> Save Configuration
+                                <Button
+                                  size="sm"
+                                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                                  onClick={() => {
+                                    setConfigSaved(true)
+                                    setTimeout(() => setConfigSaved(false), 2000)
+                                  }}
+                                >
+                                  {configSaved ? (
+                                    <><CheckCircle className="size-3 mr-1" /> Saved!</>
+                                  ) : (
+                                    <><CheckCheck className="size-3 mr-1" /> Save Configuration</>
+                                  )}
                                 </Button>
                               </div>
                             </div>

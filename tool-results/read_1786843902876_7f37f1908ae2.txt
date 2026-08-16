@@ -1,0 +1,1262 @@
+     1→'use client'
+     2→
+     3→import { useState, useMemo } from 'react'
+     4→import {
+     5→  AreaChart, Area, XAxis, YAxis, Tooltip as ReTooltip,
+     6→  ResponsiveContainer, CartesianGrid,
+     7→} from 'recharts'
+     8→import {
+     9→  Key, Webhook, Plug, Bot, Copy, RefreshCw, Plus, Trash2,
+    10→  Shield, Activity, Clock, CheckCircle, XCircle, AlertCircle,
+    11→  ExternalLink, Code, Zap, Globe, Link2, Settings, Eye, EyeOff,
+    12→  Search,
+    13→} from 'lucide-react'
+    14→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    15→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    16→import {
+    17→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    18→} from '@/components/ui/table'
+    19→import { Badge } from '@/components/ui/badge'
+    20→import { Button } from '@/components/ui/button'
+    21→import {
+    22→  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription,
+    23→} from '@/components/ui/dialog'
+    24→import { Input } from '@/components/ui/input'
+    25→import { Checkbox } from '@/components/ui/checkbox'
+    26→import { Label } from '@/components/ui/label'
+    27→import {
+    28→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    29→} from '@/components/ui/select'
+    30→import { ScrollArea } from '@/components/ui/scroll-area'
+    31→import { Skeleton } from '@/components/ui/skeleton'
+    32→import { Separator } from '@/components/ui/separator'
+    33→import { Switch } from '@/components/ui/switch'
+    34→import {
+    35→  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+    36→} from '@/components/ui/tooltip'
+    37→import { useApi } from '@/hooks/use-api'
+    38→import { api } from '@/services/api'
+    39→
+    40→/* ─── Types ─── */
+    41→
+    42→interface ApiToken {
+    43→  id: string; name: string; tokenPrefix: string; ownerId: string
+    44→  scopes: string[]; rateLimit: number; isActive: boolean
+    45→  lastUsedAt: string; expiresAt: string; createdAt: string
+    46→  usageCount: number; last24hCalls: number
+    47→}
+    48→
+    49→interface WebhookItem {
+    50→  id: string; name: string; url: string; events: string[]
+    51→  isActive: boolean; retryCount: number; timeoutMs: number
+    52→  lastTriggerAt: string; successRate: number; totalDeliveries: number
+    53→  apiTokenName: string; createdAt: string
+    54→}
+    55→
+    56→interface WebhookDelivery {
+    57→  id: string; webhookName: string; eventId: string
+    58→  statusCode: number; duration: number; success: boolean
+    59→  attempt: number; createdAt: string
+    60→}
+    61→
+    62→interface Integration {
+    63→  id: string; name: string; type: string; status: string
+    64→  lastSyncAt: string; recordsSynced: number; errors: number
+    65→  logo: string; createdAt: string
+    66→}
+    67→
+    68→interface McpEndpoint {
+    69→  id: string; name: string; description: string; version: string
+    70→  baseUrl: string; tools: Array<{ name: string; description: string }>
+    71→  isActive: boolean; requiresAuth: boolean; createdAt: string
+    72→}
+    73→
+    74→interface ApiHubData {
+    75→  tokens: ApiToken[]
+    76→  webhooks: WebhookItem[]
+    77→  webhookDeliveries: WebhookDelivery[]
+    78→  integrations: Integration[]
+    79→  mcpEndpoints: McpEndpoint[]
+    80→  stats: {
+    81→    totalTokens: number; activeTokens: number; totalWebhooks: number
+    82→    totalDeliveries: number; deliverySuccessRate: number
+    83→    totalIntegrations: number; activeIntegrations: number
+    84→    totalApiCalls24h: number; avgLatencyMs: number
+    85→  }
+    86→  usageData: Array<{ hour: string; calls: number }>
+    87→}
+    88→
+    89→/* ─── Helpers ─── */
+    90→
+    91→function timeAgo(iso: string): string {
+    92→  if (!iso) return '—'
+    93→  const diff = Date.now() - new Date(iso).getTime()
+    94→  const mins = Math.floor(diff / 60000)
+    95→  if (mins < 1) return 'just now'
+    96→  if (mins < 60) return `${mins}m ago`
+    97→  const hrs = Math.floor(mins / 60)
+    98→  if (hrs < 24) return `${hrs}h ago`
+    99→  const days = Math.floor(hrs / 24)
+   100→  return `${days}d ago`
+   101→}
+   102→
+   103→function fmtDate(iso: string): string {
+   104→  if (!iso) return '—'
+   105→  return new Date(iso).toLocaleDateString('en-US', {
+   106→    month: 'short', day: 'numeric', year: 'numeric',
+   107→  })
+   108→}
+   109→
+   110→function fmtNumber(n: number): string {
+   111→  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`
+   112→  if (n >= 1000) return `${(n / 1000).toFixed(1)}K`
+   113→  return n.toString()
+   114→}
+   115→
+   116→function maskToken(prefix: string): string {
+   117→  return `${prefix}...****`
+   118→}
+   119→
+   120→function generateFakeToken(): string {
+   121→  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+   122→  let token = 'tols_'
+   123→  for (let i = 0; i < 28; i++) token += chars[Math.floor(Math.random() * chars.length)]
+   124→  return token
+   125→}
+   126→
+   127→/* ─── Scope Badge Colors ─── */
+   128→
+   129→function ScopeBadge({ scope }: { scope: string }) {
+   130→  const colorMap: Record<string, string> = {
+   131→    'players:read': 'bg-sky-500/15 text-sky-400 border-sky-500/30',
+   132→    'players:write': 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+   133→    'wallets:read': 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+   134→    'wallets:write': 'bg-green-500/15 text-green-400 border-green-500/30',
+   135→    'financial:read': 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+   136→    'financial:write': 'bg-orange-500/15 text-orange-400 border-orange-500/30',
+   137→    'admin': 'bg-red-500/15 text-red-400 border-red-500/30',
+   138→  }
+   139→  return (
+   140→    <Badge variant="outline" className={`text-[9px] font-mono ${colorMap[scope] ?? 'bg-muted text-muted-foreground'}`}>
+   141→      {scope}
+   142→    </Badge>
+   143→  )
+   144→}
+   145→
+   146→/* ─── Event Badge Colors ─── */
+   147→
+   148→function EventBadge({ event }: { event: string }) {
+   149→  const colorMap: Record<string, string> = {
+   150→    'deposit.confirmed': 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+   151→    'withdrawal.completed': 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+   152→    'withdrawal.failed': 'bg-red-500/15 text-red-400 border-red-500/30',
+   153→    'player.login': 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
+   154→    'player.logout': 'bg-slate-500/15 text-slate-400 border-slate-500/30',
+   155→    'jackpot.won': 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+   156→    'variance.alert': 'bg-red-500/15 text-red-400 border-red-500/30',
+   157→  }
+   158→  return (
+   159→    <Badge variant="outline" className={`text-[9px] ${colorMap[event] ?? 'bg-muted text-muted-foreground'}`}>
+   160→      {event}
+   161→    </Badge>
+   162→  )
+   163→}
+   164→
+   165→/* ─── Integration Status Dot ─── */
+   166→
+   167→function StatusDot({ status }: { status: string }) {
+   168→  const map: Record<string, { color: string; pulse: boolean }> = {
+   169→    connected: { color: 'bg-emerald-500', pulse: false },
+   170→    syncing: { color: 'bg-blue-500', pulse: true },
+   171→    error: { color: 'bg-red-500', pulse: false },
+   172→    disconnected: { color: 'bg-gray-500', pulse: false },
+   173→    pending: { color: 'bg-yellow-500', pulse: true },
+   174→  }
+   175→  const cfg = map[status] ?? { color: 'bg-gray-500', pulse: false }
+   176→  return (
+   177→    <span className={`size-2.5 rounded-full ${cfg.color} ${cfg.pulse ? 'animate-pulse' : ''}`} />
+   178→  )
+   179→}
+   180→
+   181→/* ─── Integration Type Badge ─── */
+   182→
+   183→function IntegrationTypeBadge({ type }: { type: string }) {
+   184→  const map: Record<string, { label: string; className: string }> = {
+   185→    casino_slots: { label: 'Casino Slots', className: 'bg-amber-500/15 text-amber-400 border-amber-500/30' },
+   186→    casino_poker: { label: 'Casino Poker', className: 'bg-purple-500/15 text-purple-400 border-purple-500/30' },
+   187→    sports_betting: { label: 'Sports Betting', className: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' },
+   188→    lottery: { label: 'Lottery', className: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30' },
+   189→    payment_gateway: { label: 'Payment', className: 'bg-blue-500/15 text-blue-400 border-blue-500/30' },
+   190→    affiliate: { label: 'Affiliate', className: 'bg-pink-500/15 text-pink-400 border-pink-500/30' },
+   191→    compliance: { label: 'Compliance', className: 'bg-sky-500/15 text-sky-400 border-sky-500/30' },
+   192→    custom: { label: 'Custom', className: 'bg-gray-500/15 text-gray-400 border-gray-500/30' },
+   193→  }
+   194→  const cfg = map[type] ?? { label: type, className: 'bg-muted text-muted-foreground' }
+   195→  return (
+   196→    <Badge variant="outline" className={`text-[9px] ${cfg.className}`}>{cfg.label}</Badge>
+   197→  )
+   198→}
+   199→
+   200→/* ─── Success Rate Bar ─── */
+   201→
+   202→function SuccessRateBar({ rate }: { rate: number }) {
+   203→  const color = rate >= 99 ? 'bg-emerald-500' : rate >= 95 ? 'bg-amber-500' : 'bg-red-500'
+   204→  return (
+   205→    <div className="flex items-center gap-2">
+   206→      <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden min-w-[60px]">
+   207→        <div className={`h-full rounded-full ${color}`} style={{ width: `${rate}%` }} />
+   208→      </div>
+   209→      <span className={`text-[10px] font-mono ${rate >= 99 ? 'text-emerald-400' : rate >= 95 ? 'text-amber-400' : 'text-red-400'}`}>
+   210→        {rate.toFixed(1)}%
+   211→      </span>
+   212→    </div>
+   213→  )
+   214→}
+   215→
+   216→/* ─── Main Component ─── */
+   217→
+   218→export function ApiHubView() {
+   219→  const { data, loading, error, refetch } = useApi(() => api.apiHub.get())
+   220→
+   221→  if (loading) return <LoadingSkeleton />
+   222→  if (error) return <ErrorState error={error} onRetry={refetch} />
+   223→  if (!data) return null
+   224→
+   225→  return (
+   226→    <div className="space-y-4">
+   227→      <div className="flex items-center justify-between">
+   228→        <div className="flex items-center gap-2">
+   229→          <Zap className="size-5 text-primary" />
+   230→          <h2 className="text-lg font-bold">API Hub</h2>
+   231→          <Badge variant="outline" className="text-[9px] border-primary/30 text-primary">SaaS</Badge>
+   232→        </div>
+   233→        <Button variant="outline" size="sm" onClick={refetch} className="gap-1.5">
+   234→          <RefreshCw className="size-3.5" />
+   235→          Refresh
+   236→        </Button>
+   237→      </div>
+   238→
+   239→      <Tabs defaultValue="overview" className="space-y-4">
+   240→        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 h-9">
+   241→          <TabsTrigger value="overview" className="text-xs gap-1">
+   242→            <Activity className="size-3" /> Overview
+   243→          </TabsTrigger>
+   244→          <TabsTrigger value="tokens" className="text-xs gap-1">
+   245→            <Key className="size-3" /> Tokens
+   246→          </TabsTrigger>
+   247→          <TabsTrigger value="webhooks" className="text-xs gap-1">
+   248→            <Webhook className="size-3" /> Webhooks
+   249→          </TabsTrigger>
+   250→          <TabsTrigger value="integrations" className="text-xs gap-1">
+   251→            <Plug className="size-3" /> Integrations
+   252→          </TabsTrigger>
+   253→          <TabsTrigger value="mcp" className="text-xs gap-1">
+   254→            <Bot className="size-3" /> MCP
+   255→          </TabsTrigger>
+   256→        </TabsList>
+   257→
+   258→        <TabsContent value="overview">
+   259→          <OverviewTab data={data} />
+   260→        </TabsContent>
+   261→        <TabsContent value="tokens">
+   262→          <TokensTab tokens={data.tokens} />
+   263→        </TabsContent>
+   264→        <TabsContent value="webhooks">
+   265→          <WebhooksTab webhooks={data.webhooks} deliveries={data.webhookDeliveries} />
+   266→        </TabsContent>
+   267→        <TabsContent value="integrations">
+   268→          <IntegrationsTab integrations={data.integrations} />
+   269→        </TabsContent>
+   270→        <TabsContent value="mcp">
+   271→          <McpTab endpoints={data.mcpEndpoints} />
+   272→        </TabsContent>
+   273→      </Tabs>
+   274→    </div>
+   275→  )
+   276→}
+   277→
+   278→/* ─── Tab 1: Overview ─── */
+   279→
+   280→function OverviewTab({ data }: { data: ApiHubData }) {
+   281→  const kpis = [
+   282→    { label: 'Active API Tokens', value: data.stats.activeTokens, icon: Key, color: 'text-primary' },
+   283→    { label: 'Total Webhooks', value: data.stats.totalWebhooks, icon: Webhook, color: 'text-blue-400' },
+   284→    { label: 'Integrations Connected', value: data.stats.activeIntegrations, icon: Plug, color: 'text-emerald-400' },
+   285→    { label: 'API Calls (24h)', value: fmtNumber(data.stats.totalApiCalls24h), icon: Activity, color: 'text-amber-400' },
+   286→    { label: 'Avg Latency', value: `${data.stats.avgLatencyMs}ms`, icon: Clock, color: 'text-cyan-400' },
+   287→    { label: 'Delivery Success', value: `${data.stats.deliverySuccessRate}%`, icon: CheckCircle, color: 'text-emerald-400' },
+   288→  ]
+   289→
+   290→  return (
+   291→    <div className="space-y-4">
+   292→      {/* KPI Cards */}
+   293→      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+   294→        {kpis.map((kpi) => (
+   295→          <Card key={kpi.label} className="bg-card/50">
+   296→            <CardContent className="p-3 sm:p-4">
+   297→              <div className="flex items-center gap-2 mb-2">
+   298→                <kpi.icon className={`size-4 ${kpi.color}`} />
+   299→                <span className="text-[10px] text-muted-foreground truncate">{kpi.label}</span>
+   300→              </div>
+   301→              <p className="text-xl font-bold">{kpi.value}</p>
+   302→            </CardContent>
+   303→          </Card>
+   304→        ))}
+   305→      </div>
+   306→
+   307→      {/* API Usage Chart */}
+   308→      <Card className="bg-card/50">
+   309→        <CardHeader className="pb-2">
+   310→          <CardTitle className="text-sm">API Usage (Last 24h)</CardTitle>
+   311→        </CardHeader>
+   312→        <CardContent>
+   313→          <div className="h-64">
+   314→            <ResponsiveContainer width="100%" height="100%">
+   315→              <AreaChart data={data.usageData} margin={{ top: 5, right: 5, bottom: 5, left: 0 }}>
+   316→                <defs>
+   317→                  <linearGradient id="usageGrad" x1="0" y1="0" x2="0" y2="1">
+   318→                    <stop offset="0%" stopColor="#d4a017" stopOpacity={0.3} />
+   319→                    <stop offset="100%" stopColor="#d4a017" stopOpacity={0} />
+   320→                  </linearGradient>
+   321→                </defs>
+   322→                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+   323→                <XAxis dataKey="hour" tick={{ fontSize: 10, fill: '#888' }} />
+   324→                <YAxis tick={{ fontSize: 10, fill: '#888' }} />
+   325→                <ReTooltip
+   326→                  contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(212,160,23,0.3)', borderRadius: 6, fontSize: 11 }}
+   327→                  labelStyle={{ color: '#d4a017' }}
+   328→                />
+   329→                <Area type="monotone" dataKey="calls" stroke="#d4a017" fill="url(#usageGrad)" strokeWidth={2} />
+   330→              </AreaChart>
+   331→            </ResponsiveContainer>
+   332→          </div>
+   333→        </CardContent>
+   334→      </Card>
+   335→
+   336→      {/* Integration Status Grid */}
+   337→      <Card className="bg-card/50">
+   338→        <CardHeader className="pb-2">
+   339→          <CardTitle className="text-sm">Integration Status</CardTitle>
+   340→        </CardHeader>
+   341→        <CardContent>
+   342→          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+   343→            {data.integrations.map((intg) => (
+   344→              <div key={intg.id} className="flex items-center gap-2 p-2.5 rounded-lg border border-border/50 bg-muted/20">
+   345→                <StatusDot status={intg.status} />
+   346→                <span className="text-lg">{intg.logo}</span>
+   347→                <div className="min-w-0 flex-1">
+   348→                  <p className="text-xs font-medium truncate">{intg.name}</p>
+   349→                  <p className="text-[9px] text-muted-foreground capitalize">{intg.status}</p>
+   350→                </div>
+   351→              </div>
+   352→            ))}
+   353→          </div>
+   354→        </CardContent>
+   355→      </Card>
+   356→    </div>
+   357→  )
+   358→}
+   359→
+   360→/* ─── Tab 2: API Tokens ─── */
+   361→
+   362→function TokensTab({ tokens }: { tokens: ApiToken[] }) {
+   363→  const [tokenList, setTokenList] = useState(tokens)
+   364→  const [showNewDialog, setShowNewDialog] = useState(false)
+   365→  const [showRevokeDialog, setShowRevokeDialog] = useState<string | null>(null)
+   366→  const [copiedId, setCopiedId] = useState<string | null>(null)
+   367→  const [searchQuery, setSearchQuery] = useState('')
+   368→  const [newTokenName, setNewTokenName] = useState('')
+   369→  const [newTokenScopes, setNewTokenScopes] = useState<string[]>([])
+   370→  const [newTokenRateLimit, setNewTokenRateLimit] = useState('1000')
+   371→  const [generatedToken, setGeneratedToken] = useState<string | null>(null)
+   372→
+   373→  const scopeGroups = [
+   374→    { module: 'Players', scopes: ['players:read', 'players:write'] },
+   375→    { module: 'Wallets', scopes: ['wallets:read', 'wallets:write'] },
+   376→    { module: 'Financial', scopes: ['financial:read', 'financial:write'] },
+   377→    { module: 'Admin', scopes: ['admin'] },
+   378→  ]
+   379→
+   380→  const allScopes = scopeGroups.flatMap(g => g.scopes)
+   381→
+   382→  const filteredTokens = useMemo(() => {
+   383→    if (!searchQuery) return tokenList
+   384→    const q = searchQuery.toLowerCase()
+   385→    return tokenList.filter(t =>
+   386→      t.name.toLowerCase().includes(q) ||
+   387→      t.tokenPrefix.toLowerCase().includes(q) ||
+   388→      t.scopes.some(s => s.toLowerCase().includes(q))
+   389→    )
+   390→  }, [tokenList, searchQuery])
+   391→
+   392→  function handleToggleActive(id: string) {
+   393→    setTokenList(prev => prev.map(t => t.id === id ? { ...t, isActive: !t.isActive } : t))
+   394→  }
+   395→
+   396→  function handleCopyToken(id: string, prefix: string) {
+   397→    navigator.clipboard.writeText(`${prefix}_masked_full_token`).catch(() => {})
+   398→    setCopiedId(id)
+   399→    setTimeout(() => setCopiedId(null), 2000)
+   400→  }
+   401→
+   402→  function handleRevokeToken(id: string) {
+   403→    setTokenList(prev => prev.filter(t => t.id !== id))
+   404→    setShowRevokeDialog(null)
+   405→  }
+   406→
+   407→  function handleGenerateToken() {
+   408→    const token = generateFakeToken()
+   409→    setGeneratedToken(token)
+   410→  }
+   411→
+   412→  function handleCopyGenerated() {
+   413→    if (generatedToken) {
+   414→      navigator.clipboard.writeText(generatedToken).catch(() => {})
+   415→    }
+   416→  }
+   417→
+   418→  function handleAddToken() {
+   419→    if (!newTokenName || newTokenScopes.length === 0) return
+   420→    const prefix = `tols_${Math.random().toString(36).substring(2, 6)}`
+   421→    const newToken: ApiToken = {
+   422→      id: `tok_${Date.now()}`,
+   423→      name: newTokenName,
+   424→      tokenPrefix: prefix,
+   425→      ownerId: 'owner_1',
+   426→      scopes: newTokenScopes,
+   427→      rateLimit: parseInt(newTokenRateLimit) || 1000,
+   428→      isActive: true,
+   429→      lastUsedAt: '',
+   430→      expiresAt: new Date(Date.now() + 365 * 86400000).toISOString(),
+   431→      createdAt: new Date().toISOString(),
+   432→      usageCount: 0,
+   433→      last24hCalls: 0,
+   434→    }
+   435→    setTokenList(prev => [newToken, ...prev])
+   436→    resetNewDialog()
+   437→  }
+   438→
+   439→  function resetNewDialog() {
+   440→    setShowNewDialog(false)
+   441→    setNewTokenName('')
+   442→    setNewTokenScopes([])
+   443→    setNewTokenRateLimit('1000')
+   444→    setGeneratedToken(null)
+   445→  }
+   446→
+   447→  function toggleScope(scope: string) {
+   448→    setNewTokenScopes(prev =>
+   449→      prev.includes(scope) ? prev.filter(s => s !== scope) : [...prev, scope]
+   450→    )
+   451→  }
+   452→
+   453→  return (
+   454→    <div className="space-y-4">
+   455→      {/* Header */}
+   456→      <div className="flex items-center justify-between gap-2 flex-wrap">
+   457→        <div className="flex items-center gap-2 flex-1 min-w-0">
+   458→          <div className="relative flex-1 max-w-full sm:max-w-xs">
+   459→            <Search className="absolute left-2.5 top-2 size-3.5 text-muted-foreground" />
+   460→            <Input
+   461→              placeholder="Search tokens..."
+   462→              value={searchQuery}
+   463→              onChange={e => setSearchQuery(e.target.value)}
+   464→              className="pl-8 h-8 text-xs"
+   465→            />
+   466→          </div>
+   467→          <Badge variant="secondary" className="text-[10px]">{tokenList.length} tokens</Badge>
+   468→        </div>
+   469→
+   470→        <Dialog open={showNewDialog} onOpenChange={(open) => { if (!open) resetNewDialog(); setShowNewDialog(open) }}>
+   471→          <DialogTrigger asChild>
+   472→            <Button size="sm" className="gap-1.5">
+   473→              <Plus className="size-3.5" />
+   474→              Generate New Token
+   475→            </Button>
+   476→          </DialogTrigger>
+   477→          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+   478→            <DialogHeader>
+   479→              <DialogTitle className="flex items-center gap-2">
+   480→                <Key className="size-4 text-primary" />
+   481→                Generate New API Token
+   482→              </DialogTitle>
+   483→              <DialogDescription>Create a new API token with specific scopes and rate limits.</DialogDescription>
+   484→            </DialogHeader>
+   485→
+   486→            {!generatedToken ? (
+   487→              <div className="space-y-4 py-2">
+   488→                <div className="space-y-1.5">
+   489→                  <Label className="text-xs">Token Name</Label>
+   490→                  <Input
+   491→                    placeholder="e.g. Production API Key"
+   492→                    value={newTokenName}
+   493→                    onChange={e => setNewTokenName(e.target.value)}
+   494→                  />
+   495→                </div>
+   496→
+   497→                <div className="space-y-2">
+   498→                  <Label className="text-xs">Scopes</Label>
+   499→                  <div className="space-y-3">
+   500→                    {scopeGroups.map(group => (
+   501→                      <div key={group.module}>
+   502→                        <p className="text-[10px] text-muted-foreground mb-1 font-medium uppercase tracking-wider">{group.module}</p>
+   503→                        <div className="flex flex-wrap gap-3">
+   504→                          {group.scopes.map(scope => (
+   505→                            <div key={scope} className="flex items-center gap-1.5">
+   506→                              <Checkbox
+   507→                                id={`scope-${scope}`}
+   508→                                checked={newTokenScopes.includes(scope)}
+   509→                                onCheckedChange={() => toggleScope(scope)}
+   510→                              />
+   511→                              <Label htmlFor={`scope-${scope}`} className="text-xs cursor-pointer">
+   512→                                <ScopeBadge scope={scope} />
+   513→                              </Label>
+   514→                            </div>
+   515→                          ))}
+   516→                        </div>
+   517→                      </div>
+   518→                    ))}
+   519→                  </div>
+   520→                </div>
+   521→
+   522→                <div className="space-y-1.5">
+   523→                  <Label className="text-xs">Rate Limit (requests/min)</Label>
+   524→                  <Input
+   525→                    type="number"
+   526→                    value={newTokenRateLimit}
+   527→                    onChange={e => setNewTokenRateLimit(e.target.value)}
+   528→                  />
+   529→                </div>
+   530→
+   531→                <DialogFooter>
+   532→                  <Button variant="outline" onClick={() => setShowNewDialog(false)}>Cancel</Button>
+   533→                  <Button
+   534→                    onClick={handleGenerateToken}
+   535→                    disabled={!newTokenName || newTokenScopes.length === 0}
+   536→                    className="gap-1.5"
+   537→                  >
+   538→                    <Shield className="size-3.5" />
+   539→                    Generate Token
+   540→                  </Button>
+   541→                </DialogFooter>
+   542→              </div>
+   543→            ) : (
+   544→              <div className="space-y-4 py-2">
+   545→                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+   546→                  <p className="text-[10px] text-emerald-400 mb-1 font-medium">⚠ Copy this token now. You won&apos;t be able to see it again.</p>
+   547→                  <div className="flex items-center gap-2">
+   548→                    <code className="flex-1 text-xs font-mono text-emerald-300 break-all">{generatedToken}</code>
+   549→                    <TooltipProvider>
+   550→                      <Tooltip>
+   551→                        <TooltipTrigger asChild>
+   552→                          <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={handleCopyGenerated}>
+   553→                            <Copy className="size-3.5" />
+   554→                          </Button>
+   555→                        </TooltipTrigger>
+   556→                        <TooltipContent><p>Copy token</p></TooltipContent>
+   557→                      </Tooltip>
+   558→                    </TooltipProvider>
+   559→                  </div>
+   560→                </div>
+   561→                <DialogFooter>
+   562→                  <Button variant="outline" onClick={() => { setGeneratedToken(null) }}>Back</Button>
+   563→                  <Button onClick={handleAddToken} className="gap-1.5">
+   564→                    <CheckCircle className="size-3.5" />
+   565→                    Add Token
+   566→                  </Button>
+   567→                </DialogFooter>
+   568→              </div>
+   569→            )}
+   570→          </DialogContent>
+   571→        </Dialog>
+   572→      </div>
+   573→
+   574→      {/* Tokens Table */}
+   575→      <Card className="bg-card/50">
+   576→        <CardContent className="p-0">
+   577→          <ScrollArea className="max-h-[520px]">
+   578→            <div className="overflow-x-auto">
+   579→            <Table>
+   580→              <TableHeader>
+   581→                <TableRow>
+   582→                  <TableHead className="text-[10px]">Name</TableHead>
+   583→                  <TableHead className="text-[10px]">Token</TableHead>
+   584→                  <TableHead className="text-[10px]">Scopes</TableHead>
+   585→                  <TableHead className="text-[10px]">Rate Limit</TableHead>
+   586→                  <TableHead className="text-[10px]">Status</TableHead>
+   587→                  <TableHead className="text-[10px]">Last Used</TableHead>
+   588→                  <TableHead className="text-[10px]">Created</TableHead>
+   589→                  <TableHead className="text-[10px] text-right">Actions</TableHead>
+   590→                </TableRow>
+   591→              </TableHeader>
+   592→              <TableBody>
+   593→                {filteredTokens.map(token => (
+   594→                  <TableRow key={token.id}>
+   595→                    <TableCell className="text-xs font-medium">{token.name}</TableCell>
+   596→                    <TableCell>
+   597→                      <code className="text-[10px] font-mono text-muted-foreground truncate block max-w-[80px] sm:max-w-none">{maskToken(token.tokenPrefix)}</code>
+   598→                    </TableCell>
+   599→                    <TableCell>
+   600→                      <div className="flex flex-wrap gap-1">
+   601→                        {token.scopes.map(scope => (
+   602→                          <ScopeBadge key={scope} scope={scope} />
+   603→                        ))}
+   604→                      </div>
+   605→                    </TableCell>
+   606→                    <TableCell className="text-xs font-mono">{token.rateLimit}/min</TableCell>
+   607→                    <TableCell>
+   608→                      <div className="flex items-center gap-2">
+   609→                        <Switch
+   610→                          checked={token.isActive}
+   611→                          onCheckedChange={() => handleToggleActive(token.id)}
+   612→                          className="scale-75"
+   613→                        />
+   614→                        <Badge
+   615→                          variant="outline"
+   616→                          className={`text-[9px] ${
+   617→                            token.isActive
+   618→                              ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+   619→                              : 'bg-gray-500/15 text-gray-400 border-gray-500/30'
+   620→                          }`}
+   621→                        >
+   622→                          {token.isActive ? 'Active' : 'Inactive'}
+   623→                        </Badge>
+   624→                      </div>
+   625→                    </TableCell>
+   626→                    <TableCell className="text-[10px] text-muted-foreground">{timeAgo(token.lastUsedAt)}</TableCell>
+   627→                    <TableCell className="text-[10px] text-muted-foreground">{fmtDate(token.createdAt)}</TableCell>
+   628→                    <TableCell>
+   629→                      <div className="flex items-center gap-1 justify-end">
+   630→                        <TooltipProvider>
+   631→                          <Tooltip>
+   632→                            <TooltipTrigger asChild>
+   633→                              <Button
+   634→                                variant="ghost"
+   635→                                size="icon"
+   636→                                className="size-7"
+   637→                                onClick={() => handleCopyToken(token.id, token.tokenPrefix)}
+   638→                              >
+   639→                                <Copy className={`size-3 ${copiedId === token.id ? 'text-emerald-400' : ''}`} />
+   640→                              </Button>
+   641→                            </TooltipTrigger>
+   642→                            <TooltipContent><p>{copiedId === token.id ? 'Copied!' : 'Copy token'}</p></TooltipContent>
+   643→                          </Tooltip>
+   644→                        </TooltipProvider>
+   645→                        <TooltipProvider>
+   646→                          <Tooltip>
+   647→                            <TooltipTrigger asChild>
+   648→                              <Button
+   649→                                variant="ghost"
+   650→                                size="icon"
+   651→                                className="size-7 text-red-400 hover:text-red-300"
+   652→                                onClick={() => setShowRevokeDialog(token.id)}
+   653→                              >
+   654→                                <Trash2 className="size-3" />
+   655→                              </Button>
+   656→                            </TooltipTrigger>
+   657→                            <TooltipContent><p>Revoke token</p></TooltipContent>
+   658→                          </Tooltip>
+   659→                        </TooltipProvider>
+   660→                      </div>
+   661→                    </TableCell>
+   662→                  </TableRow>
+   663→                ))}
+   664→              </TableBody>
+   665→            </Table>
+   666→            </div>
+   667→          </ScrollArea>
+   668→        </CardContent>
+   669→      </Card>
+   670→
+   671→      {/* Revoke Confirmation Dialog */}
+   672→      <Dialog open={!!showRevokeDialog} onOpenChange={() => setShowRevokeDialog(null)}>
+   673→        <DialogContent className="sm:max-w-sm">
+   674→          <DialogHeader>
+   675→            <DialogTitle className="flex items-center gap-2 text-red-400">
+   676→              <AlertCircle className="size-4" />
+   677→              Revoke API Token
+   678→            </DialogTitle>
+   679→            <DialogDescription>
+   680→              This action cannot be undone. Any applications using this token will immediately lose API access.
+   681→            </DialogDescription>
+   682→          </DialogHeader>
+   683→          <DialogFooter>
+   684→            <Button variant="outline" onClick={() => setShowRevokeDialog(null)}>Cancel</Button>
+   685→            <Button
+   686→              variant="destructive"
+   687→              onClick={() => showRevokeDialog && handleRevokeToken(showRevokeDialog)}
+   688→              className="gap-1.5"
+   689→            >
+   690→              <Trash2 className="size-3.5" />
+   691→              Revoke Token
+   692→            </Button>
+   693→          </DialogFooter>
+   694→        </DialogContent>
+   695→      </Dialog>
+   696→    </div>
+   697→  )
+   698→}
+   699→
+   700→/* ─── Tab 3: Webhooks ─── */
+   701→
+   702→function WebhooksTab({ webhooks, deliveries }: { webhooks: WebhookItem[]; deliveries: WebhookDelivery[] }) {
+   703→  const [webhookList, setWebhookList] = useState(webhooks)
+   704→  const [expandedWebhook, setExpandedWebhook] = useState<string | null>(null)
+   705→  const [showAddDialog, setShowAddDialog] = useState(false)
+   706→  const [newName, setNewName] = useState('')
+   707→  const [newUrl, setNewUrl] = useState('')
+   708→  const [newEvents, setNewEvents] = useState<string[]>([])
+   709→  const [testingId, setTestingId] = useState<string | null>(null)
+   710→
+   711→  const availableEvents = [
+   712→    'deposit.confirmed', 'withdrawal.completed', 'withdrawal.failed',
+   713→    'player.login', 'player.logout', 'jackpot.won', 'variance.alert',
+   714→  ]
+   715→
+   716→  function toggleEvent(event: string) {
+   717→    setNewEvents(prev => prev.includes(event) ? prev.filter(e => e !== event) : [...prev, event])
+   718→  }
+   719→
+   720→  function handleAddWebhook() {
+   721→    if (!newName || !newUrl || newEvents.length === 0) return
+   722→    const wh: WebhookItem = {
+   723→      id: `wh_${Date.now()}`,
+   724→      name: newName,
+   725→      url: newUrl,
+   726→      events: newEvents,
+   727→      isActive: true,
+   728→      retryCount: 3,
+   729→      timeoutMs: 5000,
+   730→      lastTriggerAt: '',
+   731→      successRate: 0,
+   732→      totalDeliveries: 0,
+   733→      apiTokenName: 'Production API Key',
+   734→      createdAt: new Date().toISOString(),
+   735→    }
+   736→    setWebhookList(prev => [wh, ...prev])
+   737→    setShowAddDialog(false)
+   738→    setNewName('')
+   739→    setNewUrl('')
+   740→    setNewEvents([])
+   741→  }
+   742→
+   743→  function handleTestWebhook(id: string) {
+   744→    setTestingId(id)
+   745→    setTimeout(() => setTestingId(null), 2000)
+   746→  }
+   747→
+   748→  function handleToggleActive(id: string) {
+   749→    setWebhookList(prev => prev.map(w => w.id === id ? { ...w, isActive: !w.isActive } : w))
+   750→  }
+   751→
+   752→  return (
+   753→    <div className="space-y-4">
+   754→      {/* Header */}
+   755→      <div className="flex items-center justify-between gap-2 flex-wrap">
+   756→        <Badge variant="secondary" className="text-[10px]">{webhookList.length} webhooks</Badge>
+   757→        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+   758→          <DialogTrigger asChild>
+   759→            <Button size="sm" className="gap-1.5">
+   760→              <Plus className="size-3.5" />
+   761→              Add Webhook
+   762→            </Button>
+   763→          </DialogTrigger>
+   764→          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+   765→            <DialogHeader>
+   766→              <DialogTitle className="flex items-center gap-2">
+   767→                <Webhook className="size-4 text-primary" />
+   768→                Add Webhook Endpoint
+   769→              </DialogTitle>
+   770→              <DialogDescription>Configure a new webhook to receive real-time event notifications.</DialogDescription>
+   771→            </DialogHeader>
+   772→            <div className="space-y-4 py-2">
+   773→              <div className="space-y-1.5">
+   774→                <Label className="text-xs">Webhook Name</Label>
+   775→                <Input placeholder="e.g. Deposit Notifications" value={newName} onChange={e => setNewName(e.target.value)} />
+   776→              </div>
+   777→              <div className="space-y-1.5">
+   778→                <Label className="text-xs">Endpoint URL</Label>
+   779→                <Input placeholder="https://api.example.com/webhooks" value={newUrl} onChange={e => setNewUrl(e.target.value)} />
+   780→              </div>
+   781→              <div className="space-y-2">
+   782→                <Label className="text-xs">Events</Label>
+   783→                <div className="flex flex-wrap gap-2">
+   784→                  {availableEvents.map(event => (
+   785→                    <div key={event} className="flex items-center gap-1.5">
+   786→                      <Checkbox
+   787→                        id={`evt-${event}`}
+   788→                        checked={newEvents.includes(event)}
+   789→                        onCheckedChange={() => toggleEvent(event)}
+   790→                      />
+   791→                      <Label htmlFor={`evt-${event}`} className="text-xs cursor-pointer">
+   792→                        <EventBadge event={event} />
+   793→                      </Label>
+   794→                    </div>
+   795→                  ))}
+   796→                </div>
+   797→              </div>
+   798→              <div className="p-2.5 rounded-md bg-muted/50 border border-border/50">
+   799→                <p className="text-[10px] text-muted-foreground mb-1">Signing Secret (auto-generated)</p>
+   800→                <code className="text-[10px] font-mono text-primary">whsec_{Math.random().toString(36).substring(2, 18)}...</code>
+   801→              </div>
+   802→              <DialogFooter>
+   803→                <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
+   804→                <Button onClick={handleAddWebhook} disabled={!newName || !newUrl || newEvents.length === 0} className="gap-1.5">
+   805→                  <Webhook className="size-3.5" />
+   806→                  Add Webhook
+   807→                </Button>
+   808→              </DialogFooter>
+   809→            </div>
+   810→          </DialogContent>
+   811→        </Dialog>
+   812→      </div>
+   813→
+   814→      {/* Webhooks Table */}
+   815→      <Card className="bg-card/50">
+   816→        <CardContent className="p-0">
+   817→          <ScrollArea className="max-h-[520px]">
+   818→            <div className="overflow-x-auto">
+   819→            <Table>
+   820→              <TableHeader>
+   821→                <TableRow>
+   822→                  <TableHead className="text-[10px]">Name</TableHead>
+   823→                  <TableHead className="text-[10px]">URL</TableHead>
+   824→                  <TableHead className="text-[10px]">Events</TableHead>
+   825→                  <TableHead className="text-[10px]">Success Rate</TableHead>
+   826→                  <TableHead className="text-[10px]">Last Trigger</TableHead>
+   827→                  <TableHead className="text-[10px]">Status</TableHead>
+   828→                  <TableHead className="text-[10px] text-right">Actions</TableHead>
+   829→                </TableRow>
+   830→              </TableHeader>
+   831→              <TableBody>
+   832→                {webhookList.map(wh => (
+   833→                  <>
+   834→                    <TableRow key={wh.id} className="cursor-pointer" onClick={() => setExpandedWebhook(expandedWebhook === wh.id ? null : wh.id)}>
+   835→                      <TableCell className="text-xs font-medium">{wh.name}</TableCell>
+   836→                      <TableCell>
+   837→                        <code className="text-[10px] font-mono text-muted-foreground max-w-[120px] sm:max-w-[200px] truncate block">{wh.url}</code>
+   838→                      </TableCell>
+   839→                      <TableCell>
+   840→                        <div className="flex flex-wrap gap-1">
+   841→                          {wh.events.map(evt => <EventBadge key={evt} event={evt} />)}
+   842→                        </div>
+   843→                      </TableCell>
+   844→                      <TableCell>
+   845→                        <SuccessRateBar rate={wh.successRate} />
+   846→                      </TableCell>
+   847→                      <TableCell className="text-[10px] text-muted-foreground">{timeAgo(wh.lastTriggerAt)}</TableCell>
+   848→                      <TableCell>
+   849→                        <div className="flex items-center gap-2">
+   850→                          <Switch checked={wh.isActive} onCheckedChange={() => handleToggleActive(wh.id)} className="scale-75" />
+   851→                          <Badge
+   852→                            variant="outline"
+   853→                            className={`text-[9px] ${
+   854→                              wh.isActive
+   855→                                ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+   856→                                : 'bg-gray-500/15 text-gray-400 border-gray-500/30'
+   857→                            }`}
+   858→                          >
+   859→                            {wh.isActive ? 'Active' : 'Inactive'}
+   860→                          </Badge>
+   861→                        </div>
+   862→                      </TableCell>
+   863→                      <TableCell>
+   864→                        <div className="flex items-center gap-1 justify-end">
+   865→                          <Button
+   866→                            variant="ghost"
+   867→                            size="sm"
+   868→                            className="h-6 text-[10px] gap-1"
+   869→                            onClick={(e) => { e.stopPropagation(); handleTestWebhook(wh.id) }}
+   870→                            disabled={testingId === wh.id}
+   871→                          >
+   872→                            {testingId === wh.id ? (
+   873→                              <RefreshCw className="size-3 animate-spin" />
+   874→                            ) : (
+   875→                              <Zap className="size-3" />
+   876→                            )}
+   877→                            Test
+   878→                          </Button>
+   879→                        </div>
+   880→                      </TableCell>
+   881→                    </TableRow>
+   882→                    {/* Delivery Log Expansion */}
+   883→                    {expandedWebhook === wh.id && (
+   884→                      <TableRow key={`${wh.id}-deliveries`}>
+   885→                        <TableCell colSpan={7} className="bg-muted/20 p-3">
+   886→                          <div className="space-y-2">
+   887→                            <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+   888→                              Recent Deliveries for {wh.name}
+   889→                            </p>
+   890→                            <div className="space-y-1">
+   891→                              {deliveries
+   892→                                .filter(d => d.webhookName === wh.name)
+   893→                                .map(del => (
+   894→                                  <div key={del.id} className="flex items-center gap-3 text-[10px]">
+   895→                                    <span className="text-muted-foreground">{timeAgo(del.createdAt)}</span>
+   896→                                    <Badge
+   897→                                      variant="outline"
+   898→                                      className={`text-[9px] h-4 ${
+   899→                                        del.success
+   900→                                          ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
+   901→                                          : 'bg-red-500/15 text-red-400 border-red-500/30'
+   902→                                      }`}
+   903→                                    >
+   904→                                      {del.statusCode}
+   905→                                    </Badge>
+   906→                                    <span className="text-muted-foreground">{del.duration}ms</span>
+   907→                                    {del.attempt > 1 && (
+   908→                                      <Badge variant="outline" className="text-[9px] h-4 bg-amber-500/15 text-amber-400 border-amber-500/30">
+   909→                                        attempt {del.attempt}
+   910→                                      </Badge>
+   911→                                    )}
+   912→                                    <code className="text-muted-foreground font-mono">{del.eventId}</code>
+   913→                                  </div>
+   914→                                ))}
+   915→                              {deliveries.filter(d => d.webhookName === wh.name).length === 0 && (
+   916→                                <p className="text-[10px] text-muted-foreground italic">No recent deliveries</p>
+   917→                              )}
+   918→                            </div>
+   919→                          </div>
+   920→                        </TableCell>
+   921→                      </TableRow>
+   922→                    )}
+   923→                  </>
+   924→                ))}
+   925→              </TableBody>
+   926→            </Table>
+   927→            </div>
+   928→          </ScrollArea>
+   929→        </CardContent>
+   930→      </Card>
+   931→    </div>
+   932→  )
+   933→}
+   934→
+   935→/* ─── Tab 4: Integrations ─── */
+   936→
+   937→function IntegrationsTab({ integrations }: { integrations: Integration[] }) {
+   938→  const [integrationList, setIntegrationList] = useState(integrations)
+   939→  const [showAddDialog, setShowAddDialog] = useState(false)
+   940→  const [syncingId, setSyncingId] = useState<string | null>(null)
+   941→
+   942→  const platformOptions = [
+   943→    { name: 'MegaJackpot Slots', type: 'casino_slots', logo: '🎰' },
+   944→    { name: 'RoyalPoker Live', type: 'casino_poker', logo: '🃏' },
+   945→    { name: 'SportEdge Betting', type: 'sports_betting', logo: '⚽' },
+   946→    { name: 'LuckyDraw Lottery', type: 'lottery', logo: '🎲' },
+   947→    { name: 'Custom Integration', type: 'custom', logo: '🔧' },
+   948→  ]
+   949→
+   950→  function handleSync(id: string) {
+   951→    setSyncingId(id)
+   952→    setTimeout(() => {
+   953→      setIntegrationList(prev => prev.map(i =>
+   954→        i.id === id ? { ...i, status: 'connected', lastSyncAt: new Date().toISOString(), errors: 0 } : i
+   955→      ))
+   956→      setSyncingId(null)
+   957→    }, 2000)
+   958→  }
+   959→
+   960→  function handleAddPlatform(platform: typeof platformOptions[0]) {
+   961→    const newIntg: Integration = {
+   962→      id: `int_${Date.now()}`,
+   963→      name: platform.name,
+   964→      type: platform.type,
+   965→      status: 'pending',
+   966→      lastSyncAt: '',
+   967→      recordsSynced: 0,
+   968→      errors: 0,
+   969→      logo: platform.logo,
+   970→      createdAt: new Date().toISOString(),
+   971→    }
+   972→    setIntegrationList(prev => [newIntg, ...prev])
+   973→    setShowAddDialog(false)
+   974→  }
+   975→
+   976→  return (
+   977→    <div className="space-y-4">
+   978→      <div className="flex items-center justify-between">
+   979→        <Badge variant="secondary" className="text-[10px]">{integrationList.length} integrations</Badge>
+   980→        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+   981→          <DialogTrigger asChild>
+   982→            <Button size="sm" className="gap-1.5">
+   983→              <Plus className="size-3.5" />
+   984→              Add Integration
+   985→            </Button>
+   986→          </DialogTrigger>
+   987→          <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+   988→            <DialogHeader>
+   989→              <DialogTitle className="flex items-center gap-2">
+   990→                <Plug className="size-4 text-primary" />
+   991→                Add Integration
+   992→              </DialogTitle>
+   993→              <DialogDescription>Select a platform to connect with your TOLS instance.</DialogDescription>
+   994→            </DialogHeader>
+   995→            <div className="grid grid-cols-1 gap-2 py-2">
+   996→              {platformOptions.map(p => (
+   997→                <button
+   998→                  key={p.name}
+   999→                  onClick={() => handleAddPlatform(p)}
+  1000→                  className="flex items-center gap-3 p-3 rounded-lg border border-border/50 hover:border-primary/30 hover:bg-muted/30 transition-colors text-left"
+  1001→                >
+  1002→                  <span className="text-xl">{p.logo}</span>
+  1003→                  <div>
+  1004→                    <p className="text-xs font-medium">{p.name}</p>
+  1005→                    <p className="text-[10px] text-muted-foreground capitalize">{p.type.replace('_', ' ')}</p>
+  1006→                  </div>
+  1007→                </button>
+  1008→              ))}
+  1009→            </div>
+  1010→          </DialogContent>
+  1011→        </Dialog>
+  1012→      </div>
+  1013→
+  1014→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+  1015→        {integrationList.map(intg => (
+  1016→          <Card key={intg.id} className={`bg-card/50 ${intg.status === 'disconnected' ? 'opacity-60' : ''}`}>
+  1017→            <CardContent className="p-3 sm:p-4 space-y-3">
+  1018→              <div className="flex items-start justify-between">
+  1019→                <div className="flex items-center gap-2.5">
+  1020→                  <span className="text-2xl">{intg.logo}</span>
+  1021→                  <div>
+  1022→                    <p className="text-sm font-medium">{intg.name}</p>
+  1023→                    <IntegrationTypeBadge type={intg.type} />
+  1024→                  </div>
+  1025→                </div>
+  1026→                <div className="flex items-center gap-1.5">
+  1027→                  <StatusDot status={intg.status} />
+  1028→                  <span className="text-[10px] text-muted-foreground capitalize">{intg.status}</span>
+  1029→                </div>
+  1030→              </div>
+  1031→
+  1032→              <Separator className="opacity-50" />
+  1033→
+  1034→              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]">
+  1035→                <div>
+  1036→                  <p className="text-muted-foreground">Last Sync</p>
+  1037→                  <p className="font-medium">{timeAgo(intg.lastSyncAt)}</p>
+  1038→                </div>
+  1039→                <div>
+  1040→                  <p className="text-muted-foreground">Records Synced</p>
+  1041→                  <p className="font-medium">{fmtNumber(intg.recordsSynced)}</p>
+  1042→                </div>
+  1043→                {intg.errors > 0 && (
+  1044→                  <div className="col-span-2">
+  1045→                    <Badge variant="outline" className="text-[9px] bg-red-500/15 text-red-400 border-red-500/30">
+  1046→                      <AlertCircle className="size-2.5 mr-1" />
+  1047→                      {intg.errors} errors
+  1048→                    </Badge>
+  1049→                  </div>
+  1050→                )}
+  1051→              </div>
+  1052→
+  1053→              <div className="flex items-center gap-2">
+  1054→                <Button variant="outline" size="sm" className="flex-1 h-7 text-[10px] gap-1">
+  1055→                  <Settings className="size-3" />
+  1056→                  Configure
+  1057→                </Button>
+  1058→                <Button
+  1059→                  variant="outline"
+  1060→                  size="sm"
+  1061→                  className="flex-1 h-7 text-[10px] gap-1"
+  1062→                  onClick={() => handleSync(intg.id)}
+  1063→                  disabled={syncingId === intg.id || intg.status === 'disconnected'}
+  1064→                >
+  1065→                  {syncingId === intg.id ? (
+  1066→                    <RefreshCw className="size-3 animate-spin" />
+  1067→                  ) : (
+  1068→                    <RefreshCw className="size-3" />
+  1069→                  )}
+  1070→                  Sync Now
+  1071→                </Button>
+  1072→              </div>
+  1073→            </CardContent>
+  1074→          </Card>
+  1075→        ))}
+  1076→      </div>
+  1077→    </div>
+  1078→  )
+  1079→}
+  1080→
+  1081→/* ─── Tab 5: MCP Endpoints ─── */
+  1082→
+  1083→function McpTab({ endpoints }: { endpoints: McpEndpoint[] }) {
+  1084→  const [endpointList, setEndpointList] = useState(endpoints)
+  1085→  const [expandedTools, setExpandedTools] = useState<Set<string>>(new Set())
+  1086→  const [viewSchemaId, setViewSchemaId] = useState<string | null>(null)
+  1087→
+  1088→  function toggleTools(id: string) {
+  1089→    setExpandedTools(prev => {
+  1090→      const next = new Set(prev)
+  1091→      if (next.has(id)) next.delete(id)
+  1092→      else next.add(id)
+  1093→      return next
+  1094→    })
+  1095→  }
+  1096→
+  1097→  function handleToggleActive(id: string) {
+  1098→    setEndpointList(prev => prev.map(e => e.id === id ? { ...e, isActive: !e.isActive } : e))
+  1099→  }
+  1100→
+  1101→  return (
+  1102→    <div className="space-y-4">
+  1103→      <div className="flex items-center justify-between">
+  1104→        <div className="flex items-center gap-2">
+  1105→          <Badge variant="secondary" className="text-[10px]">{endpointList.length} endpoints</Badge>
+  1106→          <Badge variant="outline" className="text-[9px] border-cyan-500/30 text-cyan-400">MCP Protocol</Badge>
+  1107→        </div>
+  1108→      </div>
+  1109→
+  1110→      <div className="space-y-3">
+  1111→        {endpointList.map(endpoint => (
+  1112→          <Card key={endpoint.id} className={`bg-card/50 ${!endpoint.isActive ? 'opacity-60' : ''}`}>
+  1113→            <CardContent className="p-3 sm:p-4 space-y-3">
+  1114→              <div className="flex items-start justify-between gap-2">
+  1115→                <div className="flex-1 min-w-0">
+  1116→                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+  1117→                    <Bot className="size-4 text-primary shrink-0" />
+  1118→                    <h3 className="text-sm font-semibold">{endpoint.name}</h3>
+  1119→                    <Badge variant="outline" className="text-[9px] bg-primary/10 text-primary border-primary/30">
+  1120→                      v{endpoint.version}
+  1121→                    </Badge>
+  1122→                    {endpoint.requiresAuth && (
+  1123→                      <Badge variant="outline" className="text-[9px] bg-amber-500/15 text-amber-400 border-amber-500/30">
+  1124→                        <Shield className="size-2.5 mr-0.5" />
+  1125→                        Auth Required
+  1126→                      </Badge>
+  1127→                    )}
+  1128→                  </div>
+  1129→                  <p className="text-xs text-muted-foreground mb-2">{endpoint.description}</p>
+  1130→                  <div className="flex items-center gap-1.5">
+  1131→                    <Code className="size-3 text-muted-foreground" />
+  1132→                    <code className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded truncate block max-w-[200px] sm:max-w-none">
+  1133→                      {endpoint.baseUrl}
+  1134→                    </code>
+  1135→                  </div>
+  1136→                </div>
+  1137→                <div className="flex items-center gap-2 shrink-0">
+  1138→                  <Switch
+  1139→                    checked={endpoint.isActive}
+  1140→                    onCheckedChange={() => handleToggleActive(endpoint.id)}
+  1141→                  />
+  1142→                </div>
+  1143→              </div>
+  1144→
+  1145→              <Separator className="opacity-50" />
+  1146→
+  1147→              {/* Tools Section */}
+  1148→              <div>
+  1149→                <button
+  1150→                  onClick={() => toggleTools(endpoint.id)}
+  1151→                  className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+  1152→                >
+  1153→                  {expandedTools.has(endpoint.id) ? (
+  1154→                    <EyeOff className="size-3" />
+  1155→                  ) : (
+  1156→                    <Eye className="size-3" />
+  1157→                  )}
+  1158→                  {endpoint.tools.length} Tools
+  1159→                </button>
+  1160→
+  1161→                {expandedTools.has(endpoint.id) && (
+  1162→                  <div className="mt-2 space-y-1.5">
+  1163→                    {endpoint.tools.map(tool => (
+  1164→                      <div key={tool.name} className="flex items-start gap-2 p-2 rounded-md bg-muted/20 border border-border/30">
+  1165→                        <Zap className="size-3 text-amber-400 mt-0.5 shrink-0" />
+  1166→                        <div className="min-w-0">
+  1167→                          <code className="text-[10px] font-mono text-amber-400">{tool.name}</code>
+  1168→                          <p className="text-[10px] text-muted-foreground mt-0.5">{tool.description}</p>
+  1169→                        </div>
+  1170→                      </div>
+  1171→                    ))}
+  1172→                  </div>
+  1173→                )}
+  1174→              </div>
+  1175→
+  1176→              <div className="flex items-center gap-2">
+  1177→                <Button
+  1178→                  variant="outline"
+  1179→                  size="sm"
+  1180→                  className="h-7 text-[10px] gap-1"
+  1181→                  onClick={() => setViewSchemaId(viewSchemaId === endpoint.id ? null : endpoint.id)}
+  1182→                >
+  1183→                  <Code className="size-3" />
+  1184→                  View Schema
+  1185→                </Button>
+  1186→                <Button variant="outline" size="sm" className="h-7 text-[10px] gap-1">
+  1187→                  <ExternalLink className="size-3" />
+  1188→                  OpenAPI Docs
+  1189→                </Button>
+  1190→              </div>
+  1191→
+  1192→              {/* Schema Preview */}
+  1193→              {viewSchemaId === endpoint.id && (
+  1194→                <div className="p-3 rounded-md bg-muted/30 border border-border/50">
+  1195→                  <p className="text-[10px] font-medium text-muted-foreground mb-2 uppercase tracking-wider">OpenAPI Schema</p>
+  1196→                  <pre className="text-[9px] font-mono text-foreground/80 overflow-x-auto whitespace-pre-wrap">
+  1197→{`{
+  1198→  "openapi": "3.1.0",
+  1199→  "info": {
+  1200→    "title": "${endpoint.name}",
+  1201→    "version": "${endpoint.version}"
+  1202→  },
+  1203→  "servers": [{ "url": "${endpoint.baseUrl}" }],
+  1204→  "paths": {
+  1205→${endpoint.tools.map(t => `    "/${t.name}": {
+  1206→      "post": {
+  1207→        "summary": "${t.description}",
+  1208→        "security": [{ "bearerAuth": [] }]
+  1209→      }
+  1210→    }`).join(',\n')}
+  1211→  }
+  1212→}`}
+  1213→                  </pre>
+  1214→                </div>
+  1215→              )}
+  1216→            </CardContent>
+  1217→          </Card>
+  1218→        ))}
+  1219→      </div>
+  1220→    </div>
+  1221→  )
+  1222→}
+  1223→
+  1224→/* ─── Loading Skeleton ─── */
+  1225→
+  1226→function LoadingSkeleton() {
+  1227→  return (
+  1228→    <div className="space-y-4">
+  1229→      <div className="flex items-center gap-2">
+  1230→        <Skeleton className="size-5 rounded" />
+  1231→        <Skeleton className="h-5 w-24" />
+  1232→      </div>
+  1233→      <Skeleton className="h-9 w-full" />
+  1234→      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+  1235→        {Array.from({ length: 6 }).map((_, i) => (
+  1236→          <Skeleton key={i} className="h-20 rounded-lg" />
+  1237→        ))}
+  1238→      </div>
+  1239→      <Skeleton className="h-64 rounded-lg" />
+  1240→      <Skeleton className="h-32 rounded-lg" />
+  1241→    </div>
+  1242→  )
+  1243→}
+  1244→
+  1245→/* ─── Error State ─── */
+  1246→
+  1247→function ErrorState({ error, onRetry }: { error: string; onRetry: () => void }) {
+  1248→  return (
+  1249→    <Card className="bg-red-500/5 border-red-500/20">
+  1250→      <CardContent className="p-3 sm:p-6 text-center space-y-3">
+  1251→        <AlertCircle className="size-8 text-red-400 mx-auto" />
+  1252→        <p className="text-sm text-red-400">Failed to load API Hub data</p>
+  1253→        <p className="text-xs text-muted-foreground">{error}</p>
+  1254→        <Button variant="outline" size="sm" onClick={onRetry} className="gap-1.5">
+  1255→          <RefreshCw className="size-3.5" />
+  1256→          Retry
+  1257→        </Button>
+  1258→      </CardContent>
+  1259→    </Card>
+  1260→  )
+  1261→}
+  1262→

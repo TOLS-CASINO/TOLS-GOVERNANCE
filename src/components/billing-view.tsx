@@ -440,6 +440,10 @@ export function BillingView() {
   const [upgradeDialogOpen, setUpgradeDialogOpen] = useState(false)
   const [targetPlan, setTargetPlan] = useState<string>('')
 
+  const [emailInvoices, setEmailInvoices] = useState(true)
+  const [usageAlerts, setUsageAlerts] = useState(true)
+  const [cryptoPayments, setCryptoPayments] = useState(false)
+
   const { data: billingData, loading, error, refetch } = useApi(
     () => api.billing.get(),
     []
@@ -688,7 +692,23 @@ export function BillingView() {
             <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => handleUpgrade('enterprise')}>
               <Crown className="size-3 text-red-400" /> Upgrade to Enterprise
             </Button>
-            <Button variant="outline" size="sm" className="gap-1 text-xs">
+            <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => {
+              const rows = [['Metric','Used','Limit','Utilization %']]
+              USAGE_METERS.forEach((m) => {
+                rows.push([m.label, String(m.used), String(m.limit), `${Math.min(Math.round((m.used / m.limit) * 100), 100)}%`])
+              })
+              rows.push([])
+              rows.push(['Plan', currentPlan, '', ''])
+              rows.push(['Invoices', String(MOCK_INVOICES.length), '', ''])
+              const csv = rows.map((r) => r.join(',')).join('\n')
+              const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = 'usage-report.csv'
+              a.click()
+              URL.revokeObjectURL(url)
+            }}>
               <Download className="size-3" /> Export Usage Report
             </Button>
           </div>
@@ -753,6 +773,26 @@ export function BillingView() {
                               variant="ghost"
                               size="sm"
                               className="size-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => {
+                                const lines = [
+                                  `Invoice: ${inv.id}`,
+                                  `Date: ${inv.date}`,
+                                  `Description: ${inv.description}`,
+                                  `Amount: ${inv.amount}`,
+                                  `Status: ${inv.status.toUpperCase()}`,
+                                  '',
+                                  'Thank you for your business.',
+                                  'TOLS Casino Platform',
+                                ]
+                                const text = lines.join('\n')
+                                const blob = new Blob([text], { type: 'text/plain;charset=utf-8;' })
+                                const url = URL.createObjectURL(blob)
+                                const a = document.createElement('a')
+                                a.href = url
+                                a.download = `${inv.id}.txt`
+                                a.click()
+                                URL.revokeObjectURL(url)
+                              }}
                             >
                               <Download className="size-3 text-muted-foreground" />
                             </Button>
@@ -866,7 +906,7 @@ export function BillingView() {
                     <Label className="text-xs font-medium text-primary">Email invoices</Label>
                     <p className="text-[10px] text-muted-foreground">Receive invoice PDFs via email</p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch checked={emailInvoices} onCheckedChange={setEmailInvoices} />
                 </div>
                 <Separator className="opacity-50" />
                 <div className="flex items-center justify-between">
@@ -874,7 +914,7 @@ export function BillingView() {
                     <Label className="text-xs font-medium text-primary">Usage alerts</Label>
                     <p className="text-[10px] text-muted-foreground">Notify when usage exceeds 80%</p>
                   </div>
-                  <Switch defaultChecked />
+                  <Switch checked={usageAlerts} onCheckedChange={setUsageAlerts} />
                 </div>
                 <Separator className="opacity-50" />
                 <div className="flex items-center justify-between">
@@ -882,7 +922,7 @@ export function BillingView() {
                     <Label className="text-xs font-medium text-primary">Crypto payments</Label>
                     <p className="text-[10px] text-muted-foreground">Enable stablecoin / crypto settlements</p>
                   </div>
-                  <Switch />
+                  <Switch checked={cryptoPayments} onCheckedChange={setCryptoPayments} />
                 </div>
               </CardContent>
             </Card>

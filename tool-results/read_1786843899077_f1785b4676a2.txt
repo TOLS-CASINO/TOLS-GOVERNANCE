@@ -1,0 +1,1297 @@
+     1→'use client'
+     2→
+     3→import { useState, useMemo } from 'react'
+     4→import {
+     5→  Bell,
+     6→  BellOff,
+     7→  Info,
+     8→  AlertTriangle,
+     9→  CheckCircle,
+    10→  XCircle,
+    11→  ShieldAlert,
+    12→  Mail,
+    13→  Smartphone,
+    14→  Webhook,
+    15→  MessageSquare,
+    16→  Send,
+    17→  Settings,
+    18→  Clock,
+    19→  Filter,
+    20→  Search,
+    21→  Trash2,
+    22→  CheckCheck,
+    23→  Eye,
+    24→  Volume2,
+    25→  VolumeX,
+    26→  Plus,
+    27→  ExternalLink,
+    28→  RefreshCw,
+    29→} from 'lucide-react'
+    30→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    31→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    32→import {
+    33→  Table,
+    34→  TableBody,
+    35→  TableCell,
+    36→  TableHead,
+    37→  TableHeader,
+    38→  TableRow,
+    39→} from '@/components/ui/table'
+    40→import { Badge } from '@/components/ui/badge'
+    41→import { Button } from '@/components/ui/button'
+    42→import {
+    43→  Dialog,
+    44→  DialogContent,
+    45→  DialogHeader,
+    46→  DialogTitle,
+    47→  DialogTrigger,
+    48→} from '@/components/ui/dialog'
+    49→import { Input } from '@/components/ui/input'
+    50→import {
+    51→  Select,
+    52→  SelectContent,
+    53→  SelectItem,
+    54→  SelectTrigger,
+    55→  SelectValue,
+    56→} from '@/components/ui/select'
+    57→import { Switch } from '@/components/ui/switch'
+    58→import { Label } from '@/components/ui/label'
+    59→import { ScrollArea } from '@/components/ui/scroll-area'
+    60→import { Skeleton } from '@/components/ui/skeleton'
+    61→import { Separator } from '@/components/ui/separator'
+    62→import { Textarea } from '@/components/ui/textarea'
+    63→import { useApi } from '@/hooks/use-api'
+    64→import { api } from '@/services/api'
+    65→
+    66→/* ─── Types ─── */
+    67→
+    68→interface Notification {
+    69→  id: string
+    70→  userId: string
+    71→  type: string
+    72→  category: string
+    73→  title: string
+    74→  message: string
+    75→  metadata: string
+    76→  isRead: boolean
+    77→  readAt: string
+    78→  channel: string
+    79→  priority: string
+    80→  createdAt: string
+    81→}
+    82→
+    83→interface Preference {
+    84→  id: string
+    85→  category: string
+    86→  channel: string
+    87→  isEnabled: boolean
+    88→  minPriority: string
+    89→  quietHoursStart: string
+    90→  quietHoursEnd: string
+    91→}
+    92→
+    93→interface Template {
+    94→  id: string
+    95→  name: string
+    96→  category: string
+    97→  titleTemplate: string
+    98→  bodyTemplate: string
+    99→  channel: string
+   100→  isActive: boolean
+   101→}
+   102→
+   103→interface Channel {
+   104→  id: string
+   105→  type: string
+   106→  config: string
+   107→  isVerified: boolean
+   108→  isActive: boolean
+   109→}
+   110→
+   111→interface NotificationsData {
+   112→  notifications: Notification[]
+   113→  preferences: Preference[]
+   114→  templates: Template[]
+   115→  channels: Channel[]
+   116→  stats: {
+   117→    total: number
+   118→    unread: number
+   119→    byCategory: Record<string, number>
+   120→    byPriority: Record<string, number>
+   121→    byType: Record<string, number>
+   122→  }
+   123→}
+   124→
+   125→/* ─── Constants ─── */
+   126→
+   127→const TYPE_ICON: Record<string, { icon: React.ElementType; color: string }> = {
+   128→  info: { icon: Info, color: 'text-blue-400' },
+   129→  warning: { icon: AlertTriangle, color: 'text-amber-400' },
+   130→  success: { icon: CheckCircle, color: 'text-emerald-400' },
+   131→  error: { icon: XCircle, color: 'text-red-400' },
+   132→  critical: { icon: ShieldAlert, color: 'text-red-500' },
+   133→}
+   134→
+   135→const PRIORITY_BADGE: Record<string, { bg: string; text: string; pulse: boolean }> = {
+   136→  low: { bg: 'bg-gray-500/20', text: 'text-gray-300', pulse: false },
+   137→  normal: { bg: 'bg-blue-500/20', text: 'text-blue-300', pulse: false },
+   138→  high: { bg: 'bg-amber-500/20', text: 'text-amber-300', pulse: false },
+   139→  urgent: { bg: 'bg-red-500/20', text: 'text-red-300', pulse: true },
+   140→}
+   141→
+   142→const CATEGORY_BADGE: Record<string, { bg: string; text: string }> = {
+   143→  financial: { bg: 'bg-emerald-500/20', text: 'text-emerald-300' },
+   144→  player: { bg: 'bg-blue-500/20', text: 'text-blue-300' },
+   145→  system: { bg: 'bg-gray-500/20', text: 'text-gray-300' },
+   146→  webhook: { bg: 'bg-purple-500/20', text: 'text-purple-300' },
+   147→  integration: { bg: 'bg-cyan-500/20', text: 'text-cyan-300' },
+   148→  compliance: { bg: 'bg-red-500/20', text: 'text-red-300' },
+   149→}
+   150→
+   151→const CATEGORIES = ['financial', 'player', 'system', 'webhook', 'integration', 'compliance']
+   152→const CHANNEL_TYPES = ['in_app', 'email', 'sms', 'webhook', 'push']
+   153→const CHANNEL_LABELS: Record<string, string> = {
+   154→  in_app: 'In-App',
+   155→  email: 'Email',
+   156→  sms: 'SMS',
+   157→  webhook: 'Webhook',
+   158→  push: 'Push',
+   159→}
+   160→const PRIORITIES = ['low', 'normal', 'high', 'urgent']
+   161→const NOTIFICATION_TYPES = ['info', 'warning', 'success', 'error', 'critical']
+   162→
+   163→const CHANNEL_TYPE_ICON: Record<string, { emoji: string; label: string }> = {
+   164→  email: { emoji: '📧', label: 'Email' },
+   165→  sms: { emoji: '📱', label: 'SMS' },
+   166→  webhook: { emoji: '🔗', label: 'Webhook' },
+   167→  slack: { emoji: '💬', label: 'Slack' },
+   168→  discord: { emoji: '🎮', label: 'Discord' },
+   169→  telegram: { emoji: '✈️', label: 'Telegram' },
+   170→}
+   171→
+   172→/* ─── Helpers ─── */
+   173→
+   174→function relativeTime(dateStr: string): string {
+   175→  const diff = Date.now() - new Date(dateStr).getTime()
+   176→  const seconds = Math.floor(diff / 1000)
+   177→  if (seconds < 60) return `${seconds}s ago`
+   178→  const minutes = Math.floor(seconds / 60)
+   179→  if (minutes < 60) return `${minutes}m ago`
+   180→  const hours = Math.floor(minutes / 60)
+   181→  if (hours < 24) return `${hours}h ago`
+   182→  const days = Math.floor(hours / 24)
+   183→  return `${days}d ago`
+   184→}
+   185→
+   186→function parseMetadata(raw: string): Record<string, string> {
+   187→  try {
+   188→    return JSON.parse(raw || '{}')
+   189→  } catch {
+   190→    return {}
+   191→  }
+   192→}
+   193→
+   194→function highlightTemplateVars(text: string): React.ReactNode[] {
+   195→  const parts = text.split(/(\{\{[^}]+\}\})/g)
+   196→  return parts.map((part, i) => {
+   197→    if (part.startsWith('{{') && part.endsWith('}}')) {
+   198→      return (
+   199→        <span key={i} className="bg-amber-500/20 text-amber-300 px-0.5 rounded font-mono text-xs">
+   200→          {part}
+   201→        </span>
+   202→      )
+   203→    }
+   204→    return <span key={i}>{part}</span>
+   205→  })
+   206→}
+   207→
+   208→const SAMPLE_DATA: Record<string, string> = {
+   209→  amount: '$5,000.00',
+   210→  currency: 'USD',
+   211→  method: 'Visa',
+   212→  txId: 'TX-20250304-001',
+   213→  balance: '25,430.50',
+   214→  eta: '2-4 hours',
+   215→  refId: 'REF-WD-789',
+   216→  playerName: 'Sarah Mitchell',
+   217→  playerId: 'P-2001',
+   218→  docType: 'Passport',
+   219→  deadline: '48 hours',
+   220→  alertType: 'Structuring',
+   221→  riskScore: '87',
+   222→  threshold: '80',
+   223→  gameName: 'Mega Moolah',
+   224→  multiplier: '150',
+   225→  jackpotName: 'Mega Moolah',
+   226→  resetAmount: '$1,000,000.00',
+   227→  category: 'Revenue',
+   228→  variancePercent: '-18%',
+   229→  period: '7-day',
+   230→  expected: '$45,000',
+   231→  actual: '$36,900',
+   232→  startTime: '2025-03-08 02:00 UTC',
+   233→  endTime: '2025-03-08 04:00 UTC',
+   234→  timezone: 'UTC',
+   235→  services: 'Deposits, Withdrawals, Game API',
+   236→  duration: '2 hours',
+   237→  endpoint: 'https://api.example.com/hooks',
+   238→  retries: '3',
+   239→  error: '503 Service Unavailable',
+   240→  eventType: 'deposit.confirmed',
+   241→  webhookId: 'WH-12345',
+   242→  promoName: 'Spring Bonus',
+   243→  promoId: 'PROMO-2025-001',
+   244→  totalClaims: '1,247',
+   245→  totalValue: '$62,350.00',
+   246→  conversionRate: '34.2',
+   247→}
+   248→
+   249→function renderTemplate(template: string): string {
+   250→  return template.replace(/\{\{(\w+)\}\}/g, (_, key) => SAMPLE_DATA[key] || `{{${key}}}`)
+   251→}
+   252→
+   253→/* ─── Component ─── */
+   254→
+   255→export function NotificationsView() {
+   256→  const { data, loading, error, refetch } = useApi<NotificationsData>(() => api.notifications.get())
+   257→  const [localNotifications, setLocalNotifications] = useState<Notification[] | null>(null)
+   258→  const [localTemplates, setLocalTemplates] = useState<Template[] | null>(null)
+   259→  const [localChannels, setLocalChannels] = useState<Channel[] | null>(null)
+   260→
+   261→  const notifications = localNotifications ?? data?.notifications ?? []
+   262→  const preferences = data?.preferences ?? []
+   263→  const templates = localTemplates ?? data?.templates ?? []
+   264→  const channels = localChannels ?? data?.channels ?? []
+   265→
+   266→  /* Tab 1 state */
+   267→  const [filterCategory, setFilterCategory] = useState<string>('all')
+   268→  const [filterType, setFilterType] = useState<string>('all')
+   269→  const [filterPriority, setFilterPriority] = useState<string>('all')
+   270→  const [filterRead, setFilterRead] = useState<string>('all')
+   271→  const [searchQuery, setSearchQuery] = useState('')
+   272→  const [page, setPage] = useState(0)
+   273→  const PAGE_SIZE = 8
+   274→
+   275→  /* Tab 2 state */
+   276→  const [prefOverrides, setPrefOverrides] = useState<Record<string, Record<string, boolean>> | null>(null)
+   277→  const [minPriorityOverrides, setMinPriorityOverrides] = useState<Record<string, string> | null>(null)
+   278→  const [quietStart, setQuietStart] = useState('22:00')
+   279→  const [quietEnd, setQuietEnd] = useState('08:00')
+   280→  const [quietEnabled, setQuietEnabled] = useState(true)
+   281→
+   282→  /* Tab 3 state */
+   283→  const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null)
+   284→  const [newTemplateOpen, setNewTemplateOpen] = useState(false)
+   285→  const [newTemplateName, setNewTemplateName] = useState('')
+   286→  const [newTemplateCategory, setNewTemplateCategory] = useState('financial')
+   287→  const [newTemplateTitle, setNewTemplateTitle] = useState('')
+   288→  const [newTemplateBody, setNewTemplateBody] = useState('')
+   289→  const [newTemplateChannel, setNewTemplateChannel] = useState('in_app')
+   290→
+   291→  /* Tab 4 state */
+   292→  const [addChannelOpen, setAddChannelOpen] = useState(false)
+   293→  const [newChannelType, setNewChannelType] = useState('email')
+   294→  const [channelForm, setChannelForm] = useState<Record<string, string>>({})
+   295→  const [testChannelId, setTestChannelId] = useState<string | null>(null)
+   296→
+   297→  /* Derive preference matrix from data */
+   298→  const prefMatrix = useMemo(() => {
+   299→    if (prefOverrides) return prefOverrides
+   300→    const matrix: Record<string, Record<string, boolean>> = {}
+   301→    for (const cat of CATEGORIES) {
+   302→      matrix[cat] = {}
+   303→      for (const ch of CHANNEL_TYPES) {
+   304→        matrix[cat][ch] = false
+   305→      }
+   306→    }
+   307→    for (const p of preferences) {
+   308→      if (matrix[p.category]) {
+   309→        matrix[p.category][p.channel] = p.isEnabled
+   310→      }
+   311→    }
+   312→    return matrix
+   313→  }, [prefOverrides, preferences])
+   314→
+   315→  const prefMinPriority = useMemo(() => {
+   316→    if (minPriorityOverrides) return minPriorityOverrides
+   317→    const minP: Record<string, string> = {}
+   318→    for (const p of preferences) {
+   319→      if (!minP[p.category]) minP[p.category] = p.minPriority
+   320→    }
+   321→    return minP
+   322→  }, [minPriorityOverrides, preferences])
+   323→
+   324→  /* Filtered notifications */
+   325→  const filtered = useMemo(() => {
+   326→    return notifications.filter((n) => {
+   327→      if (filterCategory !== 'all' && n.category !== filterCategory) return false
+   328→      if (filterType !== 'all' && n.type !== filterType) return false
+   329→      if (filterPriority !== 'all' && n.priority !== filterPriority) return false
+   330→      if (filterRead === 'unread' && n.isRead) return false
+   331→      if (filterRead === 'read' && !n.isRead) return false
+   332→      if (searchQuery) {
+   333→        const q = searchQuery.toLowerCase()
+   334→        if (!n.title.toLowerCase().includes(q) && !n.message.toLowerCase().includes(q)) return false
+   335→      }
+   336→      return true
+   337→    })
+   338→  }, [notifications, filterCategory, filterType, filterPriority, filterRead, searchQuery])
+   339→
+   340→  const paged = filtered.slice(0, (page + 1) * PAGE_SIZE)
+   341→  const hasMore = filtered.length > (page + 1) * PAGE_SIZE
+   342→  const unreadCount = notifications.filter(n => !n.isRead).length
+   343→
+   344→  const markAsRead = (id: string) => {
+   345→    setLocalNotifications(prev => {
+   346→      const source = prev ?? data?.notifications ?? []
+   347→      return source.map(n => n.id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n)
+   348→    })
+   349→  }
+   350→
+   351→  const markAllAsRead = () => {
+   352→    setLocalNotifications(prev => {
+   353→      const source = prev ?? data?.notifications ?? []
+   354→      return source.map(n => n.isRead ? n : { ...n, isRead: true, readAt: new Date().toISOString() })
+   355→    })
+   356→  }
+   357→
+   358→  const deleteAllRead = () => {
+   359→    setLocalNotifications(prev => {
+   360→      const source = prev ?? data?.notifications ?? []
+   361→      return source.filter(n => !n.isRead)
+   362→    })
+   363→  }
+   364→
+   365→  const toggleTemplateActive = (id: string) => {
+   366→    setLocalTemplates(prev => {
+   367→      const source = prev ?? data?.templates ?? []
+   368→      return source.map(t => t.id === id ? { ...t, isActive: !t.isActive } : t)
+   369→    })
+   370→  }
+   371→
+   372→  const toggleChannelActive = (id: string) => {
+   373→    setLocalChannels(prev => {
+   374→      const source = prev ?? data?.channels ?? []
+   375→      return source.map(c => c.id === id ? { ...c, isActive: !c.isActive } : c)
+   376→    })
+   377→  }
+   378→
+   379→  const togglePref = (category: string, channel: string) => {
+   380→    setPrefOverrides(prev => {
+   381→      const base = prev ?? prefMatrix
+   382→      return {
+   383→        ...base,
+   384→        [category]: {
+   385→          ...base[category],
+   386→          [channel]: !base[category]?.[channel],
+   387→        },
+   388→      }
+   389→    })
+   390→  }
+   391→
+   392→  const setMinPriorityForCategory = (category: string, value: string) => {
+   393→    setMinPriorityOverrides(prev => ({
+   394→      ...prev ?? prefMinPriority,
+   395→      [category]: value,
+   396→    }))
+   397→  }
+   398→
+   399→  const addChannel = () => {
+   400→    const newId = `ch_${Date.now()}`
+   401→    const newCh: Channel = {
+   402→      id: newId,
+   403→      type: newChannelType,
+   404→      config: JSON.stringify(channelForm),
+   405→      isVerified: false,
+   406→      isActive: true,
+   407→    }
+   408→    setLocalChannels(prev => [...(prev ?? data?.channels ?? []), newCh])
+   409→    setAddChannelOpen(false)
+   410→    setChannelForm({})
+   411→  }
+   412→
+   413→  const addTemplate = () => {
+   414→    const newId = `t_${Date.now()}`
+   415→    const newT: Template = {
+   416→      id: newId,
+   417→      name: newTemplateName,
+   418→      category: newTemplateCategory,
+   419→      titleTemplate: newTemplateTitle,
+   420→      bodyTemplate: newTemplateBody,
+   421→      channel: newTemplateChannel,
+   422→      isActive: true,
+   423→    }
+   424→    setLocalTemplates(prev => [...(prev ?? data?.templates ?? []), newT])
+   425→    setNewTemplateOpen(false)
+   426→    setNewTemplateName('')
+   427→    setNewTemplateTitle('')
+   428→    setNewTemplateBody('')
+   429→  }
+   430→
+   431→  /* ─── Loading ─── */
+   432→  if (loading) {
+   433→    return (
+   434→      <div className="space-y-4">
+   435→        <Skeleton className="h-10 w-64" />
+   436→        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   437→          {[1, 2, 3].map(i => (
+   438→            <Skeleton key={i} className="h-24 rounded-lg" />
+   439→          ))}
+   440→        </div>
+   441→        <Skeleton className="h-96 rounded-lg" />
+   442→      </div>
+   443→    )
+   444→  }
+   445→
+   446→  if (error) {
+   447→    return (
+   448→      <Card className="border-destructive/50">
+   449→        <CardContent className="p-3 sm:p-6 text-center">
+   450→          <XCircle className="size-8 text-destructive mx-auto mb-2" />
+   451→          <p className="text-sm text-destructive">Failed to load notifications</p>
+   452→          <Button variant="outline" size="sm" className="mt-2" onClick={refetch}>
+   453→            <RefreshCw className="size-3 mr-1" /> Retry
+   454→          </Button>
+   455→        </CardContent>
+   456→      </Card>
+   457→    )
+   458→  }
+   459→
+   460→  /* ─── Render ─── */
+   461→  return (
+   462→    <div className="space-y-4">
+   463→      {/* Header */}
+   464→      <div className="flex items-center justify-between flex-wrap gap-2">
+   465→        <div className="flex items-center gap-3">
+   466→          <Bell className="size-5 text-primary" />
+   467→          <div>
+   468→            <h2 className="text-lg font-bold">Notifications Center</h2>
+   469→            <p className="text-xs text-muted-foreground">
+   470→              {data?.stats.total ?? 0} total · {unreadCount} unread
+   471→            </p>
+   472→          </div>
+   473→        </div>
+   474→        <Button variant="outline" size="sm" onClick={refetch}>
+   475→          <RefreshCw className="size-3 mr-1" /> Refresh
+   476→        </Button>
+   477→      </div>
+   478→
+   479→      {/* Stats Row */}
+   480→      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+   481→        <Card className="bg-card border-border">
+   482→          <CardContent className="p-3 text-center">
+   483→            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total</p>
+   484→            <p className="text-xl font-bold text-primary">{data?.stats.total ?? 0}</p>
+   485→          </CardContent>
+   486→        </Card>
+   487→        <Card className="bg-card border-border">
+   488→          <CardContent className="p-3 text-center">
+   489→            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Unread</p>
+   490→            <p className="text-xl font-bold text-amber-400">{unreadCount}</p>
+   491→          </CardContent>
+   492→        </Card>
+   493→        <Card className="bg-card border-border">
+   494→          <CardContent className="p-3 text-center">
+   495→            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Urgent</p>
+   496→            <p className="text-xl font-bold text-red-400">{data?.stats.byPriority?.urgent ?? 0}</p>
+   497→          </CardContent>
+   498→        </Card>
+   499→        <Card className="bg-card border-border">
+   500→          <CardContent className="p-3 text-center">
+   501→            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Templates</p>
+   502→            <p className="text-xl font-bold text-cyan-400">{templates.length}</p>
+   503→          </CardContent>
+   504→        </Card>
+   505→      </div>
+   506→
+   507→      {/* Tabs */}
+   508→      <Tabs defaultValue="all" className="w-full">
+   509→        <TabsList className="w-full sm:w-auto">
+   510→          <TabsTrigger value="all" className="text-xs">
+   511→            <Bell className="size-3 mr-1" /> All
+   512→          </TabsTrigger>
+   513→          <TabsTrigger value="preferences" className="text-xs">
+   514→            <Settings className="size-3 mr-1" /> Preferences
+   515→          </TabsTrigger>
+   516→          <TabsTrigger value="templates" className="text-xs">
+   517→            <MessageSquare className="size-3 mr-1" /> Templates
+   518→          </TabsTrigger>
+   519→          <TabsTrigger value="channels" className="text-xs">
+   520→            <Send className="size-3 mr-1" /> Channels
+   521→          </TabsTrigger>
+   522→        </TabsList>
+   523→
+   524→        {/* ─── Tab 1: All Notifications ─── */}
+   525→        <TabsContent value="all" className="space-y-3">
+   526→          {/* Filter Bar */}
+   527→          <Card className="bg-card border-border">
+   528→            <CardContent className="p-3">
+   529→              <div className="flex flex-col sm:flex-row flex-wrap items-center gap-2">
+   530→                <Filter className="size-4 text-muted-foreground shrink-0" />
+   531→                <Select value={filterCategory} onValueChange={v => { setFilterCategory(v); setPage(0) }}>
+   532→                  <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs">
+   533→                    <SelectValue placeholder="Category" />
+   534→                  </SelectTrigger>
+   535→                  <SelectContent>
+   536→                    <SelectItem value="all">All Categories</SelectItem>
+   537→                    {CATEGORIES.map(c => (
+   538→                      <SelectItem key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</SelectItem>
+   539→                    ))}
+   540→                  </SelectContent>
+   541→                </Select>
+   542→                <Select value={filterType} onValueChange={v => { setFilterType(v); setPage(0) }}>
+   543→                  <SelectTrigger className="w-full sm:w-[110px] h-8 text-xs">
+   544→                    <SelectValue placeholder="Type" />
+   545→                  </SelectTrigger>
+   546→                  <SelectContent>
+   547→                    <SelectItem value="all">All Types</SelectItem>
+   548→                    {NOTIFICATION_TYPES.map(t => (
+   549→                      <SelectItem key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</SelectItem>
+   550→                    ))}
+   551→                  </SelectContent>
+   552→                </Select>
+   553→                <Select value={filterPriority} onValueChange={v => { setFilterPriority(v); setPage(0) }}>
+   554→                  <SelectTrigger className="w-full sm:w-[110px] h-8 text-xs">
+   555→                    <SelectValue placeholder="Priority" />
+   556→                  </SelectTrigger>
+   557→                  <SelectContent>
+   558→                    <SelectItem value="all">All Priority</SelectItem>
+   559→                    {PRIORITIES.map(p => (
+   560→                      <SelectItem key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</SelectItem>
+   561→                    ))}
+   562→                  </SelectContent>
+   563→                </Select>
+   564→                <Select value={filterRead} onValueChange={v => { setFilterRead(v); setPage(0) }}>
+   565→                  <SelectTrigger className="w-full sm:w-[110px] h-8 text-xs">
+   566→                    <SelectValue placeholder="Status" />
+   567→                  </SelectTrigger>
+   568→                  <SelectContent>
+   569→                    <SelectItem value="all">All</SelectItem>
+   570→                    <SelectItem value="unread">Unread</SelectItem>
+   571→                    <SelectItem value="read">Read</SelectItem>
+   572→                  </SelectContent>
+   573→                </Select>
+   574→                <div className="relative flex-1 min-w-0 sm:min-w-[150px]">
+   575→                  <Search className="size-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+   576→                  <Input
+   577→                    placeholder="Search notifications..."
+   578→                    value={searchQuery}
+   579→                    onChange={e => { setSearchQuery(e.target.value); setPage(0) }}
+   580→                    className="h-8 pl-7 text-xs"
+   581→                  />
+   582→                </div>
+   583→              </div>
+   584→            </CardContent>
+   585→          </Card>
+   586→
+   587→          {/* Actions */}
+   588→          <div className="flex items-center justify-between flex-wrap gap-2">
+   589→            <p className="text-xs text-muted-foreground">
+   590→              Showing {paged.length} of {filtered.length} notification{filtered.length !== 1 ? 's' : ''}
+   591→            </p>
+   592→            <div className="flex items-center gap-2">
+   593→              {unreadCount > 0 && (
+   594→                <Button variant="outline" size="sm" className="h-7 text-xs" onClick={markAllAsRead}>
+   595→                  <CheckCheck className="size-3 mr-1" /> Mark All as Read
+   596→                </Button>
+   597→              )}
+   598→              <Button variant="outline" size="sm" className="h-7 text-xs text-destructive hover:text-destructive" onClick={deleteAllRead}>
+   599→                <Trash2 className="size-3 mr-1" /> Delete All Read
+   600→              </Button>
+   601→            </div>
+   602→          </div>
+   603→
+   604→          {/* Notification List */}
+   605→          <ScrollArea className="max-h-[520px]">
+   606→            <div className="space-y-2 pr-1">
+   607→              {paged.length === 0 ? (
+   608→                <Card className="bg-card border-border">
+   609→                  <CardContent className="p-4 sm:p-8 text-center">
+   610→                    <BellOff className="size-8 text-muted-foreground mx-auto mb-2" />
+   611→                    <p className="text-sm text-muted-foreground">No notifications match your filters</p>
+   612→                  </CardContent>
+   613→                </Card>
+   614→              ) : (
+   615→                paged.map(n => {
+   616→                  const typeInfo = TYPE_ICON[n.type] || TYPE_ICON.info
+   617→                  const prioInfo = PRIORITY_BADGE[n.priority] || PRIORITY_BADGE.normal
+   618→                  const catInfo = CATEGORY_BADGE[n.category] || CATEGORY_BADGE.system
+   619→                  const TypeIcon = typeInfo.icon
+   620→                  const meta = parseMetadata(n.metadata)
+   621→                  const borderAccent = !n.isRead
+   622→                    ? n.type === 'critical' ? 'border-l-red-500'
+   623→                    : n.type === 'error' ? 'border-l-red-400'
+   624→                    : n.type === 'warning' ? 'border-l-amber-400'
+   625→                    : n.type === 'success' ? 'border-l-emerald-400'
+   626→                    : 'border-l-blue-400'
+   627→                    : 'border-l-transparent'
+   628→
+   629→                  return (
+   630→                    <Card
+   631→                      key={n.id}
+   632→                      className={`bg-card border-border border-l-2 ${borderAccent} ${!n.isRead ? 'bg-muted/20' : ''} transition-colors hover:bg-muted/10`}
+   633→                    >
+   634→                      <CardContent className="p-3">
+   635→                        <div className="flex items-start gap-3">
+   636→                          {/* Type Icon */}
+   637→                          <div className={`shrink-0 mt-0.5 ${typeInfo.color}`}>
+   638→                            <TypeIcon className="size-4" />
+   639→                          </div>
+   640→
+   641→                          {/* Content */}
+   642→                          <div className="flex-1 min-w-0">
+   643→                            <div className="flex items-center gap-1.5 flex-wrap mb-1">
+   644→                              <span className={`text-sm ${!n.isRead ? 'font-bold' : 'font-medium'} truncate`}>
+   645→                                {n.title}
+   646→                              </span>
+   647→                              <Badge className={`text-[9px] h-4 px-1 ${prioInfo.bg} ${prioInfo.text} ${prioInfo.pulse ? 'animate-pulse' : ''}`}>
+   648→                                {n.priority}
+   649→                              </Badge>
+   650→                              <Badge className={`text-[9px] h-4 px-1 ${catInfo.bg} ${catInfo.text}`}>
+   651→                                {n.category}
+   652→                              </Badge>
+   653→                            </div>
+   654→                            <p className="text-xs text-muted-foreground line-clamp-2">{n.message}</p>
+   655→                            <div className="flex items-center gap-3 mt-1.5">
+   656→                              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+   657→                                <Clock className="size-3" /> {relativeTime(n.createdAt)}
+   658→                              </span>
+   659→                              <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+   660→                                {CHANNEL_LABELS[n.channel] || n.channel}
+   661→                              </span>
+   662→                            </div>
+   663→                          </div>
+   664→
+   665→                          {/* Actions */}
+   666→                          <div className="flex items-center gap-1 shrink-0">
+   667→                            {!n.isRead && (
+   668→                              <Button
+   669→                                variant="ghost"
+   670→                                size="sm"
+   671→                                className="h-6 text-[10px] text-primary hover:text-primary"
+   672→                                onClick={() => markAsRead(n.id)}
+   673→                              >
+   674→                                <Eye className="size-3 mr-0.5" /> Read
+   675→                              </Button>
+   676→                            )}
+   677→                            {meta.actionUrl && (
+   678→                              <Button variant="ghost" size="sm" className="h-6 text-[10px]">
+   679→                                <ExternalLink className="size-3 mr-0.5" /> View
+   680→                              </Button>
+   681→                            )}
+   682→                          </div>
+   683→                        </div>
+   684→                      </CardContent>
+   685→                    </Card>
+   686→                  )
+   687→                })
+   688→              )}
+   689→            </div>
+   690→          </ScrollArea>
+   691→
+   692→          {/* Load More */}
+   693→          {hasMore && (
+   694→            <div className="flex justify-center pt-2">
+   695→              <Button variant="outline" size="sm" onClick={() => setPage(p => p + 1)}>
+   696→                Load More ({filtered.length - paged.length} remaining)
+   697→              </Button>
+   698→            </div>
+   699→          )}
+   700→        </TabsContent>
+   701→
+   702→        {/* ─── Tab 2: Preferences ─── */}
+   703→        <TabsContent value="preferences" className="space-y-4">
+   704→          {/* Category-Channel Matrix */}
+   705→          <Card className="bg-card border-border">
+   706→            <CardHeader className="pb-2">
+   707→              <CardTitle className="text-sm flex items-center gap-2">
+   708→                <Volume2 className="size-4 text-primary" /> Notification Channels by Category
+   709→              </CardTitle>
+   710→            </CardHeader>
+   711→            <CardContent className="p-3 pt-0">
+   712→              <div className="overflow-x-auto">
+   713→                <Table>
+   714→                  <TableHeader>
+   715→                    <TableRow>
+   716→                      <TableHead className="text-xs w-[120px]">Category</TableHead>
+   717→                      {CHANNEL_TYPES.map(ch => (
+   718→                        <TableHead key={ch} className="text-xs text-center">{CHANNEL_LABELS[ch]}</TableHead>
+   719→                      ))}
+   720→                      <TableHead className="text-xs text-center">Min Priority</TableHead>
+   721→                    </TableRow>
+   722→                  </TableHeader>
+   723→                  <TableBody>
+   724→                    {CATEGORIES.map(cat => (
+   725→                      <TableRow key={cat}>
+   726→                        <TableCell className="text-xs font-medium">
+   727→                          <Badge className={`text-[9px] ${CATEGORY_BADGE[cat]?.bg || ''} ${CATEGORY_BADGE[cat]?.text || ''}`}>
+   728→                            {cat.charAt(0).toUpperCase() + cat.slice(1)}
+   729→                          </Badge>
+   730→                        </TableCell>
+   731→                        {CHANNEL_TYPES.map(ch => (
+   732→                          <TableCell key={ch} className="text-center">
+   733→                            <Switch
+   734→                              checked={!!prefMatrix[cat]?.[ch]}
+   735→                              onCheckedChange={() => togglePref(cat, ch)}
+   736→                              className="data-[state=checked]:bg-primary"
+   737→                            />
+   738→                          </TableCell>
+   739→                        ))}
+   740→                        <TableCell className="text-center">
+   741→                          <Select
+   742→                            value={prefMinPriority[cat] || 'normal'}
+   743→                            onValueChange={v => setMinPriorityForCategory(cat, v)}
+   744→                          >
+   745→                            <SelectTrigger className="w-[90px] h-7 text-xs mx-auto">
+   746→                              <SelectValue />
+   747→                            </SelectTrigger>
+   748→                            <SelectContent>
+   749→                              {PRIORITIES.map(p => (
+   750→                                <SelectItem key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</SelectItem>
+   751→                              ))}
+   752→                            </SelectContent>
+   753→                          </Select>
+   754→                        </TableCell>
+   755→                      </TableRow>
+   756→                    ))}
+   757→                  </TableBody>
+   758→                </Table>
+   759→              </div>
+   760→            </CardContent>
+   761→          </Card>
+   762→
+   763→          {/* Quiet Hours */}
+   764→          <Card className="bg-card border-border">
+   765→            <CardHeader className="pb-2">
+   766→              <CardTitle className="text-sm flex items-center gap-2">
+   767→                <Clock className="size-4 text-primary" /> Quiet Hours
+   768→              </CardTitle>
+   769→            </CardHeader>
+   770→            <CardContent className="p-3 pt-0">
+   771→              <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 flex-wrap">
+   772→                <div className="flex items-center gap-2">
+   773→                  <Switch
+   774→                    checked={quietEnabled}
+   775→                    onCheckedChange={setQuietEnabled}
+   776→                    className="data-[state=checked]:bg-primary"
+   777→                  />
+   778→                  <Label className="text-xs">Enabled</Label>
+   779→                </div>
+   780→                <div className="flex items-center gap-2">
+   781→                  <Label className="text-xs text-muted-foreground">From</Label>
+   782→                  <Input
+   783→                    type="time"
+   784→                    value={quietStart}
+   785→                    onChange={e => setQuietStart(e.target.value)}
+   786→                    disabled={!quietEnabled}
+   787→                    className="w-full sm:w-[120px] h-8 text-xs"
+   788→                  />
+   789→                </div>
+   790→                <div className="flex items-center gap-2">
+   791→                  <Label className="text-xs text-muted-foreground">To</Label>
+   792→                  <Input
+   793→                    type="time"
+   794→                    value={quietEnd}
+   795→                    onChange={e => setQuietEnd(e.target.value)}
+   796→                    disabled={!quietEnabled}
+   797→                    className="w-full sm:w-[120px] h-8 text-xs"
+   798→                  />
+   799→                </div>
+   800→                {quietEnabled && (
+   801→                  <Badge variant="outline" className="text-[10px] border-primary/30 text-primary">
+   802→                    {quietStart} – {quietEnd}
+   803→                  </Badge>
+   804→                )}
+   805→              </div>
+   806→            </CardContent>
+   807→          </Card>
+   808→
+   809→          {/* Save */}
+   810→          <div className="flex justify-end">
+   811→            <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
+   812→              <CheckCheck className="size-3 mr-1" /> Save Preferences
+   813→            </Button>
+   814→          </div>
+   815→        </TabsContent>
+   816→
+   817→        {/* ─── Tab 3: Templates ─── */}
+   818→        <TabsContent value="templates" className="space-y-3">
+   819→          <div className="flex items-center justify-between">
+   820→            <p className="text-xs text-muted-foreground">{templates.length} template{templates.length !== 1 ? 's' : ''}</p>
+   821→            <Dialog open={newTemplateOpen} onOpenChange={setNewTemplateOpen}>
+   822→              <DialogTrigger asChild>
+   823→                <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
+   824→                  <Plus className="size-3 mr-1" /> Create Template
+   825→                </Button>
+   826→              </DialogTrigger>
+   827→              <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+   828→                <DialogHeader>
+   829→                  <DialogTitle className="text-sm">Create Notification Template</DialogTitle>
+   830→                </DialogHeader>
+   831→                <div className="space-y-3 pt-2">
+   832→                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   833→                    <div>
+   834→                      <Label className="text-xs">Name</Label>
+   835→                      <Input value={newTemplateName} onChange={e => setNewTemplateName(e.target.value)} placeholder="Template name" className="h-8 text-xs mt-1" />
+   836→                    </div>
+   837→                    <div>
+   838→                      <Label className="text-xs">Category</Label>
+   839→                      <Select value={newTemplateCategory} onValueChange={setNewTemplateCategory}>
+   840→                        <SelectTrigger className="h-8 text-xs mt-1">
+   841→                          <SelectValue />
+   842→                        </SelectTrigger>
+   843→                        <SelectContent>
+   844→                          {CATEGORIES.map(c => (
+   845→                            <SelectItem key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</SelectItem>
+   846→                          ))}
+   847→                        </SelectContent>
+   848→                      </Select>
+   849→                    </div>
+   850→                  </div>
+   851→                  <div>
+   852→                    <Label className="text-xs">Channel</Label>
+   853→                    <Select value={newTemplateChannel} onValueChange={setNewTemplateChannel}>
+   854→                      <SelectTrigger className="h-8 text-xs mt-1 w-full sm:w-[150px]">
+   855→                        <SelectValue />
+   856→                      </SelectTrigger>
+   857→                      <SelectContent>
+   858→                        {CHANNEL_TYPES.map(c => (
+   859→                          <SelectItem key={c} value={c}>{CHANNEL_LABELS[c]}</SelectItem>
+   860→                        ))}
+   861→                      </SelectContent>
+   862→                    </Select>
+   863→                  </div>
+   864→                  <div>
+   865→                    <Label className="text-xs">Title Template <span className="text-amber-400">(use {'{{variable}}'})</span></Label>
+   866→                    <Input value={newTemplateTitle} onChange={e => setNewTemplateTitle(e.target.value)} placeholder="e.g. Deposit of {{amount}} Confirmed" className="h-8 text-xs mt-1" />
+   867→                  </div>
+   868→                  <div>
+   869→                    <Label className="text-xs">Body Template <span className="text-amber-400">(use {'{{variable}}'})</span></Label>
+   870→                    <Textarea value={newTemplateBody} onChange={e => setNewTemplateBody(e.target.value)} placeholder="e.g. Your deposit of {{amount}} {{currency}} has been confirmed." className="text-xs mt-1 min-h-[80px]" />
+   871→                  </div>
+   872→                  <div className="flex justify-end gap-2">
+   873→                    <Button variant="outline" size="sm" onClick={() => setNewTemplateOpen(false)}>Cancel</Button>
+   874→                    <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={addTemplate} disabled={!newTemplateName || !newTemplateTitle || !newTemplateBody}>
+   875→                      Create
+   876→                    </Button>
+   877→                  </div>
+   878→                </div>
+   879→              </DialogContent>
+   880→            </Dialog>
+   881→          </div>
+   882→
+   883→          <Card className="bg-card border-border">
+   884→            <CardContent className="p-0">
+   885→              <ScrollArea className="max-h-[480px]">
+   886→                <div className="overflow-x-auto">
+   887→                <Table>
+   888→                  <TableHeader>
+   889→                    <TableRow>
+   890→                      <TableHead className="text-xs">Name</TableHead>
+   891→                      <TableHead className="text-xs">Category</TableHead>
+   892→                      <TableHead className="text-xs">Title Template</TableHead>
+   893→                      <TableHead className="text-xs hidden md:table-cell">Body Template</TableHead>
+   894→                      <TableHead className="text-xs">Channel</TableHead>
+   895→                      <TableHead className="text-xs text-center">Active</TableHead>
+   896→                      <TableHead className="text-xs text-center">Actions</TableHead>
+   897→                    </TableRow>
+   898→                  </TableHeader>
+   899→                  <TableBody>
+   900→                    {templates.map(t => (
+   901→                      <TableRow key={t.id}>
+   902→                        <TableCell className="text-xs font-medium">{t.name}</TableCell>
+   903→                        <TableCell className="text-xs">
+   904→                          <Badge className={`text-[9px] ${CATEGORY_BADGE[t.category]?.bg || ''} ${CATEGORY_BADGE[t.category]?.text || ''}`}>
+   905→                            {t.category}
+   906→                          </Badge>
+   907→                        </TableCell>
+   908→                        <TableCell className="text-xs max-w-[200px]">
+   909→                          <div className="truncate">{highlightTemplateVars(t.titleTemplate)}</div>
+   910→                        </TableCell>
+   911→                        <TableCell className="text-xs max-w-[250px] hidden md:table-cell">
+   912→                          <div className="truncate">{highlightTemplateVars(t.bodyTemplate)}</div>
+   913→                        </TableCell>
+   914→                        <TableCell className="text-xs">
+   915→                          <Badge variant="outline" className="text-[9px]">{CHANNEL_LABELS[t.channel] || t.channel}</Badge>
+   916→                        </TableCell>
+   917→                        <TableCell className="text-center">
+   918→                          <Switch
+   919→                            checked={t.isActive}
+   920→                            onCheckedChange={() => toggleTemplateActive(t.id)}
+   921→                            className="data-[state=checked]:bg-primary"
+   922→                          />
+   923→                        </TableCell>
+   924→                        <TableCell className="text-center">
+   925→                          <Button
+   926→                            variant="ghost"
+   927→                            size="sm"
+   928→                            className="h-6 text-[10px]"
+   929→                            onClick={() => setPreviewTemplate(t)}
+   930→                          >
+   931→                            <Eye className="size-3 mr-0.5" /> Preview
+   932→                          </Button>
+   933→                        </TableCell>
+   934→                      </TableRow>
+   935→                    ))}
+   936→                  </TableBody>
+   937→                </Table>
+   938→                </div>
+   939→              </ScrollArea>
+   940→            </CardContent>
+   941→          </Card>
+   942→
+   943→          {/* Template Preview Dialog */}
+   944→          <Dialog open={!!previewTemplate} onOpenChange={open => !open && setPreviewTemplate(null)}>
+   945→            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+   946→              <DialogHeader>
+   947→                <DialogTitle className="text-sm">Template Preview: {previewTemplate?.name}</DialogTitle>
+   948→              </DialogHeader>
+   949→              {previewTemplate && (
+   950→                <div className="space-y-3 pt-2">
+   951→                  <div>
+   952→                    <Label className="text-xs text-muted-foreground">Rendered Title</Label>
+   953→                    <Card className="mt-1 bg-muted/30 border-border">
+   954→                      <CardContent className="p-3">
+   955→                        <p className="text-sm font-medium">{renderTemplate(previewTemplate.titleTemplate)}</p>
+   956→                      </CardContent>
+   957→                    </Card>
+   958→                  </div>
+   959→                  <div>
+   960→                    <Label className="text-xs text-muted-foreground">Rendered Body</Label>
+   961→                    <Card className="mt-1 bg-muted/30 border-border">
+   962→                      <CardContent className="p-3">
+   963→                        <p className="text-xs leading-relaxed">{renderTemplate(previewTemplate.bodyTemplate)}</p>
+   964→                      </CardContent>
+   965→                    </Card>
+   966→                  </div>
+   967→                  <Separator />
+   968→                  <div>
+   969→                    <Label className="text-xs text-muted-foreground">Original Title Template</Label>
+   970→                    <p className="text-xs mt-1">{highlightTemplateVars(previewTemplate.titleTemplate)}</p>
+   971→                  </div>
+   972→                  <div>
+   973→                    <Label className="text-xs text-muted-foreground">Original Body Template</Label>
+   974→                    <p className="text-xs mt-1 leading-relaxed">{highlightTemplateVars(previewTemplate.bodyTemplate)}</p>
+   975→                  </div>
+   976→                </div>
+   977→              )}
+   978→            </DialogContent>
+   979→          </Dialog>
+   980→        </TabsContent>
+   981→
+   982→        {/* ─── Tab 4: Channels ─── */}
+   983→        <TabsContent value="channels" className="space-y-3">
+   984→          <div className="flex items-center justify-between">
+   985→            <p className="text-xs text-muted-foreground">{channels.length} configured channel{channels.length !== 1 ? 's' : ''}</p>
+   986→            <Dialog open={addChannelOpen} onOpenChange={setAddChannelOpen}>
+   987→              <DialogTrigger asChild>
+   988→                <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
+   989→                  <Plus className="size-3 mr-1" /> Add Channel
+   990→                </Button>
+   991→              </DialogTrigger>
+   992→              <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+   993→                <DialogHeader>
+   994→                  <DialogTitle className="text-sm">Add Notification Channel</DialogTitle>
+   995→                </DialogHeader>
+   996→                <div className="space-y-3 pt-2">
+   997→                  <div>
+   998→                    <Label className="text-xs">Channel Type</Label>
+   999→                    <Select value={newChannelType} onValueChange={v => { setNewChannelType(v); setChannelForm({}) }}>
+  1000→                      <SelectTrigger className="h-8 text-xs mt-1">
+  1001→                        <SelectValue />
+  1002→                      </SelectTrigger>
+  1003→                      <SelectContent>
+  1004→                        {Object.entries(CHANNEL_TYPE_ICON).map(([key, val]) => (
+  1005→                          <SelectItem key={key} value={key}>
+  1006→                            {val.emoji} {val.label}
+  1007→                          </SelectItem>
+  1008→                        ))}
+  1009→                      </SelectContent>
+  1010→                    </Select>
+  1011→                  </div>
+  1012→
+  1013→                  {/* Channel Type Forms */}
+  1014→                  {newChannelType === 'email' && (
+  1015→                    <div>
+  1016→                      <Label className="text-xs">Email Address</Label>
+  1017→                      <Input
+  1018→                        value={channelForm.address || ''}
+  1019→                        onChange={e => setChannelForm(prev => ({ ...prev, address: e.target.value }))}
+  1020→                        placeholder="ops@example.com"
+  1021→                        className="h-8 text-xs mt-1"
+  1022→                      />
+  1023→                    </div>
+  1024→                  )}
+  1025→                  {newChannelType === 'sms' && (
+  1026→                    <div>
+  1027→                      <Label className="text-xs">Phone Number</Label>
+  1028→                      <Input
+  1029→                        value={channelForm.phoneNumber || ''}
+  1030→                        onChange={e => setChannelForm(prev => ({ ...prev, phoneNumber: e.target.value }))}
+  1031→                        placeholder="+1-555-0100"
+  1032→                        className="h-8 text-xs mt-1"
+  1033→                      />
+  1034→                    </div>
+  1035→                  )}
+  1036→                  {newChannelType === 'webhook' && (
+  1037→                    <div className="space-y-2">
+  1038→                      <div>
+  1039→                        <Label className="text-xs">Webhook URL</Label>
+  1040→                        <Input
+  1041→                          value={channelForm.url || ''}
+  1042→                          onChange={e => setChannelForm(prev => ({ ...prev, url: e.target.value }))}
+  1043→                          placeholder="https://example.com/webhooks"
+  1044→                          className="h-8 text-xs mt-1"
+  1045→                        />
+  1046→                      </div>
+  1047→                      <div>
+  1048→                        <Label className="text-xs">Secret</Label>
+  1049→                        <Input
+  1050→                          value={channelForm.secret || ''}
+  1051→                          onChange={e => setChannelForm(prev => ({ ...prev, secret: e.target.value }))}
+  1052→                          placeholder="whsec_..."
+  1053→                          className="h-8 text-xs mt-1"
+  1054→                        />
+  1055→                      </div>
+  1056→                    </div>
+  1057→                  )}
+  1058→                  {newChannelType === 'slack' && (
+  1059→                    <div className="space-y-2">
+  1060→                      <div>
+  1061→                        <Label className="text-xs">Webhook URL</Label>
+  1062→                        <Input
+  1063→                          value={channelForm.webhookUrl || ''}
+  1064→                          onChange={e => setChannelForm(prev => ({ ...prev, webhookUrl: e.target.value }))}
+  1065→                          placeholder="https://hooks.slack.com/services/..."
+  1066→                          className="h-8 text-xs mt-1"
+  1067→                        />
+  1068→                      </div>
+  1069→                      <div>
+  1070→                        <Label className="text-xs">Channel Name</Label>
+  1071→                        <Input
+  1072→                          value={channelForm.channel || ''}
+  1073→                          onChange={e => setChannelForm(prev => ({ ...prev, channel: e.target.value }))}
+  1074→                          placeholder="#ops-alerts"
+  1075→                          className="h-8 text-xs mt-1"
+  1076→                        />
+  1077→                      </div>
+  1078→                    </div>
+  1079→                  )}
+  1080→                  {newChannelType === 'discord' && (
+  1081→                    <div>
+  1082→                      <Label className="text-xs">Webhook URL</Label>
+  1083→                      <Input
+  1084→                        value={channelForm.webhookUrl || ''}
+  1085→                        onChange={e => setChannelForm(prev => ({ ...prev, webhookUrl: e.target.value }))}
+  1086→                        placeholder="https://discord.com/api/webhooks/..."
+  1087→                        className="h-8 text-xs mt-1"
+  1088→                      />
+  1089→                    </div>
+  1090→                  )}
+  1091→                  {newChannelType === 'telegram' && (
+  1092→                    <div className="space-y-2">
+  1093→                      <div>
+  1094→                        <Label className="text-xs">Bot Token</Label>
+  1095→                        <Input
+  1096→                          value={channelForm.botToken || ''}
+  1097→                          onChange={e => setChannelForm(prev => ({ ...prev, botToken: e.target.value }))}
+  1098→                          placeholder="123456:AAF..."
+  1099→                          className="h-8 text-xs mt-1"
+  1100→                        />
+  1101→                      </div>
+  1102→                      <div>
+  1103→                        <Label className="text-xs">Chat ID</Label>
+  1104→                        <Input
+  1105→                          value={channelForm.chatId || ''}
+  1106→                          onChange={e => setChannelForm(prev => ({ ...prev, chatId: e.target.value }))}
+  1107→                          placeholder="-1001234567890"
+  1108→                          className="h-8 text-xs mt-1"
+  1109→                        />
+  1110→                      </div>
+  1111→                    </div>
+  1112→                  )}
+  1113→
+  1114→                  <div className="flex justify-end gap-2">
+  1115→                    <Button variant="outline" size="sm" onClick={() => setAddChannelOpen(false)}>Cancel</Button>
+  1116→                    <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90" onClick={addChannel}>
+  1117→                      Add Channel
+  1118→                    </Button>
+  1119→                  </div>
+  1120→                </div>
+  1121→              </DialogContent>
+  1122→            </Dialog>
+  1123→          </div>
+  1124→
+  1125→          {/* Channel Cards */}
+  1126→          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+  1127→            {channels.map(ch => {
+  1128→              const typeInfo = CHANNEL_TYPE_ICON[ch.type] || { emoji: '📡', label: ch.type }
+  1129→              let configDisplay = ''
+  1130→              try {
+  1131→                const cfg = JSON.parse(ch.config)
+  1132→                if (ch.type === 'email') configDisplay = cfg.address ? `${cfg.address.slice(0, 3)}***@${cfg.address.split('@')[1] || '***'}` : 'Not configured'
+  1133→                else if (ch.type === 'sms') configDisplay = cfg.phoneNumber ? `${cfg.phoneNumber.slice(0, 6)}****` : 'Not configured'
+  1134→                else if (ch.type === 'webhook') configDisplay = cfg.url ? `${cfg.url.slice(0, 30)}...` : 'Not configured'
+  1135→                else if (ch.type === 'slack') configDisplay = cfg.channel || cfg.webhookUrl?.slice(0, 30) + '...' || 'Not configured'
+  1136→                else if (ch.type === 'discord') configDisplay = cfg.webhookUrl ? `${cfg.webhookUrl.slice(0, 35)}...` : 'Not configured'
+  1137→                else if (ch.type === 'telegram') configDisplay = cfg.chatId ? `Chat: ${cfg.chatId}` : 'Not configured'
+  1138→                else configDisplay = JSON.stringify(cfg).slice(0, 40)
+  1139→              } catch {
+  1140→                configDisplay = 'Invalid config'
+  1141→              }
+  1142→
+  1143→              const isTesting = testChannelId === ch.id
+  1144→
+  1145→              return (
+  1146→                <Card key={ch.id} className={`bg-card border-border ${!ch.isActive ? 'opacity-60' : ''} transition-opacity`}>
+  1147→                  <CardContent className="p-3 sm:p-4">
+  1148→                    <div className="flex items-start justify-between gap-2 mb-3">
+  1149→                      <div className="flex items-center gap-2">
+  1150→                        <span className="text-lg">{typeInfo.emoji}</span>
+  1151→                        <div>
+  1152→                          <p className="text-sm font-medium">{typeInfo.label}</p>
+  1153→                          <p className="text-[10px] text-muted-foreground truncate max-w-[120px] sm:max-w-[180px]">{configDisplay}</p>
+  1154→                        </div>
+  1155→                      </div>
+  1156→                      <div className="flex items-center gap-1">
+  1157→                        {ch.isVerified ? (
+  1158→                          <Badge className="text-[9px] bg-emerald-500/20 text-emerald-300">
+  1159→                            <CheckCircle className="size-2.5 mr-0.5" /> Verified
+  1160→                          </Badge>
+  1161→                        ) : (
+  1162→                          <Badge className="text-[9px] bg-amber-500/20 text-amber-300">
+  1163→                            <AlertTriangle className="size-2.5 mr-0.5" /> Unverified
+  1164→                          </Badge>
+  1165→                        )}
+  1166→                      </div>
+  1167→                    </div>
+  1168→
+  1169→                    <div className="flex items-center justify-between gap-2">
+  1170→                      <div className="flex items-center gap-2">
+  1171→                        <Switch
+  1172→                          checked={ch.isActive}
+  1173→                          onCheckedChange={() => toggleChannelActive(ch.id)}
+  1174→                          className="data-[state=checked]:bg-primary"
+  1175→                        />
+  1176→                        <Label className="text-[10px] text-muted-foreground">
+  1177→                          {ch.isActive ? 'Active' : 'Inactive'}
+  1178→                        </Label>
+  1179→                      </div>
+  1180→                      <div className="flex items-center gap-1">
+  1181→                        <Button
+  1182→                          variant="outline"
+  1183→                          size="sm"
+  1184→                          className="h-6 text-[10px]"
+  1185→                          onClick={() => {
+  1186→                            setTestChannelId(ch.id)
+  1187→                            setTimeout(() => setTestChannelId(null), 2000)
+  1188→                          }}
+  1189→                          disabled={isTesting}
+  1190→                        >
+  1191→                          {isTesting ? (
+  1192→                            <RefreshCw className="size-3 mr-0.5 animate-spin" />
+  1193→                          ) : (
+  1194→                            <Send className="size-3 mr-0.5" />
+  1195→                          )}
+  1196→                          {isTesting ? 'Sending...' : 'Test'}
+  1197→                        </Button>
+  1198→                        <Dialog>
+  1199→                          <DialogTrigger asChild>
+  1200→                            <Button variant="outline" size="sm" className="h-6 text-[10px]">
+  1201→                              <Settings className="size-3 mr-0.5" /> Configure
+  1202→                            </Button>
+  1203→                          </DialogTrigger>
+  1204→                          <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+  1205→                            <DialogHeader>
+  1206→                              <DialogTitle className="text-sm">Configure {typeInfo.label} Channel</DialogTitle>
+  1207→                            </DialogHeader>
+  1208→                            <div className="space-y-3 pt-2">
+  1209→                              {ch.type === 'email' && (
+  1210→                                <ChannelConfigForm fields={[
+  1211→                                  { key: 'address', label: 'Email Address', type: 'email', placeholder: 'ops@example.com' },
+  1212→                                  { key: 'smtpHost', label: 'SMTP Host', type: 'text', placeholder: 'smtp.sendgrid.net' },
+  1213→                                  { key: 'smtpPort', label: 'SMTP Port', type: 'text', placeholder: '587' },
+  1214→                                ]} config={ch.config} />
+  1215→                              )}
+  1216→                              {ch.type === 'sms' && (
+  1217→                                <ChannelConfigForm fields={[
+  1218→                                  { key: 'phoneNumber', label: 'Phone Number', type: 'tel', placeholder: '+1-555-0100' },
+  1219→                                  { key: 'provider', label: 'Provider', type: 'text', placeholder: 'Twilio' },
+  1220→                                  { key: 'fromNumber', label: 'From Number', type: 'tel', placeholder: '+1-555-0200' },
+  1221→                                ]} config={ch.config} />
+  1222→                              )}
+  1223→                              {ch.type === 'webhook' && (
+  1224→                                <ChannelConfigForm fields={[
+  1225→                                  { key: 'url', label: 'Webhook URL', type: 'url', placeholder: 'https://example.com/webhooks' },
+  1226→                                  { key: 'secret', label: 'Signing Secret', type: 'text', placeholder: 'whsec_...' },
+  1227→                                ]} config={ch.config} />
+  1228→                              )}
+  1229→                              {ch.type === 'slack' && (
+  1230→                                <ChannelConfigForm fields={[
+  1231→                                  { key: 'webhookUrl', label: 'Webhook URL', type: 'url', placeholder: 'https://hooks.slack.com/...' },
+  1232→                                  { key: 'channel', label: 'Channel', type: 'text', placeholder: '#ops-alerts' },
+  1233→                                ]} config={ch.config} />
+  1234→                              )}
+  1235→                              {ch.type === 'discord' && (
+  1236→                                <ChannelConfigForm fields={[
+  1237→                                  { key: 'webhookUrl', label: 'Webhook URL', type: 'url', placeholder: 'https://discord.com/api/webhooks/...' },
+  1238→                                ]} config={ch.config} />
+  1239→                              )}
+  1240→                              {ch.type === 'telegram' && (
+  1241→                                <ChannelConfigForm fields={[
+  1242→                                  { key: 'botToken', label: 'Bot Token', type: 'text', placeholder: '123456:AAF...' },
+  1243→                                  { key: 'chatId', label: 'Chat ID', type: 'text', placeholder: '-1001234567890' },
+  1244→                                ]} config={ch.config} />
+  1245→                              )}
+  1246→                              <div className="flex justify-end">
+  1247→                                <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90">
+  1248→                                  <CheckCheck className="size-3 mr-1" /> Save Configuration
+  1249→                                </Button>
+  1250→                              </div>
+  1251→                            </div>
+  1252→                          </DialogContent>
+  1253→                        </Dialog>
+  1254→                      </div>
+  1255→                    </div>
+  1256→                  </CardContent>
+  1257→                </Card>
+  1258→              )
+  1259→            })}
+  1260→          </div>
+  1261→        </TabsContent>
+  1262→      </Tabs>
+  1263→    </div>
+  1264→  )
+  1265→}
+  1266→
+  1267→/* ─── Sub-Component: Channel Config Form ─── */
+  1268→
+  1269→interface ConfigField {
+  1270→  key: string
+  1271→  label: string
+  1272→  type: string
+  1273→  placeholder: string
+  1274→}
+  1275→
+  1276→function ChannelConfigForm({ fields, config }: { fields: ConfigField[]; config: string }) {
+  1277→  const parsed = (() => {
+  1278→    try { return JSON.parse(config || '{}') } catch { return {} }
+  1279→  })()
+  1280→
+  1281→  return (
+  1282→    <div className="space-y-2">
+  1283→      {fields.map(f => (
+  1284→        <div key={f.key}>
+  1285→          <Label className="text-xs">{f.label}</Label>
+  1286→          <Input
+  1287→            type={f.type}
+  1288→            defaultValue={parsed[f.key] || ''}
+  1289→            placeholder={f.placeholder}
+  1290→            className="h-8 text-xs mt-1"
+  1291→          />
+  1292→        </div>
+  1293→      ))}
+  1294→    </div>
+  1295→  )
+  1296→}
+  1297→

@@ -21,6 +21,7 @@ import {
   Eye,
   Settings,
   Flame,
+  Loader2,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -40,7 +41,19 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import {
   Select,
@@ -562,6 +575,17 @@ export function BlockchainView() {
   const [contracts] = useState<SmartContract[]>(MOCK_CONTRACTS)
   const [viewContractId, setViewContractId] = useState<string | null>(null)
 
+  // State for dialog buttons
+  const [configureRpcOpen, setConfigureRpcOpen] = useState(false)
+  const [configNetworkId, setConfigNetworkId] = useState<string | null>(null)
+  const [deployNewOpen, setDeployNewOpen] = useState(false)
+  const [deployLoading, setDeployLoading] = useState(false)
+  const [explorerContractId, setExplorerContractId] = useState<string | null>(null)
+  const [verifyContractId, setVerifyContractId] = useState<string | null>(null)
+  const [verifySuccess, setVerifySuccess] = useState(false)
+  const [rpcTesting, setRpcTesting] = useState<string | null>(null)
+  const [rpcTestOk, setRpcTestOk] = useState<Set<string>>(new Set())
+
   // API integration (for future backend connection)
   const { data: apiWallets, loading: walletsLoading } = useApi(
     useCallback(() => api.wallets.get(), []),
@@ -984,7 +1008,7 @@ export function BlockchainView() {
           <TabsContent value="networks">
             <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <h2 className="text-lg font-semibold text-white">Supported Networks ({networks.length})</h2>
-              <Button variant="outline" size="sm" className="border-gray-700 text-gray-300 hover:border-amber-500/30 hover:text-amber-400">
+              <Button variant="outline" size="sm" className="border-gray-700 text-gray-300 hover:border-amber-500/30 hover:text-amber-400" onClick={() => setConfigureRpcOpen(true)}>
                 <Settings className="mr-1.5 size-4" /> Configure RPC
               </Button>
             </div>
@@ -1072,6 +1096,7 @@ export function BlockchainView() {
                           variant="ghost"
                           size="sm"
                           className="h-7 gap-1 text-xs text-gray-400 hover:text-amber-400"
+                          onClick={() => setConfigNetworkId(network.id)}
                         >
                           <Settings className="size-3" /> Config
                         </Button>
@@ -1087,7 +1112,7 @@ export function BlockchainView() {
           <TabsContent value="contracts">
             <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <h2 className="text-lg font-semibold text-white">Smart Contracts ({contracts.length})</h2>
-              <Button variant="outline" size="sm" className="border-gray-700 text-gray-300 hover:border-amber-500/30 hover:text-amber-400">
+              <Button variant="outline" size="sm" className="border-gray-700 text-gray-300 hover:border-amber-500/30 hover:text-amber-400" onClick={() => setDeployNewOpen(true)}>
                 <Plus className="mr-1.5 size-4" /> Deploy New
               </Button>
             </div>
@@ -1159,6 +1184,7 @@ export function BlockchainView() {
                                 variant="ghost"
                                 size="sm"
                                 className="h-7 gap-1 text-xs text-gray-400 hover:text-amber-400"
+                                onClick={() => setExplorerContractId(contract.id)}
                               >
                                 <ExternalLink className="size-3" /> Explorer
                               </Button>
@@ -1236,10 +1262,10 @@ export function BlockchainView() {
                       </div>
                       <Separator className="bg-gray-800/60" />
                       <div className="flex gap-2">
-                        <Button className="flex-1 bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/20 hover:from-amber-600 hover:to-orange-700">
+                        <Button className="flex-1 bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/20 hover:from-amber-600 hover:to-orange-700" onClick={() => { setViewContractId(null); setExplorerContractId(contract.id) }}>
                           <ExternalLink className="mr-1.5 size-4" /> View on Explorer
                         </Button>
-                        <Button variant="outline" className="flex-1 border-gray-700 text-gray-300 hover:border-amber-500/30 hover:text-amber-400">
+                        <Button variant="outline" className="flex-1 border-gray-700 text-gray-300 hover:border-amber-500/30 hover:text-amber-400" onClick={() => { setViewContractId(null); setVerifyContractId(contract.id); setVerifySuccess(false) }}>
                           <RefreshCw className="mr-1.5 size-4" /> Verify Contract
                         </Button>
                       </div>
@@ -1251,6 +1277,228 @@ export function BlockchainView() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Configure RPC Dialog */}
+      <Dialog open={configureRpcOpen} onOpenChange={setConfigureRpcOpen}>
+        <DialogContent className="border-gray-700 bg-[#1a1d25] text-gray-100 sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Settings className="size-4 text-amber-400" /> Configure RPC Endpoints
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">Set custom RPC URLs for each supported network.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {networks.filter(n => n.supported).map((network) => (
+              <div key={network.id} className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{network.icon}</span>
+                  <Label className="text-xs text-gray-300">{network.name}</Label>
+                </div>
+                <div className="flex gap-2">
+                  <Input defaultValue={network.rpcUrl} className="h-8 text-xs bg-[#12141a] border-gray-800 text-gray-300 flex-1 font-mono" />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-[10px] gap-1 border-gray-700 text-gray-300 hover:border-emerald-500/30 hover:text-emerald-400 shrink-0"
+                    disabled={rpcTesting === network.id}
+                    onClick={() => {
+                      setRpcTesting(network.id)
+                      setTimeout(() => {
+                        setRpcTesting(null)
+                        setRpcTestOk(prev => new Set(prev).add(network.id))
+                      }, 1500)
+                    }}
+                  >
+                    {rpcTesting === network.id ? <Loader2 className="size-3 animate-spin" /> : rpcTestOk.has(network.id) ? <CheckCircle className="size-3 text-emerald-400" /> : <Link2 className="size-3" />}
+                    {rpcTesting === network.id ? 'Testing...' : rpcTestOk.has(network.id) ? 'Connected' : 'Test'}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button size="sm" className="bg-gradient-to-r from-amber-500 to-orange-600 text-white" onClick={() => setConfigureRpcOpen(false)}>Done</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Network Config Dialog */}
+      <Dialog open={configNetworkId !== null} onOpenChange={(open) => !open && setConfigNetworkId(null)}>
+        <DialogContent className="border-gray-700 bg-[#1a1d25] text-gray-100 sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white">Network Configuration</DialogTitle>
+            <DialogDescription className="text-gray-400">{networks.find(n => n.id === configNetworkId)?.name} settings</DialogDescription>
+          </DialogHeader>
+          {configNetworkId && (() => {
+            const net = networks.find(n => n.id === configNetworkId)
+            if (!net) return null
+            return (
+              <div className="space-y-4 py-2">
+                <div>
+                  <Label className="text-xs text-gray-500 mb-1.5 block">Chain ID</Label>
+                  <Input defaultValue={net.chainId?.toString() || ''} className="h-8 text-xs bg-[#12141a] border-gray-800 text-gray-300" />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500 mb-1.5 block">RPC URL</Label>
+                  <Input defaultValue={net.rpcUrl} className="h-8 text-xs bg-[#12141a] border-gray-800 text-gray-300 font-mono" />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500 mb-1.5 block">Block Explorer URL</Label>
+                  <Input defaultValue={net.explorerUrl} className="h-8 text-xs bg-[#12141a] border-gray-800 text-gray-300 font-mono" />
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500 mb-1.5 block">API Key</Label>
+                  <Input type="password" defaultValue="" placeholder="Enter API key" className="h-8 text-xs bg-[#12141a] border-gray-800 text-gray-300" />
+                </div>
+              </div>
+            )
+          })()}
+          <DialogFooter>
+            <Button size="sm" className="bg-gradient-to-r from-amber-500 to-orange-600 text-white" onClick={() => setConfigNetworkId(null)}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Deploy New Contract Dialog */}
+      <Dialog open={deployNewOpen} onOpenChange={setDeployNewOpen}>
+        <DialogContent className="border-gray-700 bg-[#1a1d25] text-gray-100 sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Plus className="size-4 text-amber-400" /> Deploy New Contract
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">Select a template and deploy to your chosen network.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <Label className="text-xs text-gray-500 mb-1.5 block">Contract Template</Label>
+              <Select defaultValue="escrow">
+                <SelectTrigger className="h-8 text-xs bg-[#12141a] border-gray-800 text-gray-300">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-[#1a1d25] border-gray-700">
+                  <SelectItem value="escrow">Escrow Contract</SelectItem>
+                  <SelectItem value="token">ERC-20 Token</SelectItem>
+                  <SelectItem value="nft">ERC-721 NFT</SelectItem>
+                  <SelectItem value="staking">Staking Pool</SelectItem>
+                  <SelectItem value="governance">Governance</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-gray-500 mb-1.5 block">Network</Label>
+              <Select defaultValue="ethereum">
+                <SelectTrigger className="h-8 text-xs bg-[#12141a] border-gray-800 text-gray-300">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-[#1a1d25] border-gray-700">
+                  {networks.filter(n => n.supported && n.active).map(n => (
+                    <SelectItem key={n.id} value={n.id}>{n.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-gray-500 mb-1.5 block">Constructor Args</Label>
+              <Textarea placeholder='{ "owner": "0x...", "initialSupply": 1000000 }' className="text-xs min-h-[80px] bg-[#12141a] border-gray-800 text-gray-300 font-mono" />
+            </div>
+            <div>
+              <Label className="text-xs text-gray-500 mb-1.5 block">Gas Limit</Label>
+              <Input type="number" defaultValue="3000000" className="h-8 text-xs bg-[#12141a] border-gray-800 text-gray-300" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              size="sm"
+              className="bg-gradient-to-r from-amber-500 to-orange-600 text-white gap-1"
+              disabled={deployLoading}
+              onClick={() => {
+                setDeployLoading(true)
+                setTimeout(() => { setDeployLoading(false); setDeployNewOpen(false) }, 2000)
+              }}
+            >
+              {deployLoading ? <><Loader2 className="size-3 animate-spin" /> Deploying...</> : <><Plus className="size-3" /> Deploy</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Explorer Dialog */}
+      <Dialog open={explorerContractId !== null} onOpenChange={(open) => !open && setExplorerContractId(null)}>
+        <DialogContent className="border-gray-700 bg-[#1a1d25] text-gray-100 sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <ExternalLink className="size-4 text-amber-400" /> Block Explorer
+            </DialogTitle>
+          </DialogHeader>
+          {explorerContractId && (() => {
+            const c = contracts.find(ct => ct.id === explorerContractId)
+            if (!c) return null
+            const net = networks.find(n => n.name === c.network)
+            return (
+              <div className="space-y-4 py-2">
+                <div className="flex items-center gap-3">
+                  <Shield className="size-8 text-amber-400" />
+                  <div>
+                    <p className="text-sm font-semibold text-white">{c.name}</p>
+                    <code className="text-[10px] font-mono text-amber-400/80">{c.address}</code>
+                  </div>
+                </div>
+                <Separator className="bg-gray-800/60" />
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <p className="text-gray-500 mb-0.5">Network</p>
+                    <p className="text-gray-300">{c.network}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 mb-0.5">Type</p>
+                    <p className="text-gray-300 capitalize">{c.type}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 mb-0.5">Verified</p>
+                    <p className={c.verified ? 'text-emerald-400' : 'text-red-400'}>{c.verified ? 'Yes' : 'No'}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 mb-0.5">Deployed</p>
+                    <p className="text-gray-300">{c.deployedDate}</p>
+                  </div>
+                </div>
+                <Button
+                  className="w-full bg-gradient-to-r from-amber-500 to-orange-600 text-white gap-1.5"
+                  onClick={() => setExplorerContractId(null)}
+                >
+                  <ExternalLink className="size-4" /> View on {net?.explorerUrl || 'Explorer'}
+                </Button>
+              </div>
+            )
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Verify Contract AlertDialog */}
+      <AlertDialog open={verifyContractId !== null} onOpenChange={(open) => !open && setVerifyContractId(null)}>
+        <AlertDialogContent className="border-gray-700 bg-[#1a1d25] text-gray-100">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Verify Contract on Explorer?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400">
+              This will submit the contract source code to the block explorer for verification. {verifySuccess && 'Verification submitted successfully!'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            {!verifySuccess && <AlertDialogCancel className="border-gray-700 text-gray-300 hover:text-gray-100">Cancel</AlertDialogCancel>}
+            <AlertDialogAction
+              className="bg-gradient-to-r from-amber-500 to-orange-600 text-white"
+              disabled={verifySuccess}
+              onClick={() => {
+                if (!verifySuccess) {
+                  setTimeout(() => setVerifySuccess(true), 1000)
+                }
+              }}
+            >
+              {verifySuccess ? '✓ Verified' : 'Verify'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

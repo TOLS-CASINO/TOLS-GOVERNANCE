@@ -449,3 +449,167 @@ Stage Summary:
 - Deposit tracking shows wallet addresses and risk scoring
 - RTP monitoring compares theoretical vs actual RTP with alert system
 - Session control provides full oversight of active gaming sessions
+
+---
+Task ID: 5
+Agent: main
+Task: Fix non-functional buttons in notifications-view.tsx
+
+Work Log:
+- Read full notifications-view.tsx (~1300 lines) to locate all three non-functional buttons
+- Identified View button at line 678, Save Preferences at line 811, Save Configuration at line 1247
+- Added onClick handler to View button: `window.open(meta.actionUrl, '_blank')` for external navigation
+- Added `prefsSaved` / `configSaved` state variables for save feedback tracking
+- Save Preferences button: on click, sets prefsSaved=true, shows "Saved!" with CheckCircle icon, auto-resets after 2s
+- Save Configuration button: same pattern with configSaved state, dialog stays open with inline "Saved!" feedback
+- ESLint passed clean, no existing functionality broken
+
+Stage Summary:
+- All 3 non-functional buttons now have working handlers
+- View button opens actionUrl in new tab
+- Both Save buttons show inline success feedback ("Saved!" + green checkmark) for 2 seconds then revert
+- No toasts or external dependencies added — purely inline UI feedback
+
+---
+Task ID: 3
+Agent: main
+Task: Fix non-functional buttons in vendors-view.tsx and billing-view.tsx
+
+Work Log:
+
+### vendors-view.tsx fixes:
+A. "Add Provider" button — Added onClick to open Add Provider Dialog with form fields: Provider Name, Provider Code, API Endpoint, Integration Type (Select), and Active switch. Dialog shows success state on submit. Added state: addProviderDialogOpen, addProviderName, addProviderCode, addProviderEndpoint, addProviderType, addProviderActive, addProviderSuccess.
+
+B. "Games" button (Eye icon) — Added onClick to open Games Dialog showing games for that vendor in a table (Game, Type, RTP, Status). Uses existing games data filtered by providerId. Added state: gamesDialogOpen, gamesDialogProvider.
+
+C. Activity icon button — Added onClick to open Activity Dialog showing recent callbacks and health events for that vendor. Table shows Timestamp, Event, Status, Response. Merges providerCallbacks and providerHealth sorted by time. Added state: activityDialogOpen, activityDialogProvider.
+
+D. "Active" Switch in Configure Provider dialog — Replaced defaultChecked with controlled checked/onCheckedChange using vendorActiveOverrides state (Record<string, boolean>).
+
+- Added DialogDescription and DialogFooter imports to dialog
+- Added useCallback import (unused but available for future optimization)
+
+### billing-view.tsx fixes:
+A. "Export Usage Report" button — Added onClick that generates CSV with usage meter data (Metric, Used, Limit, Utilization %), plan info, and invoice count. Triggers download via Blob/URL.createObjectURL.
+
+B. Download icon button (invoice row) — Added onClick that creates a text file with invoice details (ID, Date, Description, Amount, Status) and triggers download.
+
+C. "Email invoices" Switch — Replaced defaultChecked with checked={emailInvoices} onCheckedChange={setEmailInvoices}.
+
+D. "Usage alerts" Switch — Replaced defaultChecked with checked={usageAlerts} onCheckedChange={setUsageAlerts}.
+
+E. "Crypto payments" Switch — Added checked={cryptoPayments} onCheckedChange={setCryptoPayments}.
+
+Stage Summary:
+- 9 non-functional elements fixed across 2 files (4 in vendors-view, 5 in billing-view)
+- 3 new Dialog components added to vendors-view.tsx (Add Provider, Games, Activity)
+- 2 download handlers added to billing-view.tsx (CSV export, invoice download)
+- 3 controlled switches added to billing-view.tsx with local state
+- 1 controlled switch added to vendors-view.tsx with vendorActiveOverrides state
+- All changes are mobile-responsive (overflow-x-auto, sm: breakpoints, responsive padding)
+- ESLint passed clean, no existing functionality broken
+
+---
+Task ID: 2
+Agent: main
+Task: Make non-functional buttons functional in live-players-view.tsx (Investigate, Pause Game, End Session)
+
+Work Log:
+- Added new imports: LineChart/Line from recharts, TrendingDown/CheckCircle2/XCircle from lucide-react, AlertDialog components, DialogFooter
+- Added 4 new state variables: investigateRtp (RtpMonitoring | null), sessionOverrides (Record<string, string>), pauseGameId (string | null), endSessionId (string | null)
+- Made "Investigate" button in RTP monitoring table functional with onClick={() => setInvestigateRtp(rtp)}
+- Made "Investigate" button in RTP alert card functional with same onClick handler
+- Made "Pause Game" button in RTP alert card functional with onClick={() => setPauseGameId(rtp.id)}
+- Made "End Session" button (Square icon) functional with onClick={() => setEndSessionId(session.id)}
+- Added RTP Investigation Dialog showing: game name, provider, game type, game ID, status badge, theoretical RTP, 24h/7d/30d actual RTP with color coding, variance analysis with threshold warning, total spins/wagered/won, and a LineChart timeline of RTP over 24 hours
+- Added Pause Game AlertDialog with "Pause Game Session?" title, responsible gambling description, and confirm/cancel actions that update sessionOverrides state
+- Added End Session AlertDialog with "End Session?" title, audit logging description, and confirm/cancel actions that update sessionOverrides state
+- Updated session control filter logic to use getEffectiveStatus() helper that respects sessionOverrides
+- Updated activeSessions/idleSessions counts to use effective status
+- Updated End Session button visibility to respect session overrides
+- All dialogs are mobile-responsive (sm:max-w-2xl, overflow-y-auto, responsive grids)
+- ESLint passed clean, no existing functionality broken
+
+Stage Summary:
+- 4 non-functional buttons made functional across live-players-view.tsx
+- 1 Investigation Dialog added with full RTP analysis and LineChart timeline
+- 2 AlertDialogs added (Pause Game, End Session) with confirmation flows
+- Session override state management implemented for pause/end actions
+- All changes are mobile-responsive and use existing shadcn/ui components
+
+---
+Task ID: 6
+Agent: button-fix-agent
+Task: Fix non-functional buttons in FIVE view files (api-hub, blockchain, ml-pipeline, legal, promotions)
+
+Work Log:
+- Read all 5 view files thoroughly to understand existing code structure, state, and imports
+- Made targeted edits only - no full file rewrites
+
+api-hub-view.tsx:
+- Added `configureIntgId` + `configureSaved` state to IntegrationsTab
+- "Configure" button now opens Dialog with API Key (masked), Endpoint URL, Sync Interval (select), Active toggle, and Save with success feedback
+- Added `openApiDocsId` state to McpTab
+- "OpenAPI Docs" button now opens Dialog showing endpoint list with methods (GET/POST/PUT/DELETE) and descriptions using mock data
+
+blockchain-view.tsx:
+- Added 10 new state variables: configureRpcOpen, configNetworkId, deployNewOpen, deployLoading, explorerContractId, verifyContractId, verifySuccess, rpcTesting, rpcTestOk
+- Added AlertDialog + DialogDescription/DialogFooter + Textarea + Loader2 imports
+- "Configure RPC" button → Dialog with RPC URL inputs per network + "Test Connection" button with loading → success
+- "Config" button (per network) → Dialog with Chain ID, RPC URL, Block Explorer URL, API Key fields
+- "Deploy New" button → Dialog with Contract Template select, Network select, Constructor Args textarea, Gas Limit input, Deploy button with loading state
+- "Explorer" button (ExternalLink icon) → Dialog with contract details + "View on Explorer" button
+- "View on Explorer" button → Same Explorer Dialog
+- "Verify Contract" button → AlertDialog with "Verify Contract on Explorer?" confirmation, success state on confirm
+
+ml-pipeline-view.tsx:
+- Added configureStoreId, configureStoreSaved, logsJobId, refreshLoading state
+- Added DialogDescription/DialogFooter imports
+- "Configure" button (feature store) → Dialog with Data Source select, Refresh Interval select, Schema Version input, Active toggle, Save with success feedback
+- "Logs" button (training job) → Dialog showing mock training logs in scrollable monospace pre area
+- "Refresh All" button → onClick triggers refetch + shows Loader2 spinner for 1.5s
+
+legal-view.tsx:
+- Added docusignDialogOpen state + Dialog imports
+- "Open DocuSign Dashboard" button → Dialog with DocuSign connection status, pending/completed counts, dashboard URL, Close + "Open in New Tab" buttons
+
+promotions-view.tsx:
+- Added createSuccess state + CheckCircle import
+- "Create" button now sets createSuccess=true on click, shows "Created!" with CheckCircle in button
+- Added success indicator banner below header that auto-dismisses after 3s
+
+Stage Summary:
+- 15 non-functional buttons made functional across 5 view files
+- 8 Dialogs added (Configure Integration, OpenAPI Docs, Configure RPC, Network Config, Deploy New, Explorer, Configure Feature Store, Training Logs)
+- 1 AlertDialog added (Verify Contract)
+- 1 success indicator banner added (Promotions)
+- All dialogs use existing shadcn/ui components (Dialog, AlertDialog, Input, Select, Switch, Label, etc.)
+- All loading/success states use brief delays and proper feedback
+- Lint passed clean, dev server compiles successfully
+- All changes are mobile-responsive
+---
+Task ID: 1-7
+Agent: main
+Task: Make all non-functional/decorative buttons and settings across the TOLS Casino Platform functional
+
+Work Log:
+- Analyzed all 20+ view components to find 22 non-functional interactive elements
+- Created comprehensive Settings Dialog component (settings-dialog.tsx) with 4 tabs: General (theme, language, timezone, role), Platform (auto-refresh, display, data), Alerts (notification channels, filtering), Security (2FA, session, audit)
+- Updated page.tsx to make Settings icon button functional with SettingsDialog
+- Fixed Live Players view: Investigate button (opens RTP investigation dialog with chart), Pause Game (AlertDialog confirmation), End Session (AlertDialog confirmation)
+- Fixed Vendors view: Add Provider (opens dialog with form), Games (opens games list dialog), Activity (opens activity log dialog), Active switch (controlled with state)
+- Fixed Billing view: Export Usage Report (generates CSV download), Download invoice (generates text file download), Email invoices/Usage alerts/Crypto payments switches (all controlled with state)
+- Fixed Notifications view: View button (window.open to actionUrl), Save Preferences (success feedback), Save Configuration (success feedback)
+- Fixed API Hub view: Configure (opens config dialog), OpenAPI Docs (opens docs dialog)
+- Fixed Blockchain view: Configure RPC, Config, Deploy New, Explorer, View on Explorer, Verify Contract - all with dialogs
+- Fixed ML Pipeline view: Configure, Logs, Refresh All - all with dialogs/feedback
+- Fixed Legal view: Open DocuSign Dashboard - opens info dialog
+- Fixed Promotions view: Create button - now shows success feedback
+- Browser verified on desktop and iPhone 14 viewport - all working
+- ESLint passes clean, no dev server errors
+
+Stage Summary:
+- 22 non-functional elements made functional across 10 view files
+- New Settings Dialog component created with full configuration UI
+- All changes are mobile-responsive
+- Zero errors in lint and dev server

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import {
   Server,
   Webhook,
@@ -47,6 +47,8 @@ import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -318,6 +320,22 @@ export function VendorsView() {
   const [configDialogOpen, setConfigDialogOpen] = useState(false)
   const [selectedProvider, setSelectedProvider] = useState<GameProvider | null>(null)
 
+  const [addProviderDialogOpen, setAddProviderDialogOpen] = useState(false)
+  const [addProviderName, setAddProviderName] = useState('')
+  const [addProviderCode, setAddProviderCode] = useState('')
+  const [addProviderEndpoint, setAddProviderEndpoint] = useState('')
+  const [addProviderType, setAddProviderType] = useState('api_integration')
+  const [addProviderActive, setAddProviderActive] = useState(true)
+  const [addProviderSuccess, setAddProviderSuccess] = useState(false)
+
+  const [gamesDialogOpen, setGamesDialogOpen] = useState(false)
+  const [gamesDialogProvider, setGamesDialogProvider] = useState<GameProvider | null>(null)
+
+  const [activityDialogOpen, setActivityDialogOpen] = useState(false)
+  const [activityDialogProvider, setActivityDialogProvider] = useState<GameProvider | null>(null)
+
+  const [vendorActiveOverrides, setVendorActiveOverrides] = useState<Record<string, boolean>>({})
+
   /* derived */
   const providers = data?.providers ?? []
   const callbacks = data?.callbacks ?? []
@@ -442,7 +460,7 @@ export function VendorsView() {
           <Button variant="outline" size="sm" className="gap-1 flex-1 sm:flex-initial" onClick={refetch}>
             <RefreshCw className="size-3.5" /> Refresh
           </Button>
-          <Button size="sm" className="gap-1 bg-amber-600 hover:bg-amber-700 text-white flex-1 sm:flex-initial">
+          <Button size="sm" className="gap-1 bg-amber-600 hover:bg-amber-700 text-white flex-1 sm:flex-initial" onClick={() => { setAddProviderDialogOpen(true); setAddProviderSuccess(false); setAddProviderName(''); setAddProviderCode(''); setAddProviderEndpoint(''); setAddProviderType('api_integration'); setAddProviderActive(true); }}>
             <Plus className="size-3.5" /> Add Provider
           </Button>
         </div>
@@ -726,13 +744,14 @@ export function VendorsView() {
                     >
                       <Settings className="size-3" /> Configure
                     </Button>
-                    <Button variant="outline" size="sm" className="flex-1 gap-1 text-xs h-7">
+                    <Button variant="outline" size="sm" className="flex-1 gap-1 text-xs h-7" onClick={() => { setGamesDialogProvider(provider); setGamesDialogOpen(true); }}>
                       <Eye className="size-3" /> Games
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       className="gap-1 text-xs h-7"
+                      onClick={() => { setActivityDialogProvider(provider); setActivityDialogOpen(true); }}
                     >
                       <Activity className="size-3" />
                     </Button>
@@ -1378,7 +1397,10 @@ export function VendorsView() {
                       Enable or disable this provider
                     </p>
                   </div>
-                  <Switch defaultChecked={selectedProvider.isActive} />
+                  <Switch
+                    checked={vendorActiveOverrides[selectedProvider.id] ?? selectedProvider.isActive}
+                    onCheckedChange={(checked: boolean) => setVendorActiveOverrides((prev) => ({ ...prev, [selectedProvider.id]: checked }))}
+                  />
                 </div>
 
                 <div className="flex items-center justify-between">
@@ -1443,6 +1465,215 @@ export function VendorsView() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════ Add Provider Dialog ═══════ */}
+      <Dialog open={addProviderDialogOpen} onOpenChange={setAddProviderDialogOpen}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="size-5 text-amber-500" />
+              Add New Provider
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Enter the details for the new game provider integration.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {addProviderSuccess ? (
+              <div className="flex flex-col items-center gap-3 py-6">
+                <CheckCircle className="size-10 text-emerald-400" />
+                <p className="text-sm font-medium text-emerald-400">Provider added successfully!</p>
+                <p className="text-xs text-muted-foreground">The new provider is now available in your dashboard.</p>
+              </div>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Provider Name</Label>
+                  <Input placeholder="e.g. Evolution Gaming" value={addProviderName} onChange={(e) => setAddProviderName(e.target.value)} className="text-xs" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Provider Code</Label>
+                  <Input placeholder="e.g. EVG" value={addProviderCode} onChange={(e) => setAddProviderCode(e.target.value)} className="text-xs font-mono" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">API Endpoint</Label>
+                  <Input placeholder="https://api.provider.com/v1" value={addProviderEndpoint} onChange={(e) => setAddProviderEndpoint(e.target.value)} className="text-xs font-mono" />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">Integration Type</Label>
+                  <Select value={addProviderType} onValueChange={setAddProviderType}>
+                    <SelectTrigger className="text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="api_integration">API Integration</SelectItem>
+                      <SelectItem value="iframe_embed">iFrame Embed</SelectItem>
+                      <SelectItem value="direct_launch">Direct Launch</SelectItem>
+                      <SelectItem value="seamless_wallet">Seamless Wallet</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-xs">Active</Label>
+                    <p className="text-[10px] text-muted-foreground">Enable immediately after adding</p>
+                  </div>
+                  <Switch checked={addProviderActive} onCheckedChange={setAddProviderActive} />
+                </div>
+              </>
+            )}
+          </div>
+          {!addProviderSuccess && (
+            <DialogFooter className="gap-2">
+              <Button variant="outline" size="sm" onClick={() => setAddProviderDialogOpen(false)}>Cancel</Button>
+              <Button
+                size="sm"
+                className="bg-amber-600 hover:bg-amber-700 text-white gap-1"
+                disabled={!addProviderName || !addProviderCode}
+                onClick={() => setAddProviderSuccess(true)}
+              >
+                <Plus className="size-3.5" /> Add Provider
+              </Button>
+            </DialogFooter>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════ Games Dialog ═══════ */}
+      <Dialog open={gamesDialogOpen} onOpenChange={setGamesDialogOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gamepad2 className="size-5 text-amber-500" />
+              Games
+              {gamesDialogProvider && (
+                <span className="text-muted-foreground font-normal">— {gamesDialogProvider.name}</span>
+              )}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              {gamesDialogProvider ? `${gamesDialogProvider.totalGames} total games, ${gamesDialogProvider.activeGames} active` : ''}
+            </DialogDescription>
+          </DialogHeader>
+          {gamesDialogProvider && (
+            <div className="py-2">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground">Game</TableHead>
+                      <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground">Type</TableHead>
+                      <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground text-right">RTP</TableHead>
+                      <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {games.filter((g) => g.providerId === gamesDialogProvider.id).map((game) => (
+                      <TableRow key={game.id}>
+                        <TableCell className="text-xs font-medium text-primary">{game.name}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground">{GAME_TYPE_LABELS[game.type] ?? game.type}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground text-right">{game.rtp != null ? `${game.rtp}%` : '—'}</TableCell>
+                        <TableCell>
+                          <Badge className={`text-[9px] border ${game.isActive ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25' : 'bg-gray-500/15 text-gray-400 border-gray-500/25'}`} variant="secondary">
+                            {game.isActive ? 'ACTIVE' : 'INACTIVE'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                    {games.filter((g) => g.providerId === gamesDialogProvider.id).length === 0 && (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-xs text-muted-foreground text-center py-6">
+                          No games found for this provider
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════ Activity Dialog ═══════ */}
+      <Dialog open={activityDialogOpen} onOpenChange={setActivityDialogOpen}>
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Activity className="size-5 text-amber-500" />
+              Recent Activity
+              {activityDialogProvider && (
+                <span className="text-muted-foreground font-normal">— {activityDialogProvider.name}</span>
+              )}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Recent callbacks and events for this provider
+            </DialogDescription>
+          </DialogHeader>
+          {activityDialogProvider && (() => {
+            const providerCallbacks = callbacks.filter((c) => c.providerId === activityDialogProvider.id)
+            const providerHealth = healthLogs.filter((h) => h.providerId === activityDialogProvider.id)
+            const activities = [
+              ...providerCallbacks.map((cb) => ({
+                id: cb.id,
+                timestamp: cb.lastReceivedAt ?? cb.lastSuccessAt ?? '—',
+                eventType: cb.eventType,
+                status: (cb.totalFailed === 0 && cb.totalReceived > 0) ? 'success' as const : (cb.totalFailed > 0 ? 'partial_failure' as const : 'pending' as const),
+                responseTime: `${cb.avgProcessingMs}ms`,
+              })),
+              ...providerHealth.map((h) => ({
+                id: h.id,
+                timestamp: h.checkedAt,
+                eventType: h.metric,
+                status: h.isAlert ? ('alert' as const) : ('healthy' as const),
+                responseTime: `${h.value}${h.unit}`,
+              })),
+            ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 20)
+            return (
+              <div className="py-2">
+                {activities.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-6">No recent activity for this provider</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="hover:bg-transparent">
+                          <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground">Timestamp</TableHead>
+                          <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground">Event</TableHead>
+                          <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground">Status</TableHead>
+                          <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground text-right">Response</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {activities.map((a) => (
+                          <TableRow key={a.id}>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{relativeTime(a.timestamp)}</TableCell>
+                            <TableCell className="text-xs font-medium text-primary">{a.eventType}</TableCell>
+                            <TableCell>
+                              <Badge
+                                className={`text-[9px] border ${
+                                  a.status === 'success' || a.status === 'healthy'
+                                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25'
+                                    : a.status === 'partial_failure' || a.status === 'alert'
+                                      ? 'bg-amber-500/15 text-amber-400 border-amber-500/25'
+                                      : 'bg-gray-500/15 text-gray-400 border-gray-500/25'
+                                }`}
+                                variant="secondary"
+                              >
+                                {a.status.replace('_', ' ').toUpperCase()}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground text-right">{a.responseTime}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </DialogContent>
       </Dialog>
     </div>

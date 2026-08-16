@@ -23,6 +23,7 @@ import {
   Calendar,
   AlertCircle,
   RefreshCw,
+  CheckCircle,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -64,6 +65,7 @@ export function PromotionsView() {
   const { data: promotionsData, loading, error, refetch } = usePromotions()
   const [newPromoName, setNewPromoName] = useState('')
   const [newPromoType, setNewPromoType] = useState('deposit_match')
+  const [createSuccess, setCreateSuccess] = useState(false)
 
   if (loading) {
     return (
@@ -191,11 +193,23 @@ export function PromotionsView() {
             </div>
             <DialogFooter>
               <DialogClose asChild><Button variant="ghost" size="sm" className="text-xs">Cancel</Button></DialogClose>
-              <DialogClose asChild><Button size="sm" className="text-xs">Create</Button></DialogClose>
+              <DialogClose asChild>
+                <Button size="sm" className="text-xs gap-1" onClick={() => { setCreateSuccess(true); setTimeout(() => setCreateSuccess(false), 3000) }}>
+                  {createSuccess ? <><CheckCircle className="size-3" /> Created!</> : 'Create'}
+                </Button>
+              </DialogClose>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Success indicator */}
+      {createSuccess && (
+        <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs animate-in fade-in slide-in-from-top-2 duration-300">
+          <CheckCircle className="size-3.5" />
+          <span className="font-medium">Promotion created successfully!</span>
+        </div>
+      )}
 
       {/* Active Promotions Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

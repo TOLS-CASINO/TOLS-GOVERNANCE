@@ -18,6 +18,14 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -59,6 +67,7 @@ export function LegalView() {
   const [contractTypeFilter, setContractTypeFilter] = useState('all')
   const [auditCategoryFilter, setAuditCategoryFilter] = useState('all')
   const [auditSearch, setAuditSearch] = useState('')
+  const [docusignDialogOpen, setDocusignDialogOpen] = useState(false)
 
   if (loading) {
     return (
@@ -345,7 +354,7 @@ export function LegalView() {
                 )}
               </div>
 
-              <Button variant="outline" size="sm" className="w-full text-xs gap-1">
+              <Button variant="outline" size="sm" className="w-full text-xs gap-1" onClick={() => setDocusignDialogOpen(true)}>
                 <ExternalLink className="size-3" />
                 Open DocuSign Dashboard
               </Button>
@@ -353,6 +362,47 @@ export function LegalView() {
           </CardContent>
         </Card>
       </div>
+
+      {/* DocuSign Dashboard Dialog */}
+      <Dialog open={docusignDialogOpen} onOpenChange={setDocusignDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSignature className="size-4 text-primary" />
+              DocuSign Dashboard
+            </DialogTitle>
+            <DialogDescription>Access your DocuSign account to manage envelopes and templates.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="flex items-center gap-2">
+              <div className={`size-2.5 rounded-full ${docusignStatus.connected ? 'bg-emerald-400' : 'bg-destructive'}`} />
+              <span className="text-xs font-medium">
+                {docusignStatus.connected ? 'Connected to DocuSign' : 'Disconnected'}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="p-2 rounded-lg bg-muted/50 text-center">
+                <p className="text-lg font-bold text-yellow-400">{docusignStatus.envelopesPending}</p>
+                <p className="text-[10px] text-muted-foreground">Pending</p>
+              </div>
+              <div className="p-2 rounded-lg bg-muted/50 text-center">
+                <p className="text-lg font-bold text-emerald-400">{docusignStatus.envelopesCompleted}</p>
+                <p className="text-[10px] text-muted-foreground">Completed</p>
+              </div>
+            </div>
+            <div className="p-2 rounded-md bg-muted/30 border border-border/50">
+              <p className="text-[10px] text-muted-foreground">Dashboard URL</p>
+              <code className="text-xs font-mono text-primary">https://app.docusign.com/home</code>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" size="sm" className="gap-1" onClick={() => setDocusignDialogOpen(false)}>Close</Button>
+            <Button size="sm" className="gap-1" onClick={() => setDocusignDialogOpen(false)}>
+              <ExternalLink className="size-3" /> Open in New Tab
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

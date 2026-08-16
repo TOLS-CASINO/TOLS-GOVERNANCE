@@ -12,6 +12,8 @@ import {
   Tooltip,
   ResponsiveContainer,
   CartesianGrid,
+  LineChart,
+  Line,
 } from 'recharts'
 import {
   Users,
@@ -40,6 +42,9 @@ import {
   Timer,
   BarChart3,
   ShieldCheck,
+  TrendingDown,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -50,7 +55,18 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -197,6 +213,12 @@ export function LivePlayersView() {
   const [scDeviceFilter, setScDeviceFilter] = useState('all')
   const [scSearch, setScSearch] = useState('')
   const [selectedSession, setSelectedSession] = useState<TrackingSession | null>(null)
+
+  // Investigation & action dialog state
+  const [investigateRtp, setInvestigateRtp] = useState<RtpMonitoring | null>(null)
+  const [sessionOverrides, setSessionOverrides] = useState<Record<string, string>>({})
+  const [pauseGameId, setPauseGameId] = useState<string | null>(null)
+  const [endSessionId, setEndSessionId] = useState<string | null>(null)
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000)
@@ -951,7 +973,7 @@ export function LivePlayersView() {
                               <TableCell>{rtpStatusBadge(rtp.status)}</TableCell>
                               <TableCell className="hidden sm:table-cell">
                                 {(rtp.status === 'warning' || rtp.status === 'alert' || rtp.status === 'critical') && (
-                                  <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1">
+                                  <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1" onClick={() => setInvestigateRtp(rtp)}>
                                     <Search className="size-3" /> Investigate
                                   </Button>
                                 )}
@@ -990,10 +1012,10 @@ export function LivePlayersView() {
                               <div><span className="text-muted-foreground">Spins</span><br /><span className="font-mono font-medium">{rtp.totalSpins.toLocaleString()}</span></div>
                             </div>
                             <div className="flex gap-2">
-                              <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1 flex-1">
+                              <Button variant="outline" size="sm" className="h-6 text-[10px] gap-1 flex-1" onClick={() => setInvestigateRtp(rtp)}>
                                 <Search className="size-3" /> Investigate
                               </Button>
-                              <Button variant="destructive" size="sm" className="h-6 text-[10px] gap-1 flex-1">
+                              <Button variant="destructive" size="sm" className="h-6 text-[10px] gap-1 flex-1" onClick={() => setPauseGameId(rtp.id)}>
                                 <Pause className="size-3" /> Pause Game
                               </Button>
                             </div>
@@ -1013,13 +1035,15 @@ export function LivePlayersView() {
           {(() => {
             const scSessions: TrackingSession[] = trackingData?.sessions ?? []
             const scBets: TrackingBet[] = trackingData?.bets ?? []
-            const activeSessions = scSessions.filter(s => s.status === 'active')
-            const idleSessions = scSessions.filter(s => s.status === 'idle')
+            const getEffectiveStatus = (s: TrackingSession) => sessionOverrides[s.id] || s.status
+            const activeSessions = scSessions.filter(s => getEffectiveStatus(s) === 'active')
+            const idleSessions = scSessions.filter(s => getEffectiveStatus(s) === 'idle')
             const totalActiveWagered = activeSessions.reduce((sum, s) => sum + s.totalWagered, 0)
             const avgActiveRtp = activeSessions.length > 0 ? activeSessions.reduce((sum, s) => sum + s.rtp, 0) / activeSessions.length : 0
 
             const filteredScSessions = scSessions.filter(s => {
-              if (scStatusFilter !== 'all' && s.status !== scStatusFilter) return false
+              const effectiveStatus = getEffectiveStatus(s)
+              if (scStatusFilter !== 'all' && effectiveStatus !== scStatusFilter) return false
               if (scGameTypeFilter !== 'all' && s.gameType !== scGameTypeFilter) return false
               if (scDeviceFilter !== 'all' && s.device !== scDeviceFilter) return false
               if (scSearch && !s.playerUsername.toLowerCase().includes(scSearch.toLowerCase())) return false
@@ -1191,11 +1215,12 @@ export function LivePlayersView() {
                                     >
                                       <Eye className="size-3" />
                                     </Button>
-                                    {session.status === 'active' && (
+                                    {(session.status === 'active' || sessionOverrides[session.id] === 'active') && !sessionOverrides[session.id]?.startsWith('end') && (
                                       <Button
                                         variant="ghost"
                                         size="sm"
                                         className="h-6 w-6 p-0 text-red-400 hover:text-red-300"
+                                        onClick={() => setEndSessionId(session.id)}
                                       >
                                         <Square className="size-3" />
                                       </Button>
@@ -1315,6 +1340,205 @@ export function LivePlayersView() {
           })()}
         </TabsContent>
       </Tabs>
+
+      {/* RTP Investigation Dialog */}
+      <Dialog open={!!investigateRtp} onOpenChange={(open) => !open && setInvestigateRtp(null)}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+          {investigateRtp && (() => {
+            const r = investigateRtp
+            const varianceColor = r.variance >= 0 ? 'text-emerald-400' : 'text-red-400'
+            const varianceBg = r.variance >= 0 ? 'bg-emerald-500/10' : 'bg-red-500/10'
+            // Generate simulated RTP timeline data
+            const timelineData = Array.from({ length: 24 }, (_, i) => {
+              const hour = 24 - i
+              const baseRtp = r.theoreticalRtp
+              const noise = (Math.sin(i * 0.8) * 2 + Math.cos(i * 1.3) * 1.5) * (1 + Math.abs(r.variance) / 5)
+              return {
+                hour: `${hour}h`,
+                rtp: Math.max(0, Math.min(100, +(baseRtp + noise).toFixed(1))),
+                theoretical: r.theoreticalRtp,
+              }
+            }).reverse()
+            return (
+              <>
+                <DialogHeader>
+                  <DialogTitle className="text-sm flex items-center gap-2">
+                    <Search className="size-4" />
+                    RTP Investigation — {r.gameName}
+                  </DialogTitle>
+                  <DialogDescription className="text-xs">
+                    {r.provider} • {r.gameType === 'slot' ? 'Slot' : 'Live Table'} • Game ID: {r.gameId}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  {/* Status & Key Metrics */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {r.status === 'warning' && <Badge variant="outline" className="text-[10px] border-yellow-500/30 text-yellow-400">Warning</Badge>}
+                      {r.status === 'alert' && <Badge variant="secondary" className="text-[10px] bg-orange-500/20 text-orange-400">Alert</Badge>}
+                      {r.status === 'critical' && <Badge variant="destructive" className="text-[10px]">Critical</Badge>}
+                      {r.status === 'normal' && <Badge className="text-[10px] bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Normal</Badge>}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">Last checked: {new Date(r.lastCheckedAt).toLocaleString()}</span>
+                  </div>
+
+                  {/* Theoretical vs Actual */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                    <div className="p-2.5 rounded-lg border border-border bg-muted/30">
+                      <span className="text-muted-foreground">Theoretical RTP</span>
+                      <p className="text-sm font-bold font-mono mt-0.5">{r.theoreticalRtp.toFixed(2)}%</p>
+                    </div>
+                    <div className="p-2.5 rounded-lg border border-border bg-muted/30">
+                      <span className="text-muted-foreground">Actual 24h</span>
+                      <p className={`text-sm font-bold font-mono mt-0.5 ${Math.abs(r.actualRtp24h - r.theoreticalRtp) <= 1 ? 'text-emerald-400' : Math.abs(r.actualRtp24h - r.theoreticalRtp) <= 3 ? 'text-yellow-400' : 'text-red-400'}`}>
+                        {r.actualRtp24h.toFixed(1)}%
+                      </p>
+                    </div>
+                    <div className="p-2.5 rounded-lg border border-border bg-muted/30">
+                      <span className="text-muted-foreground">Actual 7d</span>
+                      <p className={`text-sm font-bold font-mono mt-0.5 ${Math.abs(r.actualRtp7d - r.theoreticalRtp) <= 1 ? 'text-emerald-400' : Math.abs(r.actualRtp7d - r.theoreticalRtp) <= 3 ? 'text-yellow-400' : 'text-red-400'}`}>
+                        {r.actualRtp7d.toFixed(1)}%
+                      </p>
+                    </div>
+                    <div className="p-2.5 rounded-lg border border-border bg-muted/30">
+                      <span className="text-muted-foreground">Actual 30d</span>
+                      <p className={`text-sm font-bold font-mono mt-0.5 ${Math.abs(r.actualRtp30d - r.theoreticalRtp) <= 1 ? 'text-emerald-400' : Math.abs(r.actualRtp30d - r.theoreticalRtp) <= 3 ? 'text-yellow-400' : 'text-red-400'}`}>
+                        {r.actualRtp30d.toFixed(1)}%
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Variance Analysis */}
+                  <div className={`p-3 rounded-lg border ${varianceBg} ${varianceColor}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <TrendingDown className="size-4" />
+                      <span className="text-xs font-semibold">Variance Analysis</span>
+                    </div>
+                    <p className="text-sm font-bold font-mono">
+                      {r.variance >= 0 ? '+' : ''}{r.variance.toFixed(2)}%
+                      <span className="text-[10px] font-normal text-muted-foreground ml-2">
+                        ({r.variance >= 0 ? 'above' : 'below'} theoretical)
+                      </span>
+                    </p>
+                    {Math.abs(r.variance) > 3 && (
+                      <p className="text-[10px] mt-1 text-muted-foreground">
+                        ⚠ Variance exceeds 3% threshold — investigate game logic and RNG calibration
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Session Data */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                    <div className="p-2 rounded border border-border">
+                      <span className="text-muted-foreground">Total Spins</span>
+                      <p className="font-bold font-mono mt-0.5">{r.totalSpins.toLocaleString()}</p>
+                    </div>
+                    <div className="p-2 rounded border border-border">
+                      <span className="text-muted-foreground">Total Wagered</span>
+                      <p className="font-bold font-mono mt-0.5">{fmt(r.totalWagered)}</p>
+                    </div>
+                    <div className="p-2 rounded border border-border">
+                      <span className="text-muted-foreground">Total Won</span>
+                      <p className="font-bold font-mono mt-0.5">{fmt(r.totalWon)}</p>
+                    </div>
+                  </div>
+
+                  {/* RTP Timeline Chart */}
+                  <div>
+                    <h4 className="text-xs font-semibold mb-2">RTP Over Last 24 Hours</h4>
+                    <ResponsiveContainer width="100%" height={180}>
+                      <LineChart data={timelineData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="hour" tick={{ fontSize: 9 }} stroke="hsl(var(--muted-foreground))" interval={3} />
+                        <YAxis tick={{ fontSize: 9 }} stroke="hsl(var(--muted-foreground))" domain={['dataMin - 2', 'dataMax + 2']} />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: 'hsl(var(--popover))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                          }}
+                          formatter={(value: number, name: string) => [
+                            `${value}%`,
+                            name === 'rtp' ? 'Actual RTP' : 'Theoretical',
+                          ]}
+                        />
+                        <Line type="monotone" dataKey="theoretical" stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" dot={false} strokeWidth={1} />
+                        <Line
+                          type="monotone"
+                          dataKey="rtp"
+                          stroke={Math.abs(r.variance) > 3 ? '#ef4444' : Math.abs(r.variance) > 1 ? '#eab308' : '#10b981'}
+                          strokeWidth={2}
+                          dot={false}
+                          activeDot={{ r: 4 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </>
+            )
+          })()}
+        </DialogContent>
+      </Dialog>
+
+      {/* Pause Game AlertDialog */}
+      <AlertDialog open={!!pauseGameId} onOpenChange={(open) => !open && setPauseGameId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Pause className="size-4 text-yellow-400" />
+              Pause Game Session?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will temporarily pause the game session as a responsible gambling measure. The player will be unable to place new bets until the session is resumed. This action is logged for compliance review.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-yellow-600 hover:bg-yellow-700 text-white"
+              onClick={() => {
+                if (pauseGameId) {
+                  setSessionOverrides(prev => ({ ...prev, [pauseGameId]: 'paused' }))
+                  setPauseGameId(null)
+                }
+              }}
+            >
+              <Pause className="size-3.5 mr-1" /> Pause Game
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* End Session AlertDialog */}
+      <AlertDialog open={!!endSessionId} onOpenChange={(open) => !open && setEndSessionId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Square className="size-4 text-red-400" />
+              End Session?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will immediately end the player&apos;s active session. All pending bets will be settled and the session will be closed. This action cannot be undone and is logged for audit purposes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={() => {
+                if (endSessionId) {
+                  setSessionOverrides(prev => ({ ...prev, [endSessionId]: 'ended' }))
+                  setEndSessionId(null)
+                }
+              }}
+            >
+              <Square className="size-3.5 mr-1" /> End Session
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
