@@ -77,6 +77,9 @@ export const api = {
   vendors: {
     get: () => request<any>('/api/vendors'),
   },
+  playerTracking: {
+    get: () => request<any>('/api/player-tracking'),
+  },
   auth: {
     get: () => request<any>('/api/auth'),
   },

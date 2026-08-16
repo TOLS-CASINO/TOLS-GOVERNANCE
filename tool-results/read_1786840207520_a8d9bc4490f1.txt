@@ -1,0 +1,738 @@
+     1→'use client'
+     2→
+     3→import { useState, useEffect, useRef, useMemo } from 'react'
+     4→import {
+     5→  PieChart,
+     6→  Pie,
+     7→  Cell,
+     8→  BarChart,
+     9→  Bar,
+    10→  XAxis,
+    11→  YAxis,
+    12→  Tooltip,
+    13→  ResponsiveContainer,
+    14→  CartesianGrid,
+    15→} from 'recharts'
+    16→import {
+    17→  Users,
+    18→  Activity,
+    19→  Globe,
+    20→  Trophy,
+    21→  Crown,
+    22→  LogIn,
+    23→  Play,
+    24→  ArrowDown,
+    25→  ArrowUp,
+    26→  Gift,
+    27→  ChevronUp,
+    28→  Monitor,
+    29→  Smartphone,
+    30→  RefreshCw,
+    31→  Wifi,
+    32→  Clock,
+    33→  Zap,
+    34→} from 'lucide-react'
+    35→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    36→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    37→import { Badge } from '@/components/ui/badge'
+    38→import { Button } from '@/components/ui/button'
+    39→import { ScrollArea } from '@/components/ui/scroll-area'
+    40→import { Skeleton } from '@/components/ui/skeleton'
+    41→import { Input } from '@/components/ui/input'
+    42→import {
+    43→  Select,
+    44→  SelectContent,
+    45→  SelectItem,
+    46→  SelectTrigger,
+    47→  SelectValue,
+    48→} from '@/components/ui/select'
+    49→import {
+    50→  Table,
+    51→  TableBody,
+    52→  TableCell,
+    53→  TableHead,
+    54→  TableHeader,
+    55→  TableRow,
+    56→} from '@/components/ui/table'
+    57→import { useApi } from '@/hooks/use-api'
+    58→import { api } from '@/services/api'
+    59→
+    60→const fmt = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+    61→const fmtDec = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    62→
+    63→const COUNTRY_FLAGS: Record<string, string> = {
+    64→  US: '🇺🇸', GB: '🇬🇧', DE: '🇩🇪', FR: '🇫🇷', CA: '🇨🇦', AU: '🇦🇺',
+    65→  JP: '🇯🇵', BR: '🇧🇷', IN: '🇮🇳', MX: '🇲🇽', NL: '🇳🇱', SE: '🇸🇪',
+    66→  NO: '🇳🇴', FI: '🇫🇮', DK: '🇩🇰', IT: '🇮🇹', ES: '🇪🇸', PT: '🇵🇹',
+    67→  PL: '🇵🇱', CZ: '🇨🇿',
+    68→}
+    69→
+    70→const DEVICE_COLORS: Record<string, string> = {
+    71→  desktop: '#f59e0b',
+    72→  mobile: '#10b981',
+    73→  tablet: '#6366f1',
+    74→}
+    75→
+    76→const EVENT_CONFIG: Record<string, { color: string; icon: React.ElementType; label: string }> = {
+    77→  player_login: { color: 'text-blue-400', icon: LogIn, label: 'logged in' },
+    78→  game_start: { color: 'text-emerald-400', icon: Play, label: 'started playing' },
+    79→  big_win: { color: 'text-amber-400', icon: Trophy, label: 'won big on' },
+    80→  jackpot_win: { color: 'text-yellow-300', icon: Crown, label: 'hit JACKPOT on' },
+    81→  deposit: { color: 'text-emerald-500', icon: ArrowDown, label: 'deposited to' },
+    82→  withdrawal: { color: 'text-orange-400', icon: ArrowUp, label: 'withdrew from' },
+    83→  bonus_claim: { color: 'text-purple-400', icon: Gift, label: 'claimed bonus on' },
+    84→  level_up: { color: 'text-cyan-400', icon: ChevronUp, label: 'leveled up on' },
+    85→}
+    86→
+    87→const DEVICE_ICON: Record<string, React.ElementType> = {
+    88→  desktop: Monitor,
+    89→  mobile: Smartphone,
+    90→  tablet: Smartphone,
+    91→}
+    92→
+    93→function formatDuration(start: string, end: string): string {
+    94→  const ms = new Date(end).getTime() - new Date(start).getTime()
+    95→  const mins = Math.floor(ms / 60000)
+    96→  if (mins < 60) return `${mins}m`
+    97→  const hrs = Math.floor(mins / 60)
+    98→  const remMins = mins % 60
+    99→  return `${hrs}h ${remMins}m`
+   100→}
+   101→
+   102→function formatTimeAgo(dateStr: string): string {
+   103→  const diff = Date.now() - new Date(dateStr).getTime()
+   104→  const secs = Math.floor(diff / 1000)
+   105→  if (secs < 60) return `${secs}s ago`
+   106→  const mins = Math.floor(secs / 60)
+   107→  if (mins < 60) return `${mins}m ago`
+   108→  const hrs = Math.floor(mins / 60)
+   109→  return `${hrs}h ago`
+   110→}
+   111→
+   112→function isNew(dateStr: string): boolean {
+   113→  return Date.now() - new Date(dateStr).getTime() < 30000
+   114→}
+   115→
+   116→interface LiveSession {
+   117→  id: string; playerId: string; playerName: string; gameId: string; gameName: string;
+   118→  country: string; city: string; latitude: number; longitude: number;
+   119→  deviceType: string; browser: string; os: string; entryPoint: string;
+   120→  wagerAmount: number; winAmount: number; spinsPlayed: number;
+   121→  startedAt: string; lastActivityAt: string; status: string;
+   122→}
+   123→
+   124→interface LiveEvent {
+   125→  id: string; eventType: string; playerName: string; gameName: string;
+   126→  amount: number; currency: string; country: string; createdAt: string;
+   127→}
+   128→
+   129→interface LiveStats {
+   130→  totalOnline: number; activeGames: number; avgSessionDuration: number;
+   131→  peakConcurrent: number; totalWageredLive: number; totalWonLive: number;
+   132→  byDevice: { desktop: number; mobile: number; tablet: number };
+   133→  byCountry: Array<{ country: string; count: number }>;
+   134→  byGame: Array<{ game: string; count: number }>;
+   135→}
+   136→
+   137→export function LivePlayersView() {
+   138→  const { data, loading, error, refetch } = useApi(() => api.livePlayers.get())
+   139→  const [expandedRow, setExpandedRow] = useState<string | null>(null)
+   140→  const [gameFilter, setGameFilter] = useState('all')
+   141→  const [countryFilter, setCountryFilter] = useState('all')
+   142→  const [deviceFilter, setDeviceFilter] = useState('all')
+   143→  const [statusFilter, setStatusFilter] = useState('all')
+   144→  const [searchQuery, setSearchQuery] = useState('')
+   145→  const [autoRefresh, setAutoRefresh] = useState(true)
+   146→  const feedEndRef = useRef<HTMLDivElement>(null)
+   147→  const [now, setNow] = useState(Date.now())
+   148→
+   149→  useEffect(() => {
+   150→    const interval = setInterval(() => setNow(Date.now()), 1000)
+   151→    return () => clearInterval(interval)
+   152→  }, [])
+   153→
+   154→  useEffect(() => {
+   155→    if (!autoRefresh) return
+   156→    const interval = setInterval(() => refetch(), 15000)
+   157→    return () => clearInterval(interval)
+   158→  }, [autoRefresh, refetch])
+   159→
+   160→  useEffect(() => {
+   161→    feedEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+   162→  }, [data?.liveEvents])
+   163→
+   164→  const sessions: LiveSession[] = data?.activeSessions ?? []
+   165→  const events: LiveEvent[] = data?.liveEvents ?? []
+   166→  const stats: LiveStats | null = data?.stats ?? null
+   167→
+   168→  const uniqueGames = useMemo(() => [...new Set(sessions.map(s => s.gameName))].sort(), [sessions])
+   169→  const uniqueCountries = useMemo(() => [...new Set(sessions.map(s => s.country))].sort(), [sessions])
+   170→
+   171→  const filteredSessions = useMemo(() => {
+   172→    return sessions.filter(s => {
+   173→      if (gameFilter !== 'all' && s.gameName !== gameFilter) return false
+   174→      if (countryFilter !== 'all' && s.country !== countryFilter) return false
+   175→      if (deviceFilter !== 'all' && s.deviceType !== deviceFilter) return false
+   176→      if (statusFilter !== 'all' && s.status !== statusFilter) return false
+   177→      if (searchQuery && !s.playerName.toLowerCase().includes(searchQuery.toLowerCase())) return false
+   178→      return true
+   179→    })
+   180→  }, [sessions, gameFilter, countryFilter, deviceFilter, statusFilter, searchQuery])
+   181→
+   182→  if (loading) {
+   183→    return (
+   184→      <div className="space-y-4">
+   185→        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+   186→          {Array.from({ length: 4 }).map((_, i) => (
+   187→            <Card key={i}><CardContent className="p-4 sm:p-6"><Skeleton className="h-20 w-full" /></CardContent></Card>
+   188→          ))}
+   189→        </div>
+   190→        <Card><CardContent className="p-6"><Skeleton className="h-64 w-full" /></CardContent></Card>
+   191→      </div>
+   192→    )
+   193→  }
+   194→
+   195→  if (error || !data) {
+   196→    return (
+   197→      <Card className="border-destructive/40">
+   198→        <CardContent className="p-6 text-center">
+   199→          <Activity className="size-8 text-destructive mx-auto mb-2" />
+   200→          <p className="text-sm font-medium text-destructive">Failed to load live player data</p>
+   201→          <p className="text-xs text-muted-foreground mt-1">{error}</p>
+   202→          <Button variant="outline" size="sm" className="mt-3 gap-1" onClick={refetch}>
+   203→            <RefreshCw className="size-3" /> Retry
+   204→          </Button>
+   205→        </CardContent>
+   206→      </Card>
+   207→    )
+   208→  }
+   209→
+   210→  const statusBadge = (status: string) => {
+   211→    if (status === 'active') {
+   212→      return (
+   213→        <Badge className="text-[9px] h-4 bg-emerald-500/20 text-emerald-400 border-emerald-500/30 gap-1">
+   214→          <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse" />
+   215→          Active
+   216→        </Badge>
+   217→      )
+   218→    }
+   219→    if (status === 'idle') {
+   220→      return <Badge className="text-[9px] h-4 bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Idle</Badge>
+   221→    }
+   222→    return <Badge variant="secondary" className="text-[9px] h-4">Ended</Badge>
+   223→  }
+   224→
+   225→  const devicePct = (type: string) => {
+   226→    if (!stats) return 0
+   227→    const total = stats.byDevice.desktop + stats.byDevice.mobile + stats.byDevice.tablet
+   228→    return total > 0 ? Math.round((stats.byDevice[type as keyof typeof stats.byDevice] / total) * 100) : 0
+   229→  }
+   230→
+   231→  return (
+   232→    <div className="space-y-4">
+   233→      {/* Header Bar */}
+   234→      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+   235→        <div className="flex items-center gap-2">
+   236→          <Wifi className="size-4 text-emerald-400" />
+   237→          <span className="text-sm font-medium text-emerald-400">LIVE</span>
+   238→          <Badge variant="secondary" className="text-[10px]">{stats?.totalOnline ?? 0} online</Badge>
+   239→        </div>
+   240→        <div className="flex items-center gap-2">
+   241→          <Button
+   242→            variant="outline"
+   243→            size="sm"
+   244→            className="gap-1 text-xs h-7"
+   245→            onClick={() => setAutoRefresh(!autoRefresh)}
+   246→          >
+   247→            <RefreshCw className={`size-3 ${autoRefresh ? 'animate-spin' : ''}`} />
+   248→            {autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
+   249→          </Button>
+   250→          <Button variant="outline" size="sm" className="gap-1 text-xs h-7" onClick={refetch}>
+   251→            <RefreshCw className="size-3" /> Refresh
+   252→          </Button>
+   253→        </div>
+   254→      </div>
+   255→
+   256→      {/* Main Tabs */}
+   257→      <Tabs defaultValue="sessions" className="w-full">
+   258→        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-9">
+   259→          <TabsTrigger value="sessions" className="text-xs gap-1">
+   260→            <Users className="size-3" /> Sessions
+   261→          </TabsTrigger>
+   262→          <TabsTrigger value="feed" className="text-xs gap-1">
+   263→            <Activity className="size-3" /> Feed
+   264→          </TabsTrigger>
+   265→          <TabsTrigger value="region" className="text-xs gap-1">
+   266→            <Globe className="size-3" /> By Region
+   267→          </TabsTrigger>
+   268→          <TabsTrigger value="analytics" className="text-xs gap-1">
+   269→            <Zap className="size-3" /> Analytics
+   270→          </TabsTrigger>
+   271→        </TabsList>
+   272→
+   273→        {/* Tab 1: Active Sessions */}
+   274→        <TabsContent value="sessions" className="mt-4 space-y-4">
+   275→          {/* Filters */}
+   276→          <Card>
+   277→            <CardContent className="p-3">
+   278→              <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
+   279→                <div className="relative flex-1 min-w-[140px]">
+   280→                  <Users className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
+   281→                  <Input
+   282→                    placeholder="Search player..."
+   283→                    value={searchQuery}
+   284→                    onChange={(e) => setSearchQuery(e.target.value)}
+   285→                    className="pl-8 h-8 text-xs"
+   286→                  />
+   287→                </div>
+   288→                <Select value={gameFilter} onValueChange={setGameFilter}>
+   289→                  <SelectTrigger className="w-full sm:w-[150px] h-8 text-xs"><SelectValue placeholder="All Games" /></SelectTrigger>
+   290→                  <SelectContent>
+   291→                    <SelectItem value="all">All Games</SelectItem>
+   292→                    {uniqueGames.map(g => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+   293→                  </SelectContent>
+   294→                </Select>
+   295→                <Select value={countryFilter} onValueChange={setCountryFilter}>
+   296→                  <SelectTrigger className="w-full sm:w-[100px] h-8 text-xs"><SelectValue placeholder="Country" /></SelectTrigger>
+   297→                  <SelectContent>
+   298→                    <SelectItem value="all">All Countries</SelectItem>
+   299→                    {uniqueCountries.map(c => <SelectItem key={c} value={c}>{COUNTRY_FLAGS[c] || ''} {c}</SelectItem>)}
+   300→                  </SelectContent>
+   301→                </Select>
+   302→                <Select value={deviceFilter} onValueChange={setDeviceFilter}>
+   303→                  <SelectTrigger className="w-full sm:w-[100px] h-8 text-xs"><SelectValue placeholder="Device" /></SelectTrigger>
+   304→                  <SelectContent>
+   305→                    <SelectItem value="all">All Devices</SelectItem>
+   306→                    <SelectItem value="desktop">Desktop</SelectItem>
+   307→                    <SelectItem value="mobile">Mobile</SelectItem>
+   308→                    <SelectItem value="tablet">Tablet</SelectItem>
+   309→                  </SelectContent>
+   310→                </Select>
+   311→                <Select value={statusFilter} onValueChange={setStatusFilter}>
+   312→                  <SelectTrigger className="w-full sm:w-[100px] h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+   313→                  <SelectContent>
+   314→                    <SelectItem value="all">All Status</SelectItem>
+   315→                    <SelectItem value="active">Active</SelectItem>
+   316→                    <SelectItem value="idle">Idle</SelectItem>
+   317→                    <SelectItem value="ended">Ended</SelectItem>
+   318→                  </SelectContent>
+   319→                </Select>
+   320→              </div>
+   321→            </CardContent>
+   322→          </Card>
+   323→
+   324→          {/* Sessions Table */}
+   325→          <Card>
+   326→            <CardHeader className="pb-2">
+   327→              <div className="flex items-center justify-between">
+   328→                <CardTitle className="text-sm">Active Sessions</CardTitle>
+   329→                <div className="flex items-center gap-2">
+   330→                  <Badge variant="secondary" className="text-[10px]">{filteredSessions.length} sessions</Badge>
+   331→                  {autoRefresh && (
+   332→                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+   333→                      <RefreshCw className="size-3 animate-spin text-primary" />
+   334→                      Live
+   335→                    </span>
+   336→                  )}
+   337→                </div>
+   338→              </div>
+   339→            </CardHeader>
+   340→            <CardContent>
+   341→              <div className="overflow-x-auto">
+   342→                <Table>
+   343→                  <TableHeader>
+   344→                    <TableRow>
+   345→                      <TableHead className="text-xs">Player</TableHead>
+   346→                      <TableHead className="text-xs">Game</TableHead>
+   347→                      <TableHead className="text-xs">Country</TableHead>
+   348→                      <TableHead className="text-xs">Device</TableHead>
+   349→                      <TableHead className="text-xs text-right">Wager</TableHead>
+   350→                      <TableHead className="text-xs text-right">Win</TableHead>
+   351→                      <TableHead className="text-xs text-right">Spins</TableHead>
+   352→                      <TableHead className="text-xs">Duration</TableHead>
+   353→                      <TableHead className="text-xs">Status</TableHead>
+   354→                    </TableRow>
+   355→                  </TableHeader>
+   356→                  <TableBody>
+   357→                    {filteredSessions.map(session => {
+   358→                      const DeviceIcon = DEVICE_ICON[session.deviceType] || Monitor
+   359→                      const isExpanded = expandedRow === session.id
+   360→                      return (
+   361→                        <TableRow
+   362→                          key={session.id}
+   363→                          className="cursor-pointer hover:bg-muted/80"
+   364→                          onClick={() => setExpandedRow(isExpanded ? null : session.id)}
+   365→                        >
+   366→                          <TableCell>
+   367→                            <div className="flex items-center gap-1.5">
+   368→                              <span className="size-5 rounded-full bg-primary/20 text-primary text-[8px] font-bold flex items-center justify-center shrink-0">
+   369→                                {session.playerName.slice(0, 2).toUpperCase()}
+   370→                              </span>
+   371→                              <span className="text-xs font-medium truncate max-w-[80px]">{session.playerName}</span>
+   372→                            </div>
+   373→                          </TableCell>
+   374→                          <TableCell className="text-xs truncate max-w-[100px]">{session.gameName}</TableCell>
+   375→                          <TableCell>
+   376→                            <span className="text-xs">{COUNTRY_FLAGS[session.country] || session.country}</span>
+   377→                          </TableCell>
+   378→                          <TableCell>
+   379→                            <DeviceIcon className="size-3.5 text-muted-foreground" />
+   380→                          </TableCell>
+   381→                          <TableCell className="text-xs text-right font-mono">{fmtDec(session.wagerAmount)}</TableCell>
+   382→                          <TableCell className="text-xs text-right font-mono">{fmtDec(session.winAmount)}</TableCell>
+   383→                          <TableCell className="text-xs text-right">{session.spinsPlayed}</TableCell>
+   384→                          <TableCell className="text-xs text-muted-foreground">
+   385→                            {formatDuration(session.startedAt, session.lastActivityAt)}
+   386→                          </TableCell>
+   387→                          <TableCell>{statusBadge(session.status)}</TableCell>
+   388→                        </TableRow>
+   389→                      )
+   390→                    })}
+   391→                  </TableBody>
+   392→                </Table>
+   393→              </div>
+   394→
+   395→              {/* Expanded Row Detail */}
+   396→              {expandedRow && (() => {
+   397→                const session = filteredSessions.find(s => s.id === expandedRow)
+   398→                if (!session) return null
+   399→                return (
+   400→                  <div className="mt-3 p-3 rounded-lg border border-primary/20 bg-muted/30 space-y-2">
+   401→                    <div className="flex items-center justify-between">
+   402→                      <h4 className="text-xs font-semibold text-primary">Session Details — {session.playerName}</h4>
+   403→                      <Badge variant="outline" className="text-[9px] h-4">{session.id}</Badge>
+   404→                    </div>
+   405→                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+   406→                      <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">Player ID</span><br /><span className="font-medium">{session.playerId}</span></div>
+   407→                      <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">City</span><br /><span className="font-medium">{session.city}, {session.country}</span></div>
+   408→                      <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">Browser</span><br /><span className="font-medium">{session.browser}</span></div>
+   409→                      <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">OS</span><br /><span className="font-medium">{session.os}</span></div>
+   410→                      <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">Entry Point</span><br /><span className="font-medium">{session.entryPoint}</span></div>
+   411→                      <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">Started</span><br /><span className="font-medium">{new Date(session.startedAt).toLocaleTimeString()}</span></div>
+   412→                      <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">Last Activity</span><br /><span className="font-medium">{new Date(session.lastActivityAt).toLocaleTimeString()}</span></div>
+   413→                      <div className="p-2 rounded bg-muted/50"><span className="text-muted-foreground">Net Result</span><br /><span className={`font-mono font-bold ${session.winAmount - session.wagerAmount >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>{fmtDec(session.winAmount - session.wagerAmount)}</span></div>
+   414→                    </div>
+   415→                  </div>
+   416→                )
+   417→              })()}
+   418→            </CardContent>
+   419→          </Card>
+   420→        </TabsContent>
+   421→
+   422→        {/* Tab 2: Activity Feed */}
+   423→        <TabsContent value="feed" className="mt-4">
+   424→          <Card>
+   425→            <CardHeader className="pb-2">
+   426→              <div className="flex items-center justify-between">
+   427→                <CardTitle className="text-sm">Activity Feed</CardTitle>
+   428→                <div className="flex items-center gap-2">
+   429→                  <Badge variant="secondary" className="text-[10px]">{events.length} events</Badge>
+   430→                  {autoRefresh && (
+   431→                    <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+   432→                      <RefreshCw className="size-3 animate-spin text-primary" /> Live
+   433→                    </span>
+   434→                  )}
+   435→                </div>
+   436→              </div>
+   437→            </CardHeader>
+   438→            <CardContent>
+   439→              <ScrollArea className="h-[500px]">
+   440→                <div className="space-y-1.5 pr-3">
+   441→                  {events.map(event => {
+   442→                    const config = EVENT_CONFIG[event.eventType]
+   443→                    if (!config) return null
+   444→                    const EventIcon = config.icon
+   445→                    const eventIsNew = isNew(event.createdAt)
+   446→                    const isJackpot = event.eventType === 'jackpot_win'
+   447→                    const isBigWin = event.eventType === 'big_win'
+   448→
+   449→                    return (
+   450→                      <div
+   451→                        key={event.id}
+   452→                        className={`flex items-start gap-2.5 p-2 rounded-md transition-colors ${
+   453→                          eventIsNew ? 'bg-primary/5 border border-primary/10' : 'hover:bg-muted/30'
+   454→                        }`}
+   455→                      >
+   456→                        <div className={`mt-0.5 shrink-0 ${config.color} ${isBigWin ? 'animate-pulse' : ''}`}>
+   457→                          <EventIcon className={`size-4 ${isJackpot ? 'animate-pulse' : ''}`} />
+   458→                        </div>
+   459→                        <div className="flex-1 min-w-0">
+   460→                          <div className="flex items-center gap-1.5 flex-wrap">
+   461→                            <span className="text-xs font-medium">{event.playerName}</span>
+   462→                            <span className={`text-[10px] ${config.color}`}>{config.label}</span>
+   463→                            {event.amount > 0 && (
+   464→                              <span className="text-xs font-mono font-bold text-primary">
+   465→                                {fmtDec(event.amount)}
+   466→                              </span>
+   467→                            )}
+   468→                            {eventIsNew && (
+   469→                              <Badge className="text-[8px] h-3.5 px-1 bg-primary/20 text-primary border-primary/30 animate-pulse">
+   470→                                NEW
+   471→                              </Badge>
+   472→                            )}
+   473→                          </div>
+   474→                          <div className="flex items-center gap-2 mt-0.5">
+   475→                            <span className="text-[10px] text-muted-foreground truncate">{event.gameName}</span>
+   476→                            <span className="text-[10px]">{COUNTRY_FLAGS[event.country] || ''}</span>
+   477→                          </div>
+   478→                        </div>
+   479→                        <div className="shrink-0 text-[10px] text-muted-foreground flex items-center gap-1">
+   480→                          <Clock className="size-2.5" />
+   481→                          {formatTimeAgo(event.createdAt)}
+   482→                        </div>
+   483→                      </div>
+   484→                    )
+   485→                  })}
+   486→                  <div ref={feedEndRef} />
+   487→                </div>
+   488→              </ScrollArea>
+   489→            </CardContent>
+   490→          </Card>
+   491→        </TabsContent>
+   492→
+   493→        {/* Tab 3: By Region */}
+   494→        <TabsContent value="region" className="mt-4">
+   495→          <Card>
+   496→            <CardHeader className="pb-2">
+   497→              <div className="flex items-center justify-between">
+   498→                <CardTitle className="text-sm">Players by Region</CardTitle>
+   499→                <Badge variant="secondary" className="text-[10px]">Top 10</Badge>
+   500→              </div>
+   501→            </CardHeader>
+   502→            <CardContent>
+   503→              {stats ? (
+   504→                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+   505→                  {stats.byCountry.slice(0, 10).map((item, index) => {
+   506→                    const maxCount = stats.byCountry[0]?.count || 1
+   507→                    const intensity = Math.max(0.15, item.count / maxCount)
+   508→                    const countryWagered = sessions
+   509→                      .filter(s => s.country === item.country)
+   510→                      .reduce((sum, s) => sum + s.wagerAmount, 0)
+   511→                    return (
+   512→                      <div
+   513→                        key={item.country}
+   514→                        className="p-3 rounded-lg border border-border hover:border-primary/30 transition-all cursor-default"
+   515→                        style={{ backgroundColor: `rgba(245, 158, 11, ${intensity * 0.12})` }}
+   516→                      >
+   517→                        <div className="flex items-center gap-1.5 mb-2">
+   518→                          <span className="text-lg">{COUNTRY_FLAGS[item.country] || '🌍'}</span>
+   519→                          <span className="text-xs font-semibold">{item.country}</span>
+   520→                          {index === 0 && <Trophy className="size-3 text-amber-400" />}
+   521→                        </div>
+   522→                        <div className="space-y-1">
+   523→                          <div className="flex items-center justify-between">
+   524→                            <span className="text-[10px] text-muted-foreground">Players</span>
+   525→                            <span className="text-xs font-bold text-primary">{item.count}</span>
+   526→                          </div>
+   527→                          <div className="flex items-center justify-between">
+   528→                            <span className="text-[10px] text-muted-foreground">Wagered</span>
+   529→                            <span className="text-[10px] font-mono font-medium">{fmt(countryWagered)}</span>
+   530→                          </div>
+   531→                          <div className="w-full bg-muted rounded-full h-1 mt-1">
+   532→                            <div
+   533→                              className="h-full rounded-full bg-primary/70 transition-all"
+   534→                              style={{ width: `${intensity * 100}%` }}
+   535→                            />
+   536→                          </div>
+   537→                        </div>
+   538→                      </div>
+   539→                    )
+   540→                  })}
+   541→                </div>
+   542→              ) : (
+   543→                <div className="py-8 text-center text-xs text-muted-foreground">No region data</div>
+   544→              )}
+   545→            </CardContent>
+   546→          </Card>
+   547→        </TabsContent>
+   548→
+   549→        {/* Tab 4: Session Analytics */}
+   550→        <TabsContent value="analytics" className="mt-4 space-y-4">
+   551→          {/* KPI Cards */}
+   552→          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+   553→            <Card>
+   554→              <CardContent className="p-3 sm:p-4">
+   555→                <div className="flex items-center gap-2 mb-1">
+   556→                  <Clock className="size-3.5 text-primary" />
+   557→                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Avg Duration</span>
+   558→                </div>
+   559→                <p className="text-base sm:text-lg font-bold">{stats?.avgSessionDuration ?? 0}<span className="text-xs font-normal text-muted-foreground ml-1">min</span></p>
+   560→              </CardContent>
+   561→            </Card>
+   562→            <Card>
+   563→              <CardContent className="p-3 sm:p-4">
+   564→                <div className="flex items-center gap-2 mb-1">
+   565→                  <Users className="size-3.5 text-primary" />
+   566→                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Peak Concurrent</span>
+   567→                </div>
+   568→                <p className="text-base sm:text-lg font-bold">{stats?.peakConcurrent ?? 0}</p>
+   569→              </CardContent>
+   570→            </Card>
+   571→            <Card>
+   572→              <CardContent className="p-3 sm:p-4">
+   573→                <div className="flex items-center gap-2 mb-1">
+   574→                  <Trophy className="size-3.5 text-amber-400" />
+   575→                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Wagered</span>
+   576→                </div>
+   577→                <p className="text-base sm:text-lg font-bold">{fmt(stats?.totalWageredLive ?? 0)}</p>
+   578→              </CardContent>
+   579→            </Card>
+   580→            <Card>
+   581→              <CardContent className="p-3 sm:p-4">
+   582→                <div className="flex items-center gap-2 mb-1">
+   583→                  <Crown className="size-3.5 text-emerald-400" />
+   584→                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Won</span>
+   585→                </div>
+   586→                <p className="text-base sm:text-lg font-bold">{fmt(stats?.totalWonLive ?? 0)}</p>
+   587→              </CardContent>
+   588→            </Card>
+   589→          </div>
+   590→
+   591→          {/* Charts Row */}
+   592→          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   593→            {/* Device Distribution PieChart */}
+   594→            <Card>
+   595→              <CardHeader className="pb-2">
+   596→                <CardTitle className="text-sm">Device Distribution</CardTitle>
+   597→              </CardHeader>
+   598→              <CardContent>
+   599→                {stats ? (
+   600→                  <div className="flex flex-col items-center">
+   601→                    <ResponsiveContainer width="100%" height={220}>
+   602→                      <PieChart>
+   603→                        <Pie
+   604→                          data={[
+   605→                            { name: 'Desktop', value: stats.byDevice.desktop },
+   606→                            { name: 'Mobile', value: stats.byDevice.mobile },
+   607→                            { name: 'Tablet', value: stats.byDevice.tablet },
+   608→                          ]}
+   609→                          cx="50%"
+   610→                          cy="50%"
+   611→                          innerRadius={55}
+   612→                          outerRadius={85}
+   613→                          paddingAngle={3}
+   614→                          dataKey="value"
+   615→                          stroke="none"
+   616→                        >
+   617→                          <Cell fill={DEVICE_COLORS.desktop} />
+   618→                          <Cell fill={DEVICE_COLORS.mobile} />
+   619→                          <Cell fill={DEVICE_COLORS.tablet} />
+   620→                        </Pie>
+   621→                        <Tooltip
+   622→                          contentStyle={{
+   623→                            backgroundColor: 'hsl(var(--popover))',
+   624→                            border: '1px solid hsl(var(--border))',
+   625→                            borderRadius: '6px',
+   626→                            fontSize: '11px',
+   627→                          }}
+   628→                          formatter={(value: number) => [value, 'Players']}
+   629→                        />
+   630→                      </PieChart>
+   631→                    </ResponsiveContainer>
+   632→                    <div className="flex items-center gap-4 mt-2 flex-wrap">
+   633→                      {(['desktop', 'mobile', 'tablet'] as const).map(type => (
+   634→                        <div key={type} className="flex items-center gap-1.5">
+   635→                          <span className="size-2.5 rounded-full" style={{ backgroundColor: DEVICE_COLORS[type] }} />
+   636→                          <span className="text-[10px] text-muted-foreground capitalize">{type}</span>
+   637→                          <span className="text-[10px] font-bold">{devicePct(type)}%</span>
+   638→                        </div>
+   639→                      ))}
+   640→                    </div>
+   641→                  </div>
+   642→                ) : (
+   643→                  <Skeleton className="h-48 w-full" />
+   644→                )}
+   645→              </CardContent>
+   646→            </Card>
+   647→
+   648→            {/* Players by Game BarChart */}
+   649→            <Card>
+   650→              <CardHeader className="pb-2">
+   651→                <CardTitle className="text-sm">Players by Game</CardTitle>
+   652→              </CardHeader>
+   653→              <CardContent>
+   654→                {stats ? (
+   655→                  <ResponsiveContainer width="100%" height={220}>
+   656→                    <BarChart
+   657→                      data={stats.byGame.slice(0, 8)}
+   658→                      layout="vertical"
+   659→                      margin={{ top: 0, right: 20, bottom: 0, left: 0 }}
+   660→                    >
+   661→                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+   662→                      <XAxis type="number" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+   663→                      <YAxis
+   664→                        type="category"
+   665→                        dataKey="game"
+   666→                        tick={{ fontSize: 9 }}
+   667→                        stroke="hsl(var(--muted-foreground))"
+   668→                        width={90}
+   669→                      />
+   670→                      <Tooltip
+   671→                        contentStyle={{
+   672→                          backgroundColor: 'hsl(var(--popover))',
+   673→                          border: '1px solid hsl(var(--border))',
+   674→                          borderRadius: '6px',
+   675→                          fontSize: '11px',
+   676→                        }}
+   677→                        formatter={(value: number) => [value, 'Players']}
+   678→                      />
+   679→                      <Bar dataKey="count" fill="#f59e0b" radius={[0, 4, 4, 0]} barSize={14} />
+   680→                    </BarChart>
+   681→                  </ResponsiveContainer>
+   682→                ) : (
+   683→                  <Skeleton className="h-48 w-full" />
+   684→                )}
+   685→              </CardContent>
+   686→            </Card>
+   687→          </div>
+   688→
+   689→          {/* Session Duration Histogram */}
+   690→          <Card>
+   691→            <CardHeader className="pb-2">
+   692→              <CardTitle className="text-sm">Session Duration Distribution</CardTitle>
+   693→            </CardHeader>
+   694→            <CardContent>
+   695→              {(() => {
+   696→                const buckets = [
+   697→                  { label: '0-5m', min: 0, max: 5 },
+   698→                  { label: '5-15m', min: 5, max: 15 },
+   699→                  { label: '15-30m', min: 15, max: 30 },
+   700→                  { label: '30-60m', min: 30, max: 60 },
+   701→                  { label: '60-120m', min: 60, max: 120 },
+   702→                  { label: '120m+', min: 120, max: Infinity },
+   703→                ]
+   704→                const histogram = buckets.map(b => {
+   705→                  const count = sessions.filter(s => {
+   706→                    const dur = (new Date(s.lastActivityAt).getTime() - new Date(s.startedAt).getTime()) / 60000
+   707→                    return dur >= b.min && dur < b.max
+   708→                  }).length
+   709→                  return { label: b.label, count }
+   710→                })
+   711→                return (
+   712→                  <ResponsiveContainer width="100%" height={200}>
+   713→                    <BarChart data={histogram} margin={{ top: 0, right: 20, bottom: 0, left: 0 }}>
+   714→                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+   715→                      <XAxis dataKey="label" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+   716→                      <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+   717→                      <Tooltip
+   718→                        contentStyle={{
+   719→                          backgroundColor: 'hsl(var(--popover))',
+   720→                          border: '1px solid hsl(var(--border))',
+   721→                          borderRadius: '6px',
+   722→                          fontSize: '11px',
+   723→                        }}
+   724→                        formatter={(value: number) => [value, 'Sessions']}
+   725→                      />
+   726→                      <Bar dataKey="count" fill="#10b981" radius={[4, 4, 0, 0]} barSize={32} />
+   727→                    </BarChart>
+   728→                  </ResponsiveContainer>
+   729→                )
+   730→              })()}
+   731→            </CardContent>
+   732→          </Card>
+   733→        </TabsContent>
+   734→      </Tabs>
+   735→    </div>
+   736→  )
+   737→}
+   738→
