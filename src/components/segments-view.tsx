@@ -71,7 +71,7 @@ export function SegmentsView() {
   return (
     <div className="space-y-4">
       {/* Header with Create Button */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
         <div>
           <h2 className="text-lg font-semibold">Player Segments</h2>
           <p className="text-xs text-muted-foreground">{segments.length} segments · {segments.reduce((a, s) => a + s.playerCount, 0).toLocaleString()} total players</p>
@@ -173,8 +173,8 @@ export function SegmentsView() {
         </CardHeader>
         <CardContent>
           {pieData.length > 0 ? (
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              <ResponsiveContainer width={240} height={240}>
+            <div className="flex flex-col sm:flex-row items-center gap-4"><div className="w-full sm:w-[240px] shrink-0">
+              <ResponsiveContainer width="100%" height={240}>
                 <PieChart>
                   <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={90} innerRadius={50}>
                     {pieData.map((entry, idx) => (
@@ -187,7 +187,8 @@ export function SegmentsView() {
                   />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="space-y-2 flex-1">
+              </div>
+              <div className="space-y-2 flex-1 min-w-0">
                 {pieData.map((entry) => (
                   <div key={entry.name} className="flex items-center gap-2 text-xs">
                     <div className="size-3 rounded-sm shrink-0" style={{ backgroundColor: entry.color }} />

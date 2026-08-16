@@ -63,10 +63,10 @@ export function LegalView() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <Card><CardContent className="p-6"><Skeleton className="h-24 w-full" /></CardContent></Card>
-          <Card><CardContent className="p-6"><Skeleton className="h-24 w-full" /></CardContent></Card>
-          <Card><CardContent className="p-6"><Skeleton className="h-24 w-full" /></CardContent></Card>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <Card><CardContent className="p-4 sm:p-6"><Skeleton className="h-24 w-full" /></CardContent></Card>
+          <Card><CardContent className="p-4 sm:p-6"><Skeleton className="h-24 w-full" /></CardContent></Card>
+          <Card><CardContent className="p-4 sm:p-6"><Skeleton className="h-24 w-full" /></CardContent></Card>
         </div>
         <Card><CardContent className="p-6"><Skeleton className="h-48 w-full" /></CardContent></Card>
       </div>
@@ -143,7 +143,7 @@ export function LegalView() {
   return (
     <div className="space-y-4">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {(['pending', 'sent', 'signed', 'expired'] as ContractStatus[]).map((status) => {
           const config = statusConfig[status]
           const Icon = config.icon
@@ -191,10 +191,10 @@ export function LegalView() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="text-xs">Contract</TableHead>
-                  <TableHead className="text-xs">Counterparty</TableHead>
+                  <TableHead className="text-xs hidden sm:table-cell">Counterparty</TableHead>
                   <TableHead className="text-xs">Type</TableHead>
                   <TableHead className="text-xs">Status</TableHead>
-                  <TableHead className="text-xs">Period</TableHead>
+                  <TableHead className="text-xs hidden sm:table-cell">Period</TableHead>
                   <TableHead className="text-xs">Signed</TableHead>
                 </TableRow>
               </TableHeader>
@@ -206,7 +206,7 @@ export function LegalView() {
                     return (
                       <TableRow key={contract.id}>
                         <TableCell className="text-xs font-medium max-w-[200px] truncate">{contract.name}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{contract.counterparty}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground hidden sm:table-cell">{contract.counterparty}</TableCell>
                         <TableCell><Badge variant="outline" className="text-[9px] h-4">{typeLabels[contract.type] || contract.type}</Badge></TableCell>
                         <TableCell>
                           <Badge variant={config.variant} className="text-[9px] h-4 gap-1">
@@ -214,7 +214,7 @@ export function LegalView() {
                             {contract.status}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{contract.startDate} → {contract.endDate}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground hidden sm:table-cell">{contract.startDate} → {contract.endDate}</TableCell>
                         <TableCell className="text-xs text-muted-foreground">{contract.signedDate || '—'}</TableCell>
                       </TableRow>
                     )
@@ -239,9 +239,9 @@ export function LegalView() {
                 <ShieldCheck className="size-4 text-chart-2" />
                 <CardTitle className="text-sm">Audit Log</CardTitle>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Select value={auditCategoryFilter} onValueChange={setAuditCategoryFilter}>
-                  <SelectTrigger className="w-[120px] h-7 text-xs">
+                  <SelectTrigger className="w-full sm:w-[120px] h-7 text-xs">
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -257,7 +257,7 @@ export function LegalView() {
                     value={auditSearch}
                     onChange={(e) => setAuditSearch(e.target.value)}
                     placeholder="Search..."
-                    className="w-[120px] h-7 text-xs pl-7"
+                    className="w-full sm:w-[120px] h-7 text-xs pl-7"
                   />
                 </div>
               </div>

@@ -213,7 +213,7 @@ function StatsOverlay({ stats }: { stats: LiveMapData['stats'] }) {
 /* ─── Region Legend ─── */
 function RegionLegend({ byRegion }: { byRegion: Record<string, number> }) {
   return (
-    <div className="absolute top-3 right-3 z-20">
+    <div className="absolute top-3 right-3 z-20 hidden sm:block">
       <Card className="bg-[#0a0e1a]/90 backdrop-blur-md border-amber-900/40 shadow-lg shadow-amber-900/10">
         <CardContent className="p-3">
           <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">Regions</p>
@@ -236,7 +236,7 @@ function RegionLegend({ byRegion }: { byRegion: Record<string, number> }) {
 function DeviceStats({ byDevice }: { byDevice: Record<string, number> }) {
   const total = Object.values(byDevice).reduce((a, b) => a + b, 0)
   return (
-    <div className="absolute bottom-12 right-3 z-20">
+    <div className="absolute bottom-12 right-3 z-20 hidden sm:block">
       <Card className="bg-[#0a0e1a]/90 backdrop-blur-md border-amber-900/40 shadow-lg shadow-amber-900/10">
         <CardContent className="p-3">
           <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">Devices</p>
@@ -271,7 +271,7 @@ function DotLegend() {
     { color: '#3b82f6', label: 'New Session' },
   ]
   return (
-    <div className="absolute bottom-12 left-3 z-20">
+    <div className="absolute bottom-12 left-3 z-20 hidden sm:block">
       <Card className="bg-[#0a0e1a]/90 backdrop-blur-md border-amber-900/40 shadow-lg shadow-amber-900/10">
         <CardContent className="p-3">
           <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-2">Player Status</p>
@@ -401,10 +401,10 @@ export function LiveMapView() {
 
   if (loading) {
     return (
-      <div className="w-full h-full min-h-[600px] bg-[#0a0e1a] rounded-xl border border-amber-900/30 p-4">
+      <div className="w-full h-full min-h-[400px] sm:min-h-[600px] bg-[#0a0e1a] rounded-xl border border-amber-900/30 p-4">
         <div className="flex flex-col gap-3">
           <Skeleton className="h-8 w-48 bg-slate-800" />
-          <Skeleton className="h-[400px] w-full bg-slate-800/50" />
+          <Skeleton className="h-[300px] sm:h-[400px] w-full bg-slate-800/50" />
           <Skeleton className="h-8 w-full bg-slate-800" />
         </div>
       </div>
@@ -427,9 +427,9 @@ export function LiveMapView() {
   if (!data) return null
 
   return (
-    <div className="relative w-full h-full min-h-[600px] bg-[#0a0e1a] rounded-xl border border-amber-900/30 overflow-hidden">
+    <div className="relative w-full h-full min-h-[400px] sm:min-h-[600px] bg-[#0a0e1a] rounded-xl border border-amber-900/30 overflow-hidden">
       {/* ─── Header ─── */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-amber-900/30 bg-[#0a0e1a]/80">
+      <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 border-b border-amber-900/30 bg-[#0a0e1a]/80">
         <div className="flex items-center gap-2.5">
           <div className="relative">
             <Globe className="w-5 h-5 text-amber-400" />
@@ -442,7 +442,7 @@ export function LiveMapView() {
           </Badge>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 mr-2">
+          <div className="hidden sm:flex items-center gap-1.5 text-[10px] text-slate-400 mr-2">
             <Server className="w-3 h-3" />
             <span>{data.serverNodes.length} servers</span>
             <span className="text-slate-600">•</span>
@@ -461,7 +461,7 @@ export function LiveMapView() {
       </div>
 
       {/* ─── SVG Map ─── */}
-      <div className="relative flex-1" style={{ minHeight: 420 }}>
+      <div className="relative flex-1" style={{ minHeight: 300 }}>
         <svg
           viewBox={viewBox}
           className="w-full h-full"

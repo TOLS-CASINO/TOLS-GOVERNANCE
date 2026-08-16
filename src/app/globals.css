@@ -138,3 +138,41 @@
     background: oklch(0.45 0.02 270);
   }
 }
+
+/* Hide scrollbar utility */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+/* Mobile table horizontal scroll indicator */
+.table-scroll-container {
+  position: relative;
+}
+.table-scroll-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 24px;
+  background: linear-gradient(to right, transparent, var(--muted));
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.table-scroll-container.overflowing::after {
+  opacity: 1;
+}
+
+/* Mobile: ensure Dialog content doesn't overflow viewport */
+@layer base {
+  @media (max-width: 640px) {
+    [data-radix-popper-content-wrapper] {
+      max-width: calc(100vw - 1rem) !important;
+    }
+  }
+}

@@ -295,8 +295,8 @@ function AllWalletsTab({
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-xs">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <div className="relative flex-1 min-w-0 sm:min-w-[200px] sm:max-w-xs">
           <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
           <Input
             placeholder="Search player..."
@@ -306,21 +306,21 @@ function AllWalletsTab({
           />
         </div>
         <Select value={walletCurrencyFilter} onValueChange={setWalletCurrencyFilter}>
-          <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue placeholder="Currency" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs"><SelectValue placeholder="Currency" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Currencies</SelectItem>
             {allCurrencies.map(c => <SelectItem key={c} value={c}>{CURRENCY_EMOJI[c]} {c}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={walletStatusFilter} onValueChange={setWalletStatusFilter}>
-          <SelectTrigger className="w-[110px] h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[110px] h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             {allStatuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={walletSort} onValueChange={v => setWalletSort(v as 'balance-desc' | 'balance-asc')}>
-          <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder="Sort" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[140px] h-8 text-xs"><SelectValue placeholder="Sort" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="balance-desc">Balance ↓</SelectItem>
             <SelectItem value="balance-asc">Balance ↑</SelectItem>
@@ -334,17 +334,18 @@ function AllWalletsTab({
       {/* Table */}
       <Card className="bg-card border-border">
         <ScrollArea className="max-h-[520px]">
+        <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="text-[10px]">Player</TableHead>
                 <TableHead className="text-[10px]">Currency</TableHead>
                 <TableHead className="text-[10px] text-right">Balance</TableHead>
-                <TableHead className="text-[10px] text-right">Available</TableHead>
-                <TableHead className="text-[10px] text-right">Locked</TableHead>
-                <TableHead className="text-[10px] text-right">Bonus</TableHead>
+                <TableHead className="text-[10px] text-right hidden sm:table-cell">Available</TableHead>
+                <TableHead className="text-[10px] text-right hidden sm:table-cell">Locked</TableHead>
+                <TableHead className="text-[10px] text-right hidden sm:table-cell">Bonus</TableHead>
                 <TableHead className="text-[10px]">Status</TableHead>
-                <TableHead className="text-[10px]">Last Activity</TableHead>
+                <TableHead className="text-[10px] hidden sm:table-cell">Last Activity</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -365,16 +366,17 @@ function AllWalletsTab({
                       </span>
                     </TableCell>
                     <TableCell className="text-xs text-right font-mono">{fmtCurrency(w.balance, w.currency)}</TableCell>
-                    <TableCell className="text-xs text-right font-mono text-emerald-400">{fmtCurrency(w.availableBalance, w.currency)}</TableCell>
-                    <TableCell className="text-xs text-right font-mono text-blue-400">{fmtCurrency(w.lockedBalance, w.currency)}</TableCell>
-                    <TableCell className="text-xs text-right font-mono text-purple-400">{fmtCurrency(w.bonusBalance, w.currency)}</TableCell>
+                    <TableCell className="text-xs text-right font-mono text-emerald-400 hidden sm:table-cell">{fmtCurrency(w.availableBalance, w.currency)}</TableCell>
+                    <TableCell className="text-xs text-right font-mono text-blue-400 hidden sm:table-cell">{fmtCurrency(w.lockedBalance, w.currency)}</TableCell>
+                    <TableCell className="text-xs text-right font-mono text-purple-400 hidden sm:table-cell">{fmtCurrency(w.bonusBalance, w.currency)}</TableCell>
                     <TableCell><StatusBadge status={w.status} /></TableCell>
-                    <TableCell className="text-[10px] text-muted-foreground">{fmtDate(lastActivity)}</TableCell>
+                    <TableCell className="text-[10px] text-muted-foreground hidden sm:table-cell">{fmtDate(lastActivity)}</TableCell>
                   </TableRow>
                 )
               })}
             </TableBody>
           </Table>
+        </div>
         </ScrollArea>
       </Card>
     </div>
@@ -401,16 +403,16 @@ function TransactionsTab({
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <Select value={txTypeFilter} onValueChange={setTxTypeFilter}>
-          <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue placeholder="Type" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs"><SelectValue placeholder="Type" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Types</SelectItem>
             {allTxTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
           </SelectContent>
         </Select>
         <Select value={txCurrencyFilter} onValueChange={setTxCurrencyFilter}>
-          <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue placeholder="Currency" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs"><SelectValue placeholder="Currency" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Currencies</SelectItem>
             {allTxCurrencies.map(c => <SelectItem key={c} value={c}>{CURRENCY_EMOJI[c]} {c}</SelectItem>)}
@@ -424,6 +426,7 @@ function TransactionsTab({
       {/* Table */}
       <Card className="bg-card border-border">
         <ScrollArea className="max-h-[520px]">
+        <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -432,10 +435,10 @@ function TransactionsTab({
                 <TableHead className="text-[10px]">Type</TableHead>
                 <TableHead className="text-[10px] text-right">Amount</TableHead>
                 <TableHead className="text-[10px]">Currency</TableHead>
-                <TableHead className="text-[10px]">Before → After</TableHead>
-                <TableHead className="text-[10px]">Game</TableHead>
+                <TableHead className="text-[10px] hidden sm:table-cell">Before → After</TableHead>
+                <TableHead className="text-[10px] hidden sm:table-cell">Game</TableHead>
                 <TableHead className="text-[10px]">Status</TableHead>
-                <TableHead className="text-[10px]">Ref</TableHead>
+                <TableHead className="text-[10px] hidden sm:table-cell">Ref</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -456,7 +459,7 @@ function TransactionsTab({
                         <span>{tx.currency}</span>
                       </span>
                     </TableCell>
-                    <TableCell className="text-[10px] font-mono whitespace-nowrap">
+                    <TableCell className="text-[10px] font-mono whitespace-nowrap hidden sm:table-cell">
                       <span className="text-muted-foreground">
                         {CRYPTO_CURRENCIES.includes(tx.currency) ? tx.balanceBefore.toFixed(6) : tx.balanceBefore.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </span>
@@ -465,18 +468,19 @@ function TransactionsTab({
                         {CRYPTO_CURRENCIES.includes(tx.currency) ? tx.balanceAfter.toFixed(6) : tx.balanceAfter.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                       </span>
                     </TableCell>
-                    <TableCell className="text-[10px] text-muted-foreground">{tx.gameName || '—'}</TableCell>
+                    <TableCell className="text-[10px] text-muted-foreground hidden sm:table-cell">{tx.gameName || '—'}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={`text-[9px] ${tx.status === 'completed' ? 'border-emerald-500/30 text-emerald-400' : tx.status === 'pending' ? 'border-yellow-500/30 text-yellow-400' : 'border-muted text-muted-foreground'}`}>
                         {tx.status}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-[10px] text-muted-foreground font-mono">{tx.reference}</TableCell>
+                    <TableCell className="text-[10px] text-muted-foreground font-mono hidden sm:table-cell">{tx.reference}</TableCell>
                   </TableRow>
                 )
               })}
             </TableBody>
           </Table>
+        </div>
         </ScrollArea>
       </Card>
     </div>
@@ -558,6 +562,7 @@ function PaymentMethodsTab({
         </CardHeader>
         <CardContent className="p-4 pt-0">
           <ScrollArea className="max-h-64">
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -588,6 +593,7 @@ function PaymentMethodsTab({
                 ))}
               </TableBody>
             </Table>
+            </div>
           </ScrollArea>
         </CardContent>
       </Card>
@@ -708,7 +714,7 @@ export function WalletsView() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Wallet className="size-5 text-amber-500" />
           <h2 className="text-lg font-bold">Wallet Ecosystem</h2>
@@ -719,7 +725,7 @@ export function WalletsView() {
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="h-8 bg-muted/50">
+        <TabsList className="h-8 bg-muted/50 w-full sm:w-auto overflow-x-auto">
           <TabsTrigger value="overview" className="text-xs data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
             Overview
           </TabsTrigger>

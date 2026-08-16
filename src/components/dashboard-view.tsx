@@ -56,7 +56,7 @@ export function DashboardView() {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <Card key={i}><CardContent className="p-6"><Skeleton className="h-20 w-full" /></CardContent></Card>
           ))}
@@ -177,14 +177,14 @@ export function DashboardView() {
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {kpiCards.map((kpiItem) => (
           <Card key={kpiItem.label} className="relative overflow-hidden">
-            <CardContent className="p-5">
+            <CardContent className="p-3 sm:p-5">
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{kpiItem.label}</p>
-                  <p className="text-2xl font-bold tracking-tight">{kpiItem.value}</p>
+                  <p className="text-xl sm:text-2xl font-bold tracking-tight">{kpiItem.value}</p>
                 </div>
                 <div className="rounded-lg bg-muted p-2">
                   <kpiItem.icon className={`size-4 ${kpiItem.color}`} />
@@ -218,12 +218,12 @@ export function DashboardView() {
             </div>
             <div className="space-y-1">
               {criticalAlerts.map((alert) => (
-                <div key={alert.id} className="flex items-center gap-2 text-xs">
-                  <Badge variant="destructive" className="text-[9px] h-4 px-1">
+                <div key={alert.id} className="flex items-center gap-2 text-xs min-w-0">
+                  <Badge variant="destructive" className="text-[9px] h-4 px-1 shrink-0">
                     {alert.severity.toUpperCase()}
                   </Badge>
-                  <span className={severityColor[alert.severity]}>{alert.message}</span>
-                  <span className="text-muted-foreground">({alert.value}%)</span>
+                  <span className={`truncate ${severityColor[alert.severity]}`}>{alert.message}</span>
+                  <span className="text-muted-foreground shrink-0">({alert.value}%)</span>
                 </div>
               ))}
             </div>
@@ -390,16 +390,16 @@ export function DashboardView() {
           {alerts.length > 0 ? (
             <div className="space-y-2">
               {alerts.map((alert) => (
-                <div key={alert.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
+                <div key={alert.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 min-w-0">
                   <Badge
                     variant={alert.severity === 'critical' ? 'destructive' : 'secondary'}
-                    className="text-[9px] h-4 px-1.5"
+                    className="text-[9px] h-4 px-1.5 shrink-0"
                   >
                     {alert.severity.toUpperCase()}
                   </Badge>
-                  <Badge variant="outline" className="text-[9px] h-4">{alert.category}</Badge>
-                  <span className="text-xs flex-1">{alert.message}</span>
-                  <span className={`text-xs font-mono font-medium ${severityColor[alert.severity]}`}>
+                  <Badge variant="outline" className="text-[9px] h-4 shrink-0">{alert.category}</Badge>
+                  <span className="text-xs flex-1 truncate min-w-0">{alert.message}</span>
+                  <span className={`text-xs font-mono font-medium shrink-0 ${severityColor[alert.severity]}`}>
                     {alert.value}%
                   </span>
                 </div>

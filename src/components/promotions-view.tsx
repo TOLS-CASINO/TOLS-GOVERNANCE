@@ -142,7 +142,7 @@ export function PromotionsView() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
         <div>
           <h2 className="text-lg font-semibold">Promotion Builder</h2>
           <p className="text-xs text-muted-foreground">{promotions.filter((p) => p.status === 'active').length} active promotions</p>
@@ -241,7 +241,7 @@ export function PromotionsView() {
               </div>
 
               {/* Wagering & Dates */}
-              <div className="flex items-center justify-between mt-3 text-[10px] text-muted-foreground">
+              <div className="flex flex-wrap items-center justify-between mt-3 text-[10px] text-muted-foreground gap-1">
                 <span className="flex items-center gap-1"><Target className="size-3" /> {promo.wageringReq}x wagering</span>
                 <span>{promo.startDate} → {promo.endDate}</span>
               </div>

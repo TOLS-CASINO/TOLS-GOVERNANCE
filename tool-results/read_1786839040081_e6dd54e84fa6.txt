@@ -1,0 +1,513 @@
+   555→        {/* ────── Tab 1: Models ────── */}
+   556→        <TabsContent value="models" className="mt-4">
+   557→          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   558→            {models.map((model) => (
+   559→              <Card
+   560→                key={model.id}
+   561→                className="border-zinc-800 bg-zinc-950/80 hover:border-zinc-700 transition-colors relative overflow-hidden"
+   562→              >
+   563→                {/* Top accent bar */}
+   564→                <div
+   565→                  className={`absolute top-0 left-0 right-0 h-0.5 ${
+   566→                    model.status === 'deployed'
+   567→                      ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
+   568→                      : model.status === 'training'
+   569→                        ? 'bg-gradient-to-r from-sky-500 to-sky-400'
+   570→                        : model.status === 'trained'
+   571→                          ? 'bg-gradient-to-r from-amber-500 to-amber-400'
+   572→                          : 'bg-gradient-to-r from-zinc-600 to-zinc-500'
+   573→                  }`}
+   574→                />
+   575→
+   576→                <CardContent className="p-5 pt-6">
+   577→                  {/* Header */}
+   578→                  <div className="flex items-start justify-between mb-3">
+   579→                    <div className="flex-1 min-w-0">
+   580→                      <h3 className="text-sm font-semibold text-zinc-100 truncate">{model.name}</h3>
+   581→                      <p className="text-[10px] text-zinc-500 mt-0.5 font-mono">{model.version}</p>
+   582→                    </div>
+   583→                    <Badge
+   584→                      variant="outline"
+   585→                      className={`text-[9px] px-1.5 py-0 gap-1 ${statusColor[model.status]} shrink-0 ml-2`}
+   586→                    >
+   587→                      {statusIcon[model.status]}
+   588→                      {model.status.charAt(0).toUpperCase() + model.status.slice(1)}
+   589→                    </Badge>
+   590→                  </div>
+   591→
+   592→                  {/* Type & Algorithm Badges */}
+   593→                  <div className="flex items-center gap-1.5 mb-3">
+   594→                    <Badge
+   595→                      variant="outline"
+   596→                      className={`text-[9px] px-1.5 py-0 ${typeBadgeColor[model.type]}`}
+   597→                    >
+   598→                      {MODEL_TYPE_LABELS[model.type]}
+   599→                    </Badge>
+   600→                    <Badge
+   601→                      variant="outline"
+   602→                      className="text-[9px] px-1.5 py-0 bg-zinc-800/50 text-zinc-400 border-zinc-700"
+   603→                    >
+   604→                      {model.algorithm}
+   605→                    </Badge>
+   606→                  </div>
+   607→
+   608→                  {/* Accuracy Metrics */}
+   609→                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+   610→                    {model.accuracy !== null && (
+   611→                      <div className="p-2 rounded-lg bg-zinc-900/60 text-center">
+   612→                        <p className="text-base font-bold text-emerald-400">{model.accuracy}%</p>
+   613→                        <p className="text-[9px] text-zinc-500 uppercase tracking-wider">Accuracy</p>
+   614→                      </div>
+   615→                    )}
+   616→                    {model.precision !== null && (
+   617→                      <div className="p-2 rounded-lg bg-zinc-900/60 text-center">
+   618→                        <p className="text-base font-bold text-cyan-400">{model.precision}%</p>
+   619→                        <p className="text-[9px] text-zinc-500 uppercase tracking-wider">Precision</p>
+   620→                      </div>
+   621→                    )}
+   622→                    {model.recall !== null && (
+   623→                      <div className="p-2 rounded-lg bg-zinc-900/60 text-center">
+   624→                        <p className="text-base font-bold text-amber-400">{model.recall}%</p>
+   625→                        <p className="text-[9px] text-zinc-500 uppercase tracking-wider">Recall</p>
+   626→                      </div>
+   627→                    )}
+   628→                    {model.trainingProgress !== undefined && model.status === 'training' && (
+   629→                      <div className="col-span-2">
+   630→                        <div className="flex items-center justify-between text-[9px] text-zinc-500 mb-1">
+   631→                          <span>Training Progress</span>
+   632→                          <span className="text-sky-400 font-mono">{Math.round(model.trainingProgress)}%</span>
+   633→                        </div>
+   634→                        <Progress
+   635→                          value={model.trainingProgress}
+   636→                          className="h-1.5 bg-zinc-800 [&>div]:bg-sky-500"
+   637→                        />
+   638→                      </div>
+   639→                    )}
+   640→                    {model.accuracy === null && model.status === 'draft' && (
+   641→                      <div className="col-span-2 p-2 rounded-lg bg-zinc-900/60 text-center">
+   642→                        <p className="text-[10px] text-zinc-500 italic">Not yet trained</p>
+   643→                      </div>
+   644→                    )}
+   645→                  </div>
+   646→
+   647→                  <Separator className="bg-zinc-800 mb-3" />
+   648→
+   649→                  {/* Meta Info */}
+   650→                  <div className="flex items-center justify-between text-[10px] text-zinc-500 mb-3">
+   651→                    <span className="flex items-center gap-1">
+   652→                      <Database className="size-3" /> {model.featuresCount} features
+   653→                    </span>
+   654→                    <span className="flex items-center gap-1">
+   655→                      <Clock className="size-3" /> {model.lastTrained}
+   656→                    </span>
+   657→                  </div>
+   658→
+   659→                  {/* Actions */}
+   660→                  <div className="flex items-center gap-1.5">
+   661→                    {model.status === 'trained' && (
+   662→                      <Button
+   663→                        size="sm"
+   664→                        variant="outline"
+   665→                        className="h-7 text-[10px] gap-1 flex-1 border-emerald-600/30 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
+   666→                        onClick={() => handleModelAction(model.id, 'deploy')}
+   667→                      >
+   668→                        <Play className="size-3" /> Deploy
+   669→                      </Button>
+   670→                    )}
+   671→                    {(model.status === 'draft' || model.status === 'trained') && (
+   672→                      <Button
+   673→                        size="sm"
+   674→                        variant="outline"
+   675→                        className="h-7 text-[10px] gap-1 flex-1 border-sky-600/30 text-sky-400 hover:bg-sky-500/10 hover:text-sky-300"
+   676→                        onClick={() => handleModelAction(model.id, 'train')}
+   677→                      >
+   678→                        <RefreshCw className="size-3" /> Train
+   679→                      </Button>
+   680→                    )}
+   681→                    {model.status === 'deployed' && (
+   682→                      <Button
+   683→                        size="sm"
+   684→                        variant="outline"
+   685→                        className="h-7 text-[10px] gap-1 flex-1 border-rose-600/30 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300"
+   686→                        onClick={() =>
+   687→                          setModels((prev) =>
+   688→                            prev.map((m) =>
+   689→                              m.id === model.id ? { ...m, status: 'trained' as ModelStatus } : m
+   690→                            )
+   691→                          )
+   692→                        }
+   693→                      >
+   694→                        <Square className="size-3" /> Undeploy
+   695→                      </Button>
+   696→                    )}
+   697→                    {model.status === 'training' && (
+   698→                      <Button
+   699→                        size="sm"
+   700→                        variant="outline"
+   701→                        disabled
+   702→                        className="h-7 text-[10px] gap-1 flex-1 border-zinc-700 text-zinc-600"
+   703→                      >
+   704→                        <Loader2 className="size-3 animate-spin" /> Training…
+   705→                      </Button>
+   706→                    )}
+   707→                    <Button
+   708→                      size="sm"
+   709→                      variant="ghost"
+   710→                      className="h-7 text-[10px] gap-1 text-zinc-500 hover:text-zinc-300"
+   711→                      onClick={() => handleModelAction(model.id, 'view')}
+   712→                    >
+   713→                      <Eye className="size-3" /> View
+   714→                    </Button>
+   715→                  </div>
+   716→                </CardContent>
+   717→              </Card>
+   718→            ))}
+   719→          </div>
+   720→        </TabsContent>
+   721→
+   722→        {/* ────── Tab 2: Predictions ────── */}
+   723→        <TabsContent value="predictions" className="mt-4">
+   724→          <Card className="border-zinc-800 bg-zinc-950/80">
+   725→            <CardHeader className="pb-3">
+   726→              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+   727→                <CardTitle className="text-sm text-zinc-100 flex items-center gap-2">
+   728→                  <Activity className="size-4 text-amber-400" /> Recent Predictions
+   729→                </CardTitle>
+   730→                <div className="flex items-center gap-2 w-full sm:w-auto">
+   731→                  <Select value={modelFilter} onValueChange={setModelFilter}>
+   732→                    <SelectTrigger className="h-8 text-[10px] w-full sm:w-[160px] bg-zinc-900 border-zinc-800 text-zinc-300">
+   733→                      <Filter className="size-3 mr-1 text-zinc-500" />
+   734→                      <SelectValue placeholder="All Models" />
+   735→                    </SelectTrigger>
+   736→                    <SelectContent className="bg-zinc-900 border-zinc-800">
+   737→                      <SelectItem value="all">All Models</SelectItem>
+   738→                      <SelectItem value="Churn Predictor">Churn Predictor</SelectItem>
+   739→                      <SelectItem value="Fraud Detector">Fraud Detector</SelectItem>
+   740→                      <SelectItem value="Revenue Forecaster">Revenue Forecaster</SelectItem>
+   741→                      <SelectItem value="Player Segmentation">Player Segmentation</SelectItem>
+   742→                    </SelectContent>
+   743→                  </Select>
+   744→                  <Select value={confidenceThreshold} onValueChange={setConfidenceThreshold}>
+   745→                    <SelectTrigger className="h-8 text-[10px] w-full sm:w-[140px] bg-zinc-900 border-zinc-800 text-zinc-300">
+   746→                      <SelectValue placeholder="Confidence ≥" />
+   747→                    </SelectTrigger>
+   748→                    <SelectContent className="bg-zinc-900 border-zinc-800">
+   749→                      <SelectItem value="0">All Confidence</SelectItem>
+   750→                      <SelectItem value="0.5">≥ 50%</SelectItem>
+   751→                      <SelectItem value="0.7">≥ 70%</SelectItem>
+   752→                      <SelectItem value="0.9">≥ 90%</SelectItem>
+   753→                    </SelectContent>
+   754→                  </Select>
+   755→                </div>
+   756→              </div>
+   757→            </CardHeader>
+   758→            <CardContent className="p-0">
+   759→              <div className="overflow-x-auto">
+   760→              <ScrollArea className="max-h-[480px]">
+   761→                <Table>
+   762→                  <TableHeader>
+   763→                    <TableRow className="border-zinc-800 hover:bg-transparent">
+   764→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider h-8">Time</TableHead>
+   765→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Model</TableHead>
+   766→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider hidden sm:table-cell">Entity</TableHead>
+   767→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Input</TableHead>
+   768→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Output</TableHead>
+   769→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider text-right">Confidence</TableHead>
+   770→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider text-right">Duration</TableHead>
+   771→                    </TableRow>
+   772→                  </TableHeader>
+   773→                  <TableBody>
+   774→                    {filteredPredictions.map((pred) => (
+   775→                      <TableRow
+   776→                        key={pred.id}
+   777→                        className="border-zinc-800/50 hover:bg-zinc-900/40 transition-colors"
+   778→                      >
+   779→                        <TableCell className="text-[10px] text-zinc-400 font-mono whitespace-nowrap">
+   780→                          {pred.time}
+   781→                        </TableCell>
+   782→                        <TableCell className="text-[10px] text-zinc-300 whitespace-nowrap">
+   783→                          {pred.model}
+   784→                        </TableCell>
+   785→                        <TableCell className="text-[10px] text-zinc-400 font-mono whitespace-nowrap">
+   786→                          {pred.entity}
+   787→                        </TableCell>
+   788→                        <TableCell className="text-[10px] text-zinc-500 font-mono max-w-[180px]">
+   789→                          <span className="truncate block">{truncate(pred.input, 35)}</span>
+   790→                        </TableCell>
+   791→                        <TableCell className="text-[10px] text-zinc-500 font-mono max-w-[160px]">
+   792→                          <span className="truncate block">{truncate(pred.output, 30)}</span>
+   793→                        </TableCell>
+   794→                        <TableCell className="text-right whitespace-nowrap">
+   795→                          <span
+   796→                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold ${confidenceBg(pred.confidence)} ${confidenceColor(pred.confidence)}`}
+   797→                          >
+   798→                            {(pred.confidence * 100).toFixed(0)}%
+   799→                          </span>
+   800→                        </TableCell>
+   801→                        <TableCell className="text-[10px] text-zinc-500 font-mono text-right whitespace-nowrap">
+   802→                          {pred.duration}ms
+   803→                        </TableCell>
+   804→                      </TableRow>
+   805→                    ))}
+   806→                    {filteredPredictions.length === 0 && (
+   807→                      <TableRow>
+   808→                        <TableCell colSpan={7} className="text-center text-xs text-zinc-500 py-8">
+   809→                          No predictions match the current filters
+   810→                        </TableCell>
+   811→                      </TableRow>
+   812→                    )}
+   813→                  </TableBody>
+   814→                </Table>
+   815→              </ScrollArea>
+   816→            </CardContent>
+   817→          </Card>
+   818→        </TabsContent>
+   819→
+   820→        {/* ────── Tab 3: Training Jobs ────── */}
+   821→        <TabsContent value="training" className="mt-4">
+   822→          <Card className="border-zinc-800 bg-zinc-950/80">
+   823→            <CardHeader className="pb-3">
+   824→              <div className="flex items-center justify-between">
+   825→                <CardTitle className="text-sm text-zinc-100 flex items-center gap-2">
+   826→                  <Cpu className="size-4 text-amber-400" /> Training Jobs
+   827→                </CardTitle>
+   828→                <div className="flex items-center gap-2">
+   829→                  <Badge variant="outline" className="text-[9px] bg-sky-500/10 text-sky-400 border-sky-500/30">
+   830→                    {trainingJobs.filter((j) => j.status === 'running').length} running
+   831→                  </Badge>
+   832→                  <Badge variant="outline" className="text-[9px] bg-zinc-800 text-zinc-400 border-zinc-700">
+   833→                    {trainingJobs.filter((j) => j.status === 'queued').length} queued
+   834→                  </Badge>
+   835→                </div>
+   836→              </div>
+   837→            </CardHeader>
+   838→            <CardContent className="p-0">
+   839→              <ScrollArea className="max-h-[400px]">
+   840→                <Table>
+   841→                  <TableHeader>
+   842→                    <TableRow className="border-zinc-800 hover:bg-transparent">
+   843→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider h-8">Job ID</TableHead>
+   844→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Model</TableHead>
+   845→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Status</TableHead>
+   846→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Progress</TableHead>
+   847→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Started</TableHead>
+   848→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Duration</TableHead>
+   849→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider text-right">Actions</TableHead>
+   850→                    </TableRow>
+   851→                  </TableHeader>
+   852→                  <TableBody>
+   853→                    {trainingJobs.map((job) => {
+   854→                      const isRunning = job.status === 'running'
+   855→                      const currentProgress = isRunning
+   856→                        ? runningProgress[job.id] ?? job.progress
+   857→                        : job.progress
+   858→
+   859→                      return (
+   860→                        <TableRow
+   861→                          key={job.id}
+   862→                          className={`border-zinc-800/50 hover:bg-zinc-900/40 transition-colors ${isRunning ? 'animate-pulse' : ''}`}
+   863→                        >
+   864→                          <TableCell className="text-[10px] text-zinc-400 font-mono whitespace-nowrap">
+   865→                            {job.id}
+   866→                          </TableCell>
+   867→                          <TableCell className="text-[10px] text-zinc-300 whitespace-nowrap">
+   868→                            {job.model}
+   869→                          </TableCell>
+   870→                          <TableCell>
+   871→                            <Badge
+   872→                              variant="outline"
+   873→                              className={`text-[9px] px-1.5 py-0 gap-1 ${jobStatusColor[job.status]}`}
+   874→                            >
+   875→                              {jobStatusIcon[job.status]}
+   876→                              {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
+   877→                            </Badge>
+   878→                          </TableCell>
+   879→                          <TableCell>
+   880→                            <div className="flex items-center gap-2 min-w-[140px]">
+   881→                              <Progress
+   882→                                value={currentProgress}
+   883→                                className={`h-1.5 flex-1 bg-zinc-800 ${
+   884→                                  job.status === 'failed'
+   885→                                    ? '[&>div]:bg-rose-500'
+   886→                                    : job.status === 'completed'
+   887→                                      ? '[&>div]:bg-emerald-500'
+   888→                                      : '[&>div]:bg-sky-500'
+   889→                                }`}
+   890→                              />
+   891→                              <span
+   892→                                className={`text-[10px] font-mono w-8 text-right ${
+   893→                                  job.status === 'completed'
+   894→                                    ? 'text-emerald-400'
+   895→                                    : job.status === 'failed'
+   896→                                      ? 'text-rose-400'
+   897→                                      : 'text-zinc-400'
+   898→                                }`}
+   899→                              >
+   900→                                {Math.round(currentProgress)}%
+   901→                              </span>
+   902→                            </div>
+   903→                          </TableCell>
+   904→                          <TableCell className="text-[10px] text-zinc-400 font-mono whitespace-nowrap">
+   905→                            {job.started}
+   906→                          </TableCell>
+   907→                          <TableCell className="text-[10px] text-zinc-500 whitespace-nowrap">
+   908→                            {job.duration}
+   909→                          </TableCell>
+   910→                          <TableCell className="text-right">
+   911→                            <div className="flex items-center justify-end gap-1">
+   912→                              {(job.status === 'running' || job.status === 'queued') && (
+   913→                                <Button
+   914→                                  size="sm"
+   915→                                  variant="ghost"
+   916→                                  className="h-6 text-[9px] gap-0.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 px-1.5"
+   917→                                  onClick={() => handleCancelJob(job.id)}
+   918→                                >
+   919→                                  <XCircle className="size-3" /> Cancel
+   920→                                </Button>
+   921→                              )}
+   922→                              <Button
+   923→                                size="sm"
+   924→                                variant="ghost"
+   925→                                className="h-6 text-[9px] gap-0.5 text-zinc-500 hover:text-zinc-300 px-1.5"
+   926→                              >
+   927→                                <Eye className="size-3" /> Logs
+   928→                              </Button>
+   929→                            </div>
+   930→                          </TableCell>
+   931→                        </TableRow>
+   932→                      )
+   933→                    })}
+   934→                  </TableBody>
+   935→                </Table>
+   936→              </ScrollArea>
+   937→            </CardContent>
+   938→          </Card>
+   939→        </TabsContent>
+   940→
+   941→        {/* ────── Tab 4: Feature Store ────── */}
+   942→        <TabsContent value="features" className="mt-4">
+   943→          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   944→            {featureStores.map((store) => (
+   945→              <Card
+   946→                key={store.id}
+   947→                className="border-zinc-800 bg-zinc-950/80 hover:border-zinc-700 transition-colors"
+   948→              >
+   949→                <CardContent className="p-5">
+   950→                  {/* Header */}
+   951→                  <div className="flex items-start justify-between mb-4">
+   952→                    <div className="flex items-center gap-3">
+   953→                      <div className="flex items-center justify-center size-10 rounded-lg bg-zinc-900 border border-zinc-800">
+   954→                        {sourceIcon[store.source]}
+   955→                      </div>
+   956→                      <div>
+   957→                        <h3 className="text-sm font-semibold text-zinc-100">{store.name}</h3>
+   958→                        <Badge
+   959→                          variant="outline"
+   960→                          className={`text-[9px] px-1.5 py-0 mt-1 ${sourceBadgeColor[store.source]}`}
+   961→                        >
+   962→                          {store.source}
+   963→                        </Badge>
+   964→                      </div>
+   965→                    </div>
+   966→                    <div className="flex items-center gap-2">
+   967→                      <Label className="text-[9px] text-zinc-500">
+   968→                        {store.active ? 'Active' : 'Inactive'}
+   969→                      </Label>
+   970→                      <Switch
+   971→                        checked={store.active}
+   972→                        onCheckedChange={(checked) => handleFeatureToggle(store.id, checked)}
+   973→                        className="data-[state=checked]:bg-emerald-500 data-[state=unchecked]:bg-zinc-700"
+   974→                      />
+   975→                    </div>
+   976→                  </div>
+   977→
+   978→                  {/* Stats Grid */}
+   979→                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+   980→                    <div className="p-2 rounded-lg bg-zinc-900/60 text-center">
+   981→                      <p className="text-lg font-bold text-zinc-100">{store.featuresCount}</p>
+   982→                      <p className="text-[9px] text-zinc-500 uppercase tracking-wider">Features</p>
+   983→                    </div>
+   984→                    <div className="p-2 rounded-lg bg-zinc-900/60 text-center">
+   985→                      <p className="text-sm font-bold text-zinc-200">{store.refreshInterval}</p>
+   986→                      <p className="text-[9px] text-zinc-500 uppercase tracking-wider">Refresh</p>
+   987→                    </div>
+   988→                    <div className="p-2 rounded-lg bg-zinc-900/60 text-center">
+   989→                      <p className="text-sm font-bold text-zinc-200 font-mono">{store.lastRefresh}</p>
+   990→                      <p className="text-[9px] text-zinc-500 uppercase tracking-wider">Last Sync</p>
+   991→                    </div>
+   992→                  </div>
+   993→
+   994→                  <Separator className="bg-zinc-800 mb-3" />
+   995→
+   996→                  {/* Footer */}
+   997→                  <div className="flex items-center justify-between">
+   998→                    <span className="text-[10px] text-zinc-500 flex items-center gap-1">
+   999→                      <RefreshCw className="size-3" /> Auto-refreshes every {store.refreshInterval}
+  1000→                    </span>
+  1001→                    <Button
+  1002→                      size="sm"
+  1003→                      variant="ghost"
+  1004→                      className="h-6 text-[9px] gap-1 text-zinc-500 hover:text-zinc-300"
+  1005→                    >
+  1006→                      <Settings className="size-3" /> Configure
+  1007→                    </Button>
+  1008→                  </div>
+  1009→                </CardContent>
+  1010→              </Card>
+  1011→            ))}
+  1012→          </div>
+  1013→
+  1014→          {/* Feature Store Summary */}
+  1015→          <Card className="border-zinc-800 bg-zinc-950/80 mt-4">
+  1016→            <CardContent className="p-4">
+  1017→              <div className="flex items-center justify-between">
+  1018→                <div className="flex items-center gap-6">
+  1019→                  <div className="flex items-center gap-2">
+  1020→                    <BarChart3 className="size-4 text-amber-400" />
+  1021→                    <span className="text-xs text-zinc-300">
+  1022→                      Total Features:{' '}
+  1023→                      <span className="font-bold text-zinc-100">
+  1024→                        {featureStores.reduce((a, s) => a + s.featuresCount, 0)}
+  1025→                      </span>
+  1026→                    </span>
+  1027→                  </div>
+  1028→                  <Separator orientation="vertical" className="h-4 bg-zinc-800" />
+  1029→                  <div className="flex items-center gap-2">
+  1030→                    <Activity className="size-4 text-emerald-400" />
+  1031→                    <span className="text-xs text-zinc-300">
+  1032→                      Active Stores:{' '}
+  1033→                      <span className="font-bold text-zinc-100">
+  1034→                        {featureStores.filter((s) => s.active).length}/{featureStores.length}
+  1035→                      </span>
+  1036→                    </span>
+  1037→                  </div>
+  1038→                  <Separator orientation="vertical" className="h-4 bg-zinc-800" />
+  1039→                  <div className="flex items-center gap-2">
+  1040→                    <Clock className="size-4 text-sky-400" />
+  1041→                    <span className="text-xs text-zinc-300">
+  1042→                      Fastest Refresh:{' '}
+  1043→                      <span className="font-bold text-zinc-100">
+  1044→                        {Math.min(
+  1045→                          ...featureStores.filter((s) => s.active).map((s) => parseInt(s.refreshInterval))
+  1046→                        )}
+  1047→                        min
+  1048→                      </span>
+  1049→                    </span>
+  1050→                  </div>
+  1051→                </div>
+  1052→                <Button
+  1053→                  size="sm"
+  1054→                  variant="outline"
+  1055→                  className="h-7 text-[10px] gap-1 border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600"
+  1056→                >
+  1057→                  <RefreshCw className="size-3" /> Refresh All
+  1058→                </Button>
+  1059→              </div>
+  1060→            </CardContent>
+  1061→          </Card>
+  1062→        </TabsContent>
+  1063→      </Tabs>
+  1064→    </div>
+  1065→  )
+  1066→}
+  1067→

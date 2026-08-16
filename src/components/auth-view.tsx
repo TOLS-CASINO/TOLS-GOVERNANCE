@@ -289,9 +289,9 @@ export function AuthView() {
   if (loading) {
     return (
       <div className="space-y-4">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i}><CardContent className="p-6"><Skeleton className="h-24 w-full" /></CardContent></Card>
+            <Card key={i}><CardContent className="p-4 sm:p-6"><Skeleton className="h-24 w-full" /></CardContent></Card>
           ))}
         </div>
         <Card><CardContent className="p-6"><Skeleton className="h-48 w-full" /></CardContent></Card>
@@ -319,46 +319,46 @@ export function AuthView() {
   return (
     <div className="space-y-4">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center gap-3">
               <div className="rounded-lg bg-muted p-2"><Users className="size-4 text-primary" /></div>
               <div>
-                <p className="text-lg font-bold">{users.length}</p>
+                <p className="text-base sm:text-lg font-bold">{users.length}</p>
                 <p className="text-[10px] text-muted-foreground uppercase">Total Users</p>
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center gap-3">
               <div className="rounded-lg bg-muted p-2"><Shield className="size-4 text-emerald-400" /></div>
               <div>
-                <p className="text-lg font-bold">{users.filter((u) => u.status === 'active').length}</p>
+                <p className="text-base sm:text-lg font-bold">{users.filter((u) => u.status === 'active').length}</p>
                 <p className="text-[10px] text-muted-foreground uppercase">Active Users</p>
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center gap-3">
               <div className="rounded-lg bg-muted p-2"><Globe className="size-4 text-chart-4" /></div>
               <div>
-                <p className="text-lg font-bold">{sessions.length}</p>
+                <p className="text-base sm:text-lg font-bold">{sessions.length}</p>
                 <p className="text-[10px] text-muted-foreground uppercase">Active Sessions</p>
               </div>
             </div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center gap-3">
               <div className="rounded-lg bg-muted p-2"><Lock className="size-4 text-amber-400" /></div>
               <div>
-                <p className="text-lg font-bold">{security.twoFactor.enabled ? 'ON' : 'OFF'}</p>
+                <p className="text-base sm:text-lg font-bold">{security.twoFactor.enabled ? 'ON' : 'OFF'}</p>
                 <p className="text-[10px] text-muted-foreground uppercase">2FA Status</p>
               </div>
             </div>
@@ -399,11 +399,11 @@ export function AuthView() {
                       value={userSearch}
                       onChange={(e) => setUserSearch(e.target.value)}
                       placeholder="Search users..."
-                      className="w-[160px] h-7 text-xs pl-7"
+                      className="w-full sm:w-[160px] h-7 text-xs pl-7"
                     />
                   </div>
                   <Select value={roleFilter} onValueChange={setRoleFilter}>
-                    <SelectTrigger className="w-[130px] h-7 text-xs">
+                    <SelectTrigger className="w-full sm:w-[130px] h-7 text-xs">
                       <SelectValue placeholder="Filter role" />
                     </SelectTrigger>
                     <SelectContent>
@@ -419,7 +419,7 @@ export function AuthView() {
                         <Plus className="size-3" /> Add User
                       </Button>
                     </DialogTrigger>
-                    <DialogContent>
+                    <DialogContent className="max-h-[90vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                           <Plus className="size-4 text-primary" /> Add New User
@@ -487,11 +487,11 @@ export function AuthView() {
                   <TableHeader>
                     <TableRow>
                       <TableHead className="text-xs">Name</TableHead>
-                      <TableHead className="text-xs">Email</TableHead>
+                      <TableHead className="text-xs hidden sm:table-cell">Email</TableHead>
                       <TableHead className="text-xs">Role</TableHead>
-                      <TableHead className="text-xs">Casino</TableHead>
+                      <TableHead className="text-xs hidden sm:table-cell">Casino</TableHead>
                       <TableHead className="text-xs">Status</TableHead>
-                      <TableHead className="text-xs">Last Login</TableHead>
+                      <TableHead className="text-xs hidden sm:table-cell">Last Login</TableHead>
                       <TableHead className="text-xs">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -502,21 +502,21 @@ export function AuthView() {
                         return (
                           <TableRow key={user.id}>
                             <TableCell className="text-xs font-medium">{user.name}</TableCell>
-                            <TableCell className="text-xs text-muted-foreground">{user.email}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground hidden sm:table-cell">{user.email}</TableCell>
                             <TableCell>
                               <Badge variant="outline" className="text-[9px] h-4 gap-1">
                                 <Shield className="size-2.5" />
                                 {user.role}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">{user.casino}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground hidden sm:table-cell">{user.casino}</TableCell>
                             <TableCell>
                               <Badge variant={statusCfg.variant} className="text-[9px] h-4 gap-1">
                                 {user.status === 'active' ? <CheckCircle className="size-2.5" /> : user.status === 'suspended' ? <XCircle className="size-2.5" /> : <Clock className="size-2.5" />}
                                 {user.status}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{user.lastLogin}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap hidden sm:table-cell">{user.lastLogin}</TableCell>
                             <TableCell>
                               <div className="flex items-center gap-1">
                                 <Button
@@ -571,9 +571,9 @@ export function AuthView() {
                     <TableRow>
                       <TableHead className="text-xs">User</TableHead>
                       <TableHead className="text-xs">IP Address</TableHead>
-                      <TableHead className="text-xs">Device / Browser</TableHead>
-                      <TableHead className="text-xs">Started</TableHead>
-                      <TableHead className="text-xs">Expires</TableHead>
+                      <TableHead className="text-xs hidden sm:table-cell">Device / Browser</TableHead>
+                      <TableHead className="text-xs hidden sm:table-cell">Started</TableHead>
+                      <TableHead className="text-xs hidden sm:table-cell">Expires</TableHead>
                       <TableHead className="text-xs">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -583,7 +583,7 @@ export function AuthView() {
                         <TableRow key={session.id}>
                           <TableCell className="text-xs font-medium">{session.user}</TableCell>
                           <TableCell className="text-xs font-mono text-muted-foreground">{session.ipAddress}</TableCell>
-                          <TableCell>
+                          <TableCell className="hidden sm:table-cell">
                             <div className="flex items-center gap-1.5">
                               <Smartphone className="size-3 text-muted-foreground" />
                               <span className="text-xs">{session.device}</span>
@@ -591,8 +591,8 @@ export function AuthView() {
                               <span className="text-xs text-muted-foreground">{session.browser}</span>
                             </div>
                           </TableCell>
-                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{session.started}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{session.expires}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap hidden sm:table-cell">{session.started}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap hidden sm:table-cell">{session.expires}</TableCell>
                           <TableCell>
                             <Button
                               variant="ghost"
@@ -692,7 +692,7 @@ export function AuthView() {
               </ScrollArea>
 
               {/* Permission Legend */}
-              <div className="mt-4 flex items-center gap-4 pt-3 border-t border-border">
+              <div className="mt-4 flex flex-wrap items-center gap-3 pt-3 border-t border-border">
                 <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Legend:</span>
                 <div className="flex items-center gap-1.5"><span className="size-3 rounded bg-emerald-400/20 text-emerald-400 text-[8px] font-bold flex items-center justify-center">R</span><span className="text-[10px] text-muted-foreground">Read</span></div>
                 <div className="flex items-center gap-1.5"><span className="size-3 rounded bg-chart-4/20 text-chart-4 text-[8px] font-bold flex items-center justify-center">W</span><span className="text-[10px] text-muted-foreground">Write</span></div>
@@ -705,7 +705,7 @@ export function AuthView() {
 
         {/* ──────── Tab 4: Security Settings ──────── */}
         <TabsContent value="security">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Password Policy */}
             <Card>
               <CardHeader className="pb-2">

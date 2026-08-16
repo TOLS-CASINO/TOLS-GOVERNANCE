@@ -168,7 +168,7 @@ export function PlayersView() {
               />
             </div>
             <Select value={vipFilter} onValueChange={setVipFilter}>
-              <SelectTrigger className="w-[110px] h-9 text-xs"><SelectValue placeholder="VIP Level" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[110px] h-9 text-xs"><SelectValue placeholder="VIP Level" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All VIP</SelectItem>
                 {[1, 2, 3, 4, 5].map((v) => (
@@ -177,7 +177,7 @@ export function PlayersView() {
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[120px] h-9 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[120px] h-9 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="active">Active</SelectItem>
@@ -187,7 +187,7 @@ export function PlayersView() {
               </SelectContent>
             </Select>
             <Select value={segmentFilter} onValueChange={setSegmentFilter}>
-              <SelectTrigger className="w-[130px] h-9 text-xs"><SelectValue placeholder="Segment" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-[130px] h-9 text-xs"><SelectValue placeholder="Segment" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Segments</SelectItem>
                 {uniqueSegments.map((s) => (
@@ -220,9 +220,9 @@ export function PlayersView() {
                   <TableHead className="text-xs cursor-pointer" onClick={() => toggleSort('churnRisk')}>
                     <span className="flex items-center gap-1">Churn {sortKey === 'churnRisk' && (sortDir === 'desc' ? <ChevronDown className="size-3" /> : <ChevronUp className="size-3" />)}</span>
                   </TableHead>
-                  <TableHead className="text-xs">Segment</TableHead>
+                  <TableHead className="text-xs hidden sm:table-cell">Segment</TableHead>
                   <TableHead className="text-xs">Status</TableHead>
-                  <TableHead className="text-xs">Last Active</TableHead>
+                  <TableHead className="text-xs hidden sm:table-cell">Last Active</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -262,13 +262,13 @@ export function PlayersView() {
                         <span className="text-[10px] text-muted-foreground">{player.churnRisk}%</span>
                       </div>
                     </TableCell>
-                    <TableCell><Badge variant="outline" className="text-[9px] h-4">{player.segment}</Badge></TableCell>
+                    <TableCell className="hidden sm:table-cell"><Badge variant="outline" className="text-[9px] h-4">{player.segment}</Badge></TableCell>
                     <TableCell>
                       <span className={`text-[10px] font-medium ${statusColor[player.status] || 'text-muted-foreground'}`}>
                         {player.status.replace('_', ' ')}
                       </span>
                     </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">{player.lastActive}</TableCell>
+                    <TableCell className="text-xs text-muted-foreground hidden sm:table-cell">{player.lastActive}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -288,7 +288,7 @@ function PlanCard({
       <CardContent className="space-y-4">
         {/* Price */}
         <div className="flex items-baseline gap-1">
-          <span className="text-2xl font-bold text-primary">{plan.price}</span>
+          <span className="text-xl sm:text-2xl font-bold text-primary">{plan.price}</span>
           {plan.period && (
             <span className="text-xs text-muted-foreground">{plan.period}</span>
           )}
@@ -384,7 +384,7 @@ function AddPaymentMethodDialog({ onAdd }: { onAdd: (method: PaymentMethod) => v
           <Plus className="size-3" /> Add Method
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-primary">Add Payment Method</DialogTitle>
         </DialogHeader>
@@ -485,10 +485,10 @@ export function BillingView() {
     return (
       <div className="space-y-4">
         <Skeleton className="h-10 w-full max-w-md" />
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
             <Card key={i}>
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-6">
                 <Skeleton className="h-32 w-full" />
               </CardContent>
             </Card>
@@ -519,7 +519,7 @@ export function BillingView() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Receipt className="size-5 text-primary" />
           <h2 className="text-lg font-semibold text-primary">Billing & Subscription</h2>
@@ -536,7 +536,7 @@ export function BillingView() {
 
       {/* Tabs */}
       <Tabs defaultValue="plans" className="space-y-4">
-        <TabsList className="bg-muted/50">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 bg-muted/50">
           <TabsTrigger value="plans" className="text-xs gap-1">
             <Star className="size-3" /> Plans
           </TabsTrigger>
@@ -553,7 +553,7 @@ export function BillingView() {
 
         {/* ─── Tab 1: Plans ─── */}
         <TabsContent value="plans">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {PLANS.map((plan) => (
               <PlanCard
                 key={plan.id}
@@ -584,7 +584,7 @@ export function BillingView() {
 
         {/* ─── Tab 2: Subscription ─── */}
         <TabsContent value="subscription">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Subscription Details */}
             <Card className="border-primary/20">
               <CardHeader className="pb-3">
@@ -698,7 +698,7 @@ export function BillingView() {
         <TabsContent value="invoices">
           <Card className="border-primary/20">
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <CardTitle className="text-sm font-semibold text-primary flex items-center gap-2">
                   <Receipt className="size-4 text-primary" />
                   Invoice History
@@ -709,16 +709,17 @@ export function BillingView() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
+              <div className="overflow-x-auto">
               <ScrollArea className="max-h-96">
                 <Table>
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
                       <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground">Date</TableHead>
                       <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground">Invoice</TableHead>
-                      <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground">Description</TableHead>
+                      <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground hidden sm:table-cell">Description</TableHead>
                       <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground text-right">Amount</TableHead>
                       <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground">Status</TableHead>
-                      <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground text-right">PDF</TableHead>
+                      <TableHead className="text-[10px] uppercase tracking-wider text-muted-foreground text-right hidden sm:table-cell">PDF</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -732,7 +733,7 @@ export function BillingView() {
                           })}
                         </TableCell>
                         <TableCell className="text-xs font-mono text-primary">{inv.id}</TableCell>
-                        <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                        <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate hidden sm:table-cell">
                           {inv.description}
                         </TableCell>
                         <TableCell className="text-xs font-medium text-primary text-right">
@@ -746,7 +747,7 @@ export function BillingView() {
                             {inv.status.toUpperCase()}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right hidden sm:table-cell">
                           {inv.status !== 'void' ? (
                             <Button
                               variant="ghost"
@@ -764,6 +765,7 @@ export function BillingView() {
                   </TableBody>
                 </Table>
               </ScrollArea>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -772,7 +774,7 @@ export function BillingView() {
         <TabsContent value="payment">
           <div className="space-y-4">
             {/* Header with Add button */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <p className="text-xs text-muted-foreground">
                 Manage your payment methods and billing preferences
               </p>

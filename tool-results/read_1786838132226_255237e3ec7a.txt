@@ -1,0 +1,785 @@
+     1→'use client'
+     2→
+     3→import { useState, useMemo } from 'react'
+     4→import {
+     5→  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis,
+     6→  Tooltip, ResponsiveContainer, CartesianGrid, Legend,
+     7→} from 'recharts'
+     8→import {
+     9→  Wallet, CreditCard, Lock, Gift,
+    10→  RefreshCw, Search, Star, Coins,
+    11→  TrendingUp, DollarSign, Bitcoin,
+    12→} from 'lucide-react'
+    13→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    14→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    15→import { Badge } from '@/components/ui/badge'
+    16→import { Button } from '@/components/ui/button'
+    17→import { ScrollArea } from '@/components/ui/scroll-area'
+    18→import { Skeleton } from '@/components/ui/skeleton'
+    19→import { Input } from '@/components/ui/input'
+    20→import {
+    21→  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+    22→} from '@/components/ui/table'
+    23→import {
+    24→  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    25→} from '@/components/ui/select'
+    26→import { useApi } from '@/hooks/use-api'
+    27→import { api } from '@/services/api'
+    28→import type { WalletsData } from '@/types/wallet'
+    29→
+    30→/* ─── Currency helpers ─── */
+    31→const CURRENCY_EMOJI: Record<string, string> = {
+    32→  USD: '💵', EUR: '💶', GBP: '💷', BTC: '₿', ETH: '⟠', USDT: '₮', USDC: '◎', LTC: 'Ł',
+    33→}
+    34→
+    35→const CRYPTO_CURRENCIES = ['BTC', 'ETH', 'LTC']
+    36→
+    37→function fmtCurrency(amount: number, currency: string): string {
+    38→  if (CRYPTO_CURRENCIES.includes(currency)) {
+    39→    return `${CURRENCY_EMOJI[currency] ?? ''} ${amount.toFixed(8)}`
+    40→  }
+    41→  const symbols: Record<string, string> = { USD: '$', EUR: '€', GBP: '£', USDT: '₮', USDC: '◎' }
+    42→  const sym = symbols[currency] ?? currency
+    43→  return `${sym}${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    44→}
+    45→
+    46→function fmtUsd(amount: number): string {
+    47→  return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    48→}
+    49→
+    50→function fmtDate(iso: string): string {
+    51→  if (!iso) return '—'
+    52→  const d = new Date(iso)
+    53→  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    54→}
+    55→
+    56→/* ─── Status badge ─── */
+    57→function StatusBadge({ status }: { status: string }) {
+    58→  const map: Record<string, string> = {
+    59→    active: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+    60→    frozen: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+    61→    closed: 'bg-gray-500/15 text-gray-400 border-gray-500/30',
+    62→  }
+    63→  return (
+    64→    <Badge variant="outline" className={`text-[10px] ${map[status] ?? 'bg-muted text-muted-foreground'}`}>
+    65→      {status}
+    66→    </Badge>
+    67→  )
+    68→}
+    69→
+    70→/* ─── Transaction type badge ─── */
+    71→function TxTypeBadge({ type }: { type: string }) {
+    72→  const map: Record<string, string> = {
+    73→    deposit: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+    74→    withdrawal: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
+    75→    bet: 'bg-red-500/15 text-red-400 border-red-500/30',
+    76→    win: 'bg-green-500/15 text-green-400 border-green-500/30',
+    77→    bonus: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+    78→    cashback: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
+    79→    transfer: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+    80→    fee: 'bg-gray-500/15 text-gray-400 border-gray-500/30',
+    81→    exchange: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30',
+    82→  }
+    83→  return (
+    84→    <Badge variant="outline" className={`text-[10px] ${map[type] ?? ''}`}>
+    85→      {type}
+    86→    </Badge>
+    87→  )
+    88→}
+    89→
+    90→/* ─── Payment type icon ─── */
+    91→function PaymentTypeIcon({ type }: { type: string }) {
+    92→  const map: Record<string, string> = {
+    93→    Visa: '💳', Mastercard: '💳', Bank: '🏦', Crypto: '₿', 'E-Wallet': '📱', Prepaid: '🎫',
+    94→  }
+    95→  const emoji = map[type]
+    96→  if (emoji) return <span className="text-xl">{emoji}</span>
+    97→  return <Coins className="size-5 text-muted-foreground" />
+    98→}
+    99→
+   100→/* ─── Provider badge color ─── */
+   101→function ProviderBadge({ provider }: { provider: string }) {
+   102→  const colors: Record<string, string> = {
+   103→    Visa: 'bg-blue-600/20 text-blue-300 border-blue-500/30',
+   104→    Mastercard: 'bg-orange-600/20 text-orange-300 border-orange-500/30',
+   105→    HSBC: 'bg-red-600/20 text-red-300 border-red-500/30',
+   106→    MUFG: 'bg-indigo-600/20 text-indigo-300 border-indigo-500/30',
+   107→    Coinbase: 'bg-blue-600/20 text-blue-300 border-blue-500/30',
+   108→    Binance: 'bg-yellow-600/20 text-yellow-300 border-yellow-500/30',
+   109→    MetaMask: 'bg-orange-600/20 text-orange-300 border-orange-500/30',
+   110→    Skrill: 'bg-purple-600/20 text-purple-300 border-purple-500/30',
+   111→    PayPal: 'bg-blue-600/20 text-blue-300 border-blue-500/30',
+   112→    Paysafecard: 'bg-emerald-600/20 text-emerald-300 border-emerald-500/30',
+   113→  }
+   114→  return (
+   115→    <Badge variant="outline" className={`text-[9px] ${colors[provider] ?? 'bg-muted text-muted-foreground'}`}>
+   116→      {provider}
+   117→    </Badge>
+   118→  )
+   119→}
+   120→
+   121→/* ─── PIE CHART COLORS ─── */
+   122→const PIE_COLORS = ['#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444', '#06b6d4', '#ec4899', '#84cc16']
+   123→
+   124→/* ═══════════════════════════════════════════════════
+   125→   OVERVIEW TAB
+   126→   ═══════════════════════════════════════════════════ */
+   127→function OverviewTab({
+   128→  totals, currencyEntries, totalBalanceAll, pieData, barData,
+   129→}: {
+   130→  totals: NonNullable<WalletsData['totals']>
+   131→  currencyEntries: [string, { balance: number; count: number }][]
+   132→  totalBalanceAll: number
+   133→  pieData: { name: string; value: number; emoji: string }[]
+   134→  barData: { currency: string; balance: number }[]
+   135→}) {
+   136→  return (
+   137→    <div className="space-y-6">
+   138→      {/* KPI cards */}
+   139→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   140→        <Card className="bg-card border-border">
+   141→          <CardContent className="p-4">
+   142→            <div className="flex items-center justify-between mb-2">
+   143→              <span className="text-xs text-muted-foreground font-medium">Total Balance</span>
+   144→              <Wallet className="size-4 text-amber-500" />
+   145→            </div>
+   146→            <p className="text-2xl font-bold text-amber-400">{fmtUsd(totals.totalBalance)}</p>
+   147→            <p className="text-[10px] text-muted-foreground mt-1">All currencies in USD equiv.</p>
+   148→          </CardContent>
+   149→        </Card>
+   150→        <Card className="bg-card border-border">
+   151→          <CardContent className="p-4">
+   152→            <div className="flex items-center justify-between mb-2">
+   153→              <span className="text-xs text-muted-foreground font-medium">Available</span>
+   154→              <DollarSign className="size-4 text-emerald-500" />
+   155→            </div>
+   156→            <p className="text-2xl font-bold text-emerald-400">{fmtUsd(totals.totalAvailable)}</p>
+   157→            <p className="text-[10px] text-muted-foreground mt-1">Ready for play/withdrawal</p>
+   158→          </CardContent>
+   159→        </Card>
+   160→        <Card className="bg-card border-border">
+   161→          <CardContent className="p-4">
+   162→            <div className="flex items-center justify-between mb-2">
+   163→              <span className="text-xs text-muted-foreground font-medium">Locked</span>
+   164→              <Lock className="size-4 text-blue-500" />
+   165→            </div>
+   166→            <p className="text-2xl font-bold text-blue-400">{fmtUsd(totals.totalLocked)}</p>
+   167→            <p className="text-[10px] text-muted-foreground mt-1">In active wagers</p>
+   168→          </CardContent>
+   169→        </Card>
+   170→        <Card className="bg-card border-border">
+   171→          <CardContent className="p-4">
+   172→            <div className="flex items-center justify-between mb-2">
+   173→              <span className="text-xs text-muted-foreground font-medium">Bonus Funds</span>
+   174→              <Gift className="size-4 text-purple-500" />
+   175→            </div>
+   176→            <p className="text-2xl font-bold text-purple-400">{fmtUsd(totals.totalBonus)}</p>
+   177→            <p className="text-[10px] text-muted-foreground mt-1">Subject to wagering req.</p>
+   178→          </CardContent>
+   179→        </Card>
+   180→      </div>
+   181→
+   182→      {/* Currency breakdown cards */}
+   183→      <div>
+   184→        <h3 className="text-sm font-semibold mb-3 text-amber-400/90">Currency Breakdown</h3>
+   185→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+   186→          {currencyEntries.map(([currency, info]) => {
+   187→            const pct = totalBalanceAll > 0 ? ((info.balance / totalBalanceAll) * 100) : 0
+   188→            return (
+   189→              <Card key={currency} className="bg-card border-border">
+   190→                <CardContent className="p-4">
+   191→                  <div className="flex items-center gap-2 mb-2">
+   192→                    <span className="text-xl">{CURRENCY_EMOJI[currency] ?? currency}</span>
+   193→                    <span className="text-sm font-bold">{currency}</span>
+   194→                    <Badge variant="outline" className="text-[9px] ml-auto border-amber-500/30 text-amber-400">
+   195→                      {info.count} wallet{info.count !== 1 ? 's' : ''}
+   196→                    </Badge>
+   197→                  </div>
+   198→                  <p className="text-lg font-bold">
+   199→                    {CRYPTO_CURRENCIES.includes(currency)
+   200→                      ? info.balance.toFixed(8)
+   201→                      : `$${info.balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+   202→                  </p>
+   203→                  <div className="mt-2 flex items-center gap-2">
+   204→                    <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+   205→                      <div className="h-full rounded-full bg-amber-500" style={{ width: `${pct}%` }} />
+   206→                    </div>
+   207→                    <span className="text-[10px] text-muted-foreground">{pct.toFixed(1)}%</span>
+   208→                  </div>
+   209→                </CardContent>
+   210→              </Card>
+   211→            )
+   212→          })}
+   213→        </div>
+   214→      </div>
+   215→
+   216→      {/* Charts */}
+   217→      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   218→        <Card className="bg-card border-border">
+   219→          <CardHeader className="pb-2">
+   220→            <CardTitle className="text-sm">Distribution by Currency</CardTitle>
+   221→          </CardHeader>
+   222→          <CardContent className="p-4 pt-0">
+   223→            <ResponsiveContainer width="100%" height={280}>
+   224→              <PieChart>
+   225→                <Pie
+   226→                  data={pieData}
+   227→                  cx="50%"
+   228→                  cy="50%"
+   229→                  innerRadius={60}
+   230→                  outerRadius={100}
+   231→                  paddingAngle={2}
+   232→                  dataKey="value"
+   233→                  label={({ name, emoji, percent }: { name: string; emoji: string; percent: number }) => `${emoji} ${name} ${(percent * 100).toFixed(1)}%`}
+   234→                >
+   235→                  {pieData.map((_, index) => (
+   236→                    <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+   237→                  ))}
+   238→                </Pie>
+   239→                <Tooltip
+   240→                  formatter={(value: number, name: string) => [fmtUsd(value), name]}
+   241→                  contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
+   242→                />
+   243→              </PieChart>
+   244→            </ResponsiveContainer>
+   245→          </CardContent>
+   246→        </Card>
+   247→
+   248→        <Card className="bg-card border-border">
+   249→          <CardHeader className="pb-2">
+   250→            <CardTitle className="text-sm">Wallet Balances by Currency</CardTitle>
+   251→          </CardHeader>
+   252→          <CardContent className="p-4 pt-0">
+   253→            <ResponsiveContainer width="100%" height={280}>
+   254→              <BarChart data={barData} margin={{ top: 5, right: 20, bottom: 5, left: 20 }}>
+   255→                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+   256→                <XAxis dataKey="currency" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+   257→                <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} />
+   258→                <Tooltip
+   259→                  formatter={(value: number) => [fmtUsd(value), 'Balance']}
+   260→                  contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
+   261→                />
+   262→                <Legend />
+   263→                <Bar dataKey="balance" name="Balance" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+   264→              </BarChart>
+   265→            </ResponsiveContainer>
+   266→          </CardContent>
+   267→        </Card>
+   268→      </div>
+   269→    </div>
+   270→  )
+   271→}
+   272→
+   273→/* ═══════════════════════════════════════════════════
+   274→   ALL WALLETS TAB
+   275→   ═══════════════════════════════════════════════════ */
+   276→function AllWalletsTab({
+   277→  filteredWallets, allCurrencies, allStatuses,
+   278→  walletCurrencyFilter, setWalletCurrencyFilter,
+   279→  walletStatusFilter, setWalletStatusFilter,
+   280→  walletSearch, setWalletSearch,
+   281→  walletSort, setWalletSort,
+   282→}: {
+   283→  filteredWallets: WalletsData['wallets']
+   284→  allCurrencies: string[]
+   285→  allStatuses: string[]
+   286→  walletCurrencyFilter: string
+   287→  setWalletCurrencyFilter: (v: string) => void
+   288→  walletStatusFilter: string
+   289→  setWalletStatusFilter: (v: string) => void
+   290→  walletSearch: string
+   291→  setWalletSearch: (v: string) => void
+   292→  walletSort: 'balance-desc' | 'balance-asc'
+   293→  setWalletSort: (v: 'balance-desc' | 'balance-asc') => void
+   294→}) {
+   295→  return (
+   296→    <div className="space-y-4">
+   297→      {/* Filters */}
+   298→      <div className="flex flex-wrap items-center gap-3">
+   299→        <div className="relative flex-1 min-w-[200px] max-w-xs">
+   300→          <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+   301→          <Input
+   302→            placeholder="Search player..."
+   303→            value={walletSearch}
+   304→            onChange={e => setWalletSearch(e.target.value)}
+   305→            className="pl-8 h-8 text-xs"
+   306→          />
+   307→        </div>
+   308→        <Select value={walletCurrencyFilter} onValueChange={setWalletCurrencyFilter}>
+   309→          <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue placeholder="Currency" /></SelectTrigger>
+   310→          <SelectContent>
+   311→            <SelectItem value="all">All Currencies</SelectItem>
+   312→            {allCurrencies.map(c => <SelectItem key={c} value={c}>{CURRENCY_EMOJI[c]} {c}</SelectItem>)}
+   313→          </SelectContent>
+   314→        </Select>
+   315→        <Select value={walletStatusFilter} onValueChange={setWalletStatusFilter}>
+   316→          <SelectTrigger className="w-[110px] h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+   317→          <SelectContent>
+   318→            <SelectItem value="all">All Status</SelectItem>
+   319→            {allStatuses.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+   320→          </SelectContent>
+   321→        </Select>
+   322→        <Select value={walletSort} onValueChange={v => setWalletSort(v as 'balance-desc' | 'balance-asc')}>
+   323→          <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder="Sort" /></SelectTrigger>
+   324→          <SelectContent>
+   325→            <SelectItem value="balance-desc">Balance ↓</SelectItem>
+   326→            <SelectItem value="balance-asc">Balance ↑</SelectItem>
+   327→          </SelectContent>
+   328→        </Select>
+   329→        <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-400">
+   330→          {filteredWallets.length} wallets
+   331→        </Badge>
+   332→      </div>
+   333→
+   334→      {/* Table */}
+   335→      <Card className="bg-card border-border">
+   336→        <ScrollArea className="max-h-[520px]">
+   337→          <Table>
+   338→            <TableHeader>
+   339→              <TableRow>
+   340→                <TableHead className="text-[10px]">Player</TableHead>
+   341→                <TableHead className="text-[10px]">Currency</TableHead>
+   342→                <TableHead className="text-[10px] text-right">Balance</TableHead>
+   343→                <TableHead className="text-[10px] text-right">Available</TableHead>
+   344→                <TableHead className="text-[10px] text-right">Locked</TableHead>
+   345→                <TableHead className="text-[10px] text-right">Bonus</TableHead>
+   346→                <TableHead className="text-[10px]">Status</TableHead>
+   347→                <TableHead className="text-[10px]">Last Activity</TableHead>
+   348→              </TableRow>
+   349→            </TableHeader>
+   350→            <TableBody>
+   351→              {filteredWallets.map(w => {
+   352→                const lastActivity = w.lastDepositAt || w.lastWithdrawAt
+   353→                return (
+   354→                  <TableRow key={w.id}>
+   355→                    <TableCell className="text-xs font-medium">
+   356→                      <span className="flex items-center gap-1">
+   357→                        {w.isPrimary && <Star className="size-3 text-amber-400 fill-amber-400" />}
+   358→                        {w.playerName}
+   359→                      </span>
+   360→                    </TableCell>
+   361→                    <TableCell className="text-xs">
+   362→                      <span className="flex items-center gap-1">
+   363→                        <span>{CURRENCY_EMOJI[w.currency]}</span>
+   364→                        <span>{w.currency}</span>
+   365→                      </span>
+   366→                    </TableCell>
+   367→                    <TableCell className="text-xs text-right font-mono">{fmtCurrency(w.balance, w.currency)}</TableCell>
+   368→                    <TableCell className="text-xs text-right font-mono text-emerald-400">{fmtCurrency(w.availableBalance, w.currency)}</TableCell>
+   369→                    <TableCell className="text-xs text-right font-mono text-blue-400">{fmtCurrency(w.lockedBalance, w.currency)}</TableCell>
+   370→                    <TableCell className="text-xs text-right font-mono text-purple-400">{fmtCurrency(w.bonusBalance, w.currency)}</TableCell>
+   371→                    <TableCell><StatusBadge status={w.status} /></TableCell>
+   372→                    <TableCell className="text-[10px] text-muted-foreground">{fmtDate(lastActivity)}</TableCell>
+   373→                  </TableRow>
+   374→                )
+   375→              })}
+   376→            </TableBody>
+   377→          </Table>
+   378→        </ScrollArea>
+   379→      </Card>
+   380→    </div>
+   381→  )
+   382→}
+   383→
+   384→/* ═══════════════════════════════════════════════════
+   385→   TRANSACTIONS TAB
+   386→   ═══════════════════════════════════════════════════ */
+   387→function TransactionsTab({
+   388→  filteredTransactions, allTxTypes, allTxCurrencies,
+   389→  txTypeFilter, setTxTypeFilter, txCurrencyFilter, setTxCurrencyFilter,
+   390→  walletMap,
+   391→}: {
+   392→  filteredTransactions: WalletsData['transactions']
+   393→  allTxTypes: string[]
+   394→  allTxCurrencies: string[]
+   395→  txTypeFilter: string
+   396→  setTxTypeFilter: (v: string) => void
+   397→  txCurrencyFilter: string
+   398→  setTxCurrencyFilter: (v: string) => void
+   399→  walletMap: Map<string, WalletsData['wallets'][number]>
+   400→}) {
+   401→  return (
+   402→    <div className="space-y-4">
+   403→      {/* Filters */}
+   404→      <div className="flex flex-wrap items-center gap-3">
+   405→        <Select value={txTypeFilter} onValueChange={setTxTypeFilter}>
+   406→          <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue placeholder="Type" /></SelectTrigger>
+   407→          <SelectContent>
+   408→            <SelectItem value="all">All Types</SelectItem>
+   409→            {allTxTypes.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+   410→          </SelectContent>
+   411→        </Select>
+   412→        <Select value={txCurrencyFilter} onValueChange={setTxCurrencyFilter}>
+   413→          <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue placeholder="Currency" /></SelectTrigger>
+   414→          <SelectContent>
+   415→            <SelectItem value="all">All Currencies</SelectItem>
+   416→            {allTxCurrencies.map(c => <SelectItem key={c} value={c}>{CURRENCY_EMOJI[c]} {c}</SelectItem>)}
+   417→          </SelectContent>
+   418→        </Select>
+   419→        <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-400">
+   420→          {filteredTransactions.length} transactions
+   421→        </Badge>
+   422→      </div>
+   423→
+   424→      {/* Table */}
+   425→      <Card className="bg-card border-border">
+   426→        <ScrollArea className="max-h-[520px]">
+   427→          <Table>
+   428→            <TableHeader>
+   429→              <TableRow>
+   430→                <TableHead className="text-[10px]">Time</TableHead>
+   431→                <TableHead className="text-[10px]">Player</TableHead>
+   432→                <TableHead className="text-[10px]">Type</TableHead>
+   433→                <TableHead className="text-[10px] text-right">Amount</TableHead>
+   434→                <TableHead className="text-[10px]">Currency</TableHead>
+   435→                <TableHead className="text-[10px]">Before → After</TableHead>
+   436→                <TableHead className="text-[10px]">Game</TableHead>
+   437→                <TableHead className="text-[10px]">Status</TableHead>
+   438→                <TableHead className="text-[10px]">Ref</TableHead>
+   439→              </TableRow>
+   440→            </TableHeader>
+   441→            <TableBody>
+   442→              {filteredTransactions.map(tx => {
+   443→                const wallet = walletMap.get(tx.walletId)
+   444→                const isPositive = tx.amount >= 0
+   445→                return (
+   446→                  <TableRow key={tx.id}>
+   447→                    <TableCell className="text-[10px] text-muted-foreground whitespace-nowrap">{fmtDate(tx.createdAt)}</TableCell>
+   448→                    <TableCell className="text-xs font-medium">{wallet?.playerName ?? '—'}</TableCell>
+   449→                    <TableCell><TxTypeBadge type={tx.type} /></TableCell>
+   450→                    <TableCell className={`text-xs text-right font-mono ${isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
+   451→                      {isPositive ? '+' : ''}{fmtCurrency(tx.amount, tx.currency)}
+   452→                    </TableCell>
+   453→                    <TableCell className="text-xs">
+   454→                      <span className="flex items-center gap-1">
+   455→                        <span>{CURRENCY_EMOJI[tx.currency]}</span>
+   456→                        <span>{tx.currency}</span>
+   457→                      </span>
+   458→                    </TableCell>
+   459→                    <TableCell className="text-[10px] font-mono whitespace-nowrap">
+   460→                      <span className="text-muted-foreground">
+   461→                        {CRYPTO_CURRENCIES.includes(tx.currency) ? tx.balanceBefore.toFixed(6) : tx.balanceBefore.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+   462→                      </span>
+   463→                      <span className="text-amber-400 mx-1">→</span>
+   464→                      <span className="text-foreground">
+   465→                        {CRYPTO_CURRENCIES.includes(tx.currency) ? tx.balanceAfter.toFixed(6) : tx.balanceAfter.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+   466→                      </span>
+   467→                    </TableCell>
+   468→                    <TableCell className="text-[10px] text-muted-foreground">{tx.gameName || '—'}</TableCell>
+   469→                    <TableCell>
+   470→                      <Badge variant="outline" className={`text-[9px] ${tx.status === 'completed' ? 'border-emerald-500/30 text-emerald-400' : tx.status === 'pending' ? 'border-yellow-500/30 text-yellow-400' : 'border-muted text-muted-foreground'}`}>
+   471→                        {tx.status}
+   472→                      </Badge>
+   473→                    </TableCell>
+   474→                    <TableCell className="text-[10px] text-muted-foreground font-mono">{tx.reference}</TableCell>
+   475→                  </TableRow>
+   476→                )
+   477→              })}
+   478→            </TableBody>
+   479→          </Table>
+   480→        </ScrollArea>
+   481→      </Card>
+   482→    </div>
+   483→  )
+   484→}
+   485→
+   486→/* ═══════════════════════════════════════════════════
+   487→   PAYMENT METHODS TAB
+   488→   ═══════════════════════════════════════════════════ */
+   489→function PaymentMethodsTab({
+   490→  paymentMethods, currencyRates, toggledMethods, toggleMethod,
+   491→}: {
+   492→  paymentMethods: WalletsData['paymentMethods']
+   493→  currencyRates: WalletsData['currencyRates']
+   494→  toggledMethods: Set<string>
+   495→  toggleMethod: (id: string) => void
+   496→}) {
+   497→  return (
+   498→    <div className="space-y-6">
+   499→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   500→        {paymentMethods.map(pm => {
+   501→          const isToggled = toggledMethods.has(pm.id)
+   502→          const isActive = isToggled ? !pm.isActive : pm.isActive
+   503→          return (
+   504→            <Card key={pm.id} className={`bg-card border-border ${!isActive ? 'opacity-60' : ''}`}>
+   505→              <CardContent className="p-4">
+   506→                <div className="flex items-start justify-between mb-3">
+   507→                  <div className="flex items-center gap-2">
+   508→                    <PaymentTypeIcon type={pm.type} />
+   509→                    <div>
+   510→                      <p className="text-xs font-semibold">{pm.label}</p>
+   511→                      <p className="text-[10px] text-muted-foreground">{pm.playerName}</p>
+   512→                    </div>
+   513→                  </div>
+   514→                  <div className="flex items-center gap-1">
+   515→                    {pm.isDefault && (
+   516→                      <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-amber-500/30">Default</Badge>
+   517→                    )}
+   518→                    <Badge className={`text-[9px] ${isActive ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-red-500/20 text-red-400 border-red-500/30'}`}>
+   519→                      {isActive ? 'Active' : 'Inactive'}
+   520→                    </Badge>
+   521→                  </div>
+   522→                </div>
+   523→
+   524→                <div className="space-y-2">
+   525→                  <div className="flex items-center justify-between">
+   526→                    <ProviderBadge provider={pm.provider} />
+   527→                    <span className="text-[10px] flex items-center gap-1">
+   528→                      <span>{CURRENCY_EMOJI[pm.currency]}</span>
+   529→                      <span className="text-muted-foreground">{pm.currency}</span>
+   530→                    </span>
+   531→                  </div>
+   532→                  <div className="flex items-center justify-between">
+   533→                    <span className="text-[10px] text-muted-foreground font-mono">{pm.identifier}</span>
+   534→                    <Button
+   535→                      variant="ghost"
+   536→                      size="sm"
+   537→                      className="h-6 text-[10px] gap-1"
+   538→                      onClick={() => toggleMethod(pm.id)}
+   539→                    >
+   540→                      <RefreshCw className="size-3" />
+   541→                      Toggle
+   542→                    </Button>
+   543→                  </div>
+   544→                </div>
+   545→              </CardContent>
+   546→            </Card>
+   547→          )
+   548→        })}
+   549→      </div>
+   550→
+   551→      {/* Currency Rates */}
+   552→      <Card className="bg-card border-border">
+   553→        <CardHeader className="pb-2">
+   554→          <CardTitle className="text-sm flex items-center gap-2">
+   555→            <TrendingUp className="size-4 text-amber-500" />
+   556→            Currency Exchange Rates
+   557→          </CardTitle>
+   558→        </CardHeader>
+   559→        <CardContent className="p-4 pt-0">
+   560→          <ScrollArea className="max-h-64">
+   561→            <Table>
+   562→              <TableHeader>
+   563→                <TableRow>
+   564→                  <TableHead className="text-[10px]">From</TableHead>
+   565→                  <TableHead className="text-[10px]">To</TableHead>
+   566→                  <TableHead className="text-[10px] text-right">Rate</TableHead>
+   567→                </TableRow>
+   568→              </TableHeader>
+   569→              <TableBody>
+   570→                {currencyRates.map((cr, i) => (
+   571→                  <TableRow key={`${cr.from}-${cr.to}-${i}`}>
+   572→                    <TableCell className="text-xs">
+   573→                      <span className="flex items-center gap-1">
+   574→                        <span>{CURRENCY_EMOJI[cr.from]}</span>
+   575→                        <span className="font-medium">{cr.from}</span>
+   576→                      </span>
+   577→                    </TableCell>
+   578→                    <TableCell className="text-xs">
+   579→                      <span className="flex items-center gap-1">
+   580→                        <span>{CURRENCY_EMOJI[cr.to]}</span>
+   581→                        <span className="font-medium">{cr.to}</span>
+   582→                      </span>
+   583→                    </TableCell>
+   584→                    <TableCell className="text-xs text-right font-mono text-amber-400">
+   585→                      {cr.rate < 0.01 ? cr.rate.toFixed(8) : cr.rate < 1 ? cr.rate.toFixed(6) : cr.rate.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
+   586→                    </TableCell>
+   587→                  </TableRow>
+   588→                ))}
+   589→              </TableBody>
+   590→            </Table>
+   591→          </ScrollArea>
+   592→        </CardContent>
+   593→      </Card>
+   594→    </div>
+   595→  )
+   596→}
+   597→
+   598→/* ═══════════════════════════════════════════════════
+   599→   MAIN COMPONENT
+   600→   ═══════════════════════════════════════════════════ */
+   601→export function WalletsView() {
+   602→  const { data, loading, error, refetch } = useApi(() => api.wallets.get())
+   603→
+   604→  /* All hooks at top level */
+   605→  const [walletCurrencyFilter, setWalletCurrencyFilter] = useState('all')
+   606→  const [walletStatusFilter, setWalletStatusFilter] = useState('all')
+   607→  const [walletSearch, setWalletSearch] = useState('')
+   608→  const [walletSort, setWalletSort] = useState<'balance-desc' | 'balance-asc'>('balance-desc')
+   609→
+   610→  const [txTypeFilter, setTxTypeFilter] = useState('all')
+   611→  const [txCurrencyFilter, setTxCurrencyFilter] = useState('all')
+   612→
+   613→  const [toggledMethods, setToggledMethods] = useState<Set<string>>(new Set())
+   614→
+   615→  const toggleMethod = (id: string) => {
+   616→    setToggledMethods(prev => {
+   617→      const next = new Set(prev)
+   618→      if (next.has(id)) next.delete(id)
+   619→      else next.add(id)
+   620→      return next
+   621→    })
+   622→  }
+   623→
+   624→  const wallets = data?.wallets ?? []
+   625→  const transactions = data?.transactions ?? []
+   626→  const currencyRates = data?.currencyRates ?? []
+   627→  const totals = data?.totals
+   628→  const paymentMethods = data?.paymentMethods ?? []
+   629→
+   630→  /* ── Filtered wallets ── */
+   631→  const filteredWallets = useMemo(() => {
+   632→    let result = [...wallets]
+   633→    if (walletCurrencyFilter !== 'all') result = result.filter(w => w.currency === walletCurrencyFilter)
+   634→    if (walletStatusFilter !== 'all') result = result.filter(w => w.status === walletStatusFilter)
+   635→    if (walletSearch) {
+   636→      const q = walletSearch.toLowerCase()
+   637→      result = result.filter(w => w.playerName.toLowerCase().includes(q))
+   638→    }
+   639→    result.sort((a, b) => walletSort === 'balance-desc' ? b.balance - a.balance : a.balance - b.balance)
+   640→    return result
+   641→  }, [wallets, walletCurrencyFilter, walletStatusFilter, walletSearch, walletSort])
+   642→
+   643→  /* ── Filtered transactions ── */
+   644→  const filteredTransactions = useMemo(() => {
+   645→    let result = [...transactions]
+   646→    if (txTypeFilter !== 'all') result = result.filter(t => t.type === txTypeFilter)
+   647→    if (txCurrencyFilter !== 'all') result = result.filter(t => t.currency !== txCurrencyFilter)
+   648→    return result
+   649→  }, [transactions, txTypeFilter, txCurrencyFilter])
+   650→
+   651→  /* ── Unique values for filters ── */
+   652→  const allCurrencies = useMemo(() => [...new Set(wallets.map(w => w.currency))].sort(), [wallets])
+   653→  const allStatuses = useMemo(() => [...new Set(wallets.map(w => w.status))].sort(), [wallets])
+   654→  const allTxTypes = useMemo(() => [...new Set(transactions.map(t => t.type))].sort(), [transactions])
+   655→  const allTxCurrencies = useMemo(() => [...new Set(transactions.map(t => t.currency))].sort(), [transactions])
+   656→
+   657→  /* ── Wallet lookup ── */
+   658→  const walletMap = useMemo(() => new Map(wallets.map(w => [w.id, w])), [wallets])
+   659→
+   660→  /* ── Currency breakdown ── */
+   661→  const { pieData, barData, currencyEntries, totalBalanceAll } = useMemo(() => {
+   662→    if (!totals) return { pieData: [] as { name: string; value: number; emoji: string }[], barData: [] as { currency: string; balance: number }[], currencyEntries: [] as [string, { balance: number; count: number }][], totalBalanceAll: 0 }
+   663→    const entries = Object.entries(totals.byCurrency) as [string, { balance: number; count: number }][]
+   664→    const totalBal = entries.reduce((sum, [, v]) => sum + v.balance, 0)
+   665→    const pie = entries.map(([currency, info]) => ({
+   666→      name: currency,
+   667→      value: Number(info.balance.toFixed(2)),
+   668→      emoji: CURRENCY_EMOJI[currency] ?? currency,
+   669→    }))
+   670→    const bar = entries.map(([currency, info]) => ({
+   671→      currency: `${CURRENCY_EMOJI[currency] ?? ''} ${currency}`,
+   672→      balance: Number(info.balance.toFixed(2)),
+   673→    }))
+   674→    return { pieData: pie, barData: bar, currencyEntries: entries, totalBalanceAll: totalBal }
+   675→  }, [totals])
+   676→
+   677→  /* ── Loading ── */
+   678→  if (loading) {
+   679→    return (
+   680→      <div className="space-y-4">
+   681→        <Skeleton className="h-10 w-full max-w-md" />
+   682→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   683→          {Array.from({ length: 4 }).map((_, i) => (
+   684→            <Card key={i}><CardContent className="p-6"><Skeleton className="h-20 w-full" /></CardContent></Card>
+   685→          ))}
+   686→        </div>
+   687→      </div>
+   688→    )
+   689→  }
+   690→
+   691→  /* ── Error ── */
+   692→  if (error) {
+   693→    return (
+   694→      <Card className="border-destructive/40">
+   695→        <CardContent className="p-6 text-center">
+   696→          <Lock className="size-8 text-destructive mx-auto mb-2" />
+   697→          <p className="text-sm font-medium text-destructive">Failed to load wallet data</p>
+   698→          <p className="text-xs text-muted-foreground mt-1">{error}</p>
+   699→          <Button variant="outline" size="sm" className="mt-3 gap-1" onClick={refetch}>
+   700→            <RefreshCw className="size-3" /> Retry
+   701→          </Button>
+   702→        </CardContent>
+   703→      </Card>
+   704→    )
+   705→  }
+   706→
+   707→  if (!data || !totals) return null
+   708→
+   709→  return (
+   710→    <div className="space-y-4">
+   711→      <div className="flex items-center justify-between">
+   712→        <div className="flex items-center gap-2">
+   713→          <Wallet className="size-5 text-amber-500" />
+   714→          <h2 className="text-lg font-bold">Wallet Ecosystem</h2>
+   715→        </div>
+   716→        <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={refetch}>
+   717→          <RefreshCw className="size-3" /> Refresh
+   718→        </Button>
+   719→      </div>
+   720→
+   721→      <Tabs defaultValue="overview" className="w-full">
+   722→        <TabsList className="h-8 bg-muted/50">
+   723→          <TabsTrigger value="overview" className="text-xs data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
+   724→            Overview
+   725→          </TabsTrigger>
+   726→          <TabsTrigger value="wallets" className="text-xs data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
+   727→            All Wallets
+   728→          </TabsTrigger>
+   729→          <TabsTrigger value="transactions" className="text-xs data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
+   730→            Transactions
+   731→          </TabsTrigger>
+   732→          <TabsTrigger value="payments" className="text-xs data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
+   733→            Payment Methods
+   734→          </TabsTrigger>
+   735→        </TabsList>
+   736→
+   737→        <TabsContent value="overview" className="mt-4">
+   738→          <OverviewTab
+   739→            totals={totals}
+   740→            currencyEntries={currencyEntries}
+   741→            totalBalanceAll={totalBalanceAll}
+   742→            pieData={pieData}
+   743→            barData={barData}
+   744→          />
+   745→        </TabsContent>
+   746→        <TabsContent value="wallets" className="mt-4">
+   747→          <AllWalletsTab
+   748→            filteredWallets={filteredWallets}
+   749→            allCurrencies={allCurrencies}
+   750→            allStatuses={allStatuses}
+   751→            walletCurrencyFilter={walletCurrencyFilter}
+   752→            setWalletCurrencyFilter={setWalletCurrencyFilter}
+   753→            walletStatusFilter={walletStatusFilter}
+   754→            setWalletStatusFilter={setWalletStatusFilter}
+   755→            walletSearch={walletSearch}
+   756→            setWalletSearch={setWalletSearch}
+   757→            walletSort={walletSort}
+   758→            setWalletSort={setWalletSort}
+   759→          />
+   760→        </TabsContent>
+   761→        <TabsContent value="transactions" className="mt-4">
+   762→          <TransactionsTab
+   763→            filteredTransactions={filteredTransactions}
+   764→            allTxTypes={allTxTypes}
+   765→            allTxCurrencies={allTxCurrencies}
+   766→            txTypeFilter={txTypeFilter}
+   767→            setTxTypeFilter={setTxTypeFilter}
+   768→            txCurrencyFilter={txCurrencyFilter}
+   769→            setTxCurrencyFilter={setTxCurrencyFilter}
+   770→            walletMap={walletMap}
+   771→          />
+   772→        </TabsContent>
+   773→        <TabsContent value="payments" className="mt-4">
+   774→          <PaymentMethodsTab
+   775→            paymentMethods={paymentMethods}
+   776→            currencyRates={currencyRates}
+   777→            toggledMethods={toggledMethods}
+   778→            toggleMethod={toggleMethod}
+   779→          />
+   780→        </TabsContent>
+   781→      </Tabs>
+   782→    </div>
+   783→  )
+   784→}
+   785→

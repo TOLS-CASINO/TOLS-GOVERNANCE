@@ -396,7 +396,7 @@ export function MLPipelineView() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i} className="border-zinc-800 bg-zinc-950/80">
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-6">
                 <Skeleton className="h-32 w-full" />
               </CardContent>
             </Card>
@@ -409,7 +409,7 @@ export function MLPipelineView() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
         <div className="flex items-center gap-3">
           <div className="flex items-center justify-center size-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-rose-500/20 border border-amber-500/20">
             <Brain className="size-5 text-amber-400" />
@@ -432,7 +432,7 @@ export function MLPipelineView() {
               <Plus className="size-3.5" /> Add Model
             </Button>
           </DialogTrigger>
-          <DialogContent className="bg-zinc-950 border-zinc-800">
+          <DialogContent className="bg-zinc-950 border-zinc-800 max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="text-zinc-100">Add New ML Model</DialogTitle>
             </DialogHeader>
@@ -525,7 +525,7 @@ export function MLPipelineView() {
 
       {/* Tabs */}
       <Tabs defaultValue="models" className="w-full">
-        <TabsList className="bg-zinc-900/80 border border-zinc-800 p-0.5 h-9">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 bg-zinc-900/80 border border-zinc-800 p-0.5 h-auto sm:h-9">
           <TabsTrigger
             value="models"
             className="text-xs data-[state=active]:bg-zinc-800 data-[state=active]:text-amber-400 text-zinc-500 px-3"
@@ -573,7 +573,7 @@ export function MLPipelineView() {
                   }`}
                 />
 
-                <CardContent className="p-5 pt-6">
+                <CardContent className="p-3 sm:p-5 pt-4 sm:pt-6">
                   {/* Header */}
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex-1 min-w-0">
@@ -756,13 +756,14 @@ export function MLPipelineView() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
+              <div className="overflow-x-auto">
               <ScrollArea className="max-h-[480px]">
                 <Table>
                   <TableHeader>
                     <TableRow className="border-zinc-800 hover:bg-transparent">
                       <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider h-8">Time</TableHead>
                       <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Model</TableHead>
-                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Entity</TableHead>
+                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider hidden sm:table-cell">Entity</TableHead>
                       <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Input</TableHead>
                       <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Output</TableHead>
                       <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider text-right">Confidence</TableHead>
@@ -781,7 +782,7 @@ export function MLPipelineView() {
                         <TableCell className="text-[10px] text-zinc-300 whitespace-nowrap">
                           {pred.model}
                         </TableCell>
-                        <TableCell className="text-[10px] text-zinc-400 font-mono whitespace-nowrap">
+                        <TableCell className="text-[10px] text-zinc-400 font-mono whitespace-nowrap hidden sm:table-cell">
                           {pred.entity}
                         </TableCell>
                         <TableCell className="text-[10px] text-zinc-500 font-mono max-w-[180px]">
@@ -812,6 +813,7 @@ export function MLPipelineView() {
                   </TableBody>
                 </Table>
               </ScrollArea>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -835,6 +837,7 @@ export function MLPipelineView() {
               </div>
             </CardHeader>
             <CardContent className="p-0">
+              <div className="overflow-x-auto">
               <ScrollArea className="max-h-[400px]">
                 <Table>
                   <TableHeader>
@@ -843,8 +846,8 @@ export function MLPipelineView() {
                       <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Model</TableHead>
                       <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Status</TableHead>
                       <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Progress</TableHead>
-                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Started</TableHead>
-                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Duration</TableHead>
+                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider hidden sm:table-cell">Started</TableHead>
+                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider hidden sm:table-cell">Duration</TableHead>
                       <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -900,10 +903,10 @@ export function MLPipelineView() {
                               </span>
                             </div>
                           </TableCell>
-                          <TableCell className="text-[10px] text-zinc-400 font-mono whitespace-nowrap">
+                          <TableCell className="text-[10px] text-zinc-400 font-mono whitespace-nowrap hidden sm:table-cell">
                             {job.started}
                           </TableCell>
-                          <TableCell className="text-[10px] text-zinc-500 whitespace-nowrap">
+                          <TableCell className="text-[10px] text-zinc-500 whitespace-nowrap hidden sm:table-cell">
                             {job.duration}
                           </TableCell>
                           <TableCell className="text-right">
@@ -933,6 +936,7 @@ export function MLPipelineView() {
                   </TableBody>
                 </Table>
               </ScrollArea>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -945,7 +949,7 @@ export function MLPipelineView() {
                 key={store.id}
                 className="border-zinc-800 bg-zinc-950/80 hover:border-zinc-700 transition-colors"
               >
-                <CardContent className="p-5">
+                <CardContent className="p-3 sm:p-5">
                   {/* Header */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center gap-3">
@@ -1014,7 +1018,7 @@ export function MLPipelineView() {
           <Card className="border-zinc-800 bg-zinc-950/80 mt-4">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-6">
+                <div className="flex flex-wrap items-center gap-3 sm:gap-6">
                   <div className="flex items-center gap-2">
                     <BarChart3 className="size-4 text-amber-400" />
                     <span className="text-xs text-zinc-300">

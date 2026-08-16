@@ -1,0 +1,703 @@
+   555→  const [txStatusFilter, setTxStatusFilter] = useState<string>('all')
+   556→  const [txSearch, setTxSearch] = useState('')
+   557→
+   558→  // State for networks
+   559→  const [networks, setNetworks] = useState<NetworkData[]>(MOCK_NETWORKS)
+   560→
+   561→  // State for contracts
+   562→  const [contracts] = useState<SmartContract[]>(MOCK_CONTRACTS)
+   563→  const [viewContractId, setViewContractId] = useState<string | null>(null)
+   564→
+   565→  // API integration (for future backend connection)
+   566→  const { data: apiWallets, loading: walletsLoading } = useApi(
+   567→    useCallback(() => api.wallets.get(), []),
+   568→    []
+   569→  )
+   570→
+   571→  // ── Handlers ──
+   572→
+   573→  const handleSync = (walletId: string) => {
+   574→    setSyncingWallets((prev) => new Set(prev).add(walletId))
+   575→    setTimeout(() => {
+   576→      setSyncingWallets((prev) => {
+   577→        const next = new Set(prev)
+   578→        next.delete(walletId)
+   579→        return next
+   580→      })
+   581→      setWallets((prev) =>
+   582→        prev.map((w) =>
+   583→          w.id === walletId ? { ...w, lastSync: 'Just now' } : w
+   584→        )
+   585→      )
+   586→    }, 2000)
+   587→  }
+   588→
+   589→  const handleAddWallet = () => {
+   590→    if (!newWalletName || !newWalletAddress || !newWalletNetwork || !newWalletType) return
+   591→    const newWallet: WalletData = {
+   592→      id: `w${Date.now()}`,
+   593→      name: newWalletName,
+   594→      address: newWalletAddress,
+   595→      balance: 0,
+   596→      symbol: newWalletNetwork,
+   597→      usdValue: 0,
+   598→      network: newWalletNetwork,
+   599→      type: newWalletType as WalletData['type'],
+   600→      status: 'active',
+   601→      lastSync: 'Never',
+   602→    }
+   603→    setWallets((prev) => [...prev, newWallet])
+   604→    setNewWalletName('')
+   605→    setNewWalletAddress('')
+   606→    setNewWalletNetwork('')
+   607→    setNewWalletType('')
+   608→    setAddWalletOpen(false)
+   609→  }
+   610→
+   611→  const handleToggleNetwork = (networkId: string) => {
+   612→    setNetworks((prev) =>
+   613→      prev.map((n) =>
+   614→        n.id === networkId ? { ...n, active: !n.active } : n
+   615→      )
+   616→    )
+   617→  }
+   618→
+   619→  const handleCopyAddress = (address: string) => {
+   620→    navigator.clipboard.writeText(address)
+   621→  }
+   622→
+   623→  // ── Filtered Transactions ──
+   624→
+   625→  const filteredTransactions = MOCK_TRANSACTIONS.filter((tx) => {
+   626→    if (txTypeFilter !== 'all' && tx.type !== txTypeFilter) return false
+   627→    if (txStatusFilter !== 'all' && tx.status !== txStatusFilter) return false
+   628→    if (txSearch && !tx.txHash.toLowerCase().includes(txSearch.toLowerCase()) && !tx.from.toLowerCase().includes(txSearch.toLowerCase()) && !tx.to.toLowerCase().includes(txSearch.toLowerCase())) return false
+   629→    return true
+   630→  })
+   631→
+   632→  // ── Total Stats ──
+   633→
+   634→  const totalUsd = wallets.reduce((sum, w) => sum + w.usdValue, 0)
+   635→  const activeWallets = wallets.filter((w) => w.status === 'active').length
+   636→  const pendingTx = MOCK_TRANSACTIONS.filter((t) => t.status === 'pending' || t.status === 'confirming').length
+   637→
+   638→  // ── Render ──
+   639→
+   640→  return (
+   641→    <div className="min-h-screen bg-[#0d0f14] text-gray-100">
+   642→      {/* Header */}
+   643→      <div className="border-b border-gray-800/60 bg-[#12141a] px-3 sm:px-6 py-4 sm:py-5">
+   644→        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+   645→          <div className="flex items-center gap-3">
+   646→            <div className="flex size-10 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/20">
+   647→              <Wallet className="size-5 text-white" />
+   648→            </div>
+   649→            <div>
+   650→              <h1 className="text-xl font-bold tracking-tight text-white">Blockchain & Crypto Wallets</h1>
+   651→              <p className="text-sm text-gray-400">Manage wallets, transactions, and smart contracts</p>
+   652→            </div>
+   653→          </div>
+   654→          <div className="flex items-center gap-3">
+   655→            <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+   656→              <CheckCircle className="mr-1 size-3" /> {activeWallets} Active
+   657→            </Badge>
+   658→            {pendingTx > 0 && (
+   659→              <Badge variant="outline" className="border-yellow-500/30 bg-yellow-500/10 text-yellow-400">
+   660→                <Clock className="mr-1 size-3" /> {pendingTx} Pending
+   661→              </Badge>
+   662→            )}
+   663→            <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-400">
+   664→              Total: {formatUsd(totalUsd)}
+   665→            </Badge>
+   666→          </div>
+   667→        </div>
+   668→      </div>
+   669→
+   670→      {/* Tabs */}
+   671→      <div className="p-3 sm:p-6">
+   672→        <Tabs defaultValue="wallets" className="w-full">
+   673→          <TabsList className="mb-6 grid w-full grid-cols-2 sm:grid-cols-4 bg-[#1a1d25] p-1">
+   674→            <TabsTrigger value="wallets" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
+   675→              <Wallet className="mr-1.5 size-4" /> Wallets
+   676→            </TabsTrigger>
+   677→            <TabsTrigger value="transactions" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
+   678→              <ArrowUpRight className="mr-1.5 size-4" /> Transactions
+   679→            </TabsTrigger>
+   680→            <TabsTrigger value="networks" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
+   681→              <Globe className="mr-1.5 size-4" /> Networks
+   682→            </TabsTrigger>
+   683→            <TabsTrigger value="contracts" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
+   684→              <Shield className="mr-1.5 size-4" /> Smart Contracts
+   685→            </TabsTrigger>
+   686→          </TabsList>
+   687→
+   688→          {/* ═══ Tab 1: Wallets ═══ */}
+   689→          <TabsContent value="wallets">
+   690→            <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+   691→              <h2 className="text-lg font-semibold text-white">Wallets ({wallets.length})</h2>
+   692→              <Dialog open={addWalletOpen} onOpenChange={setAddWalletOpen}>
+   693→                <DialogTrigger asChild>
+   694→                  <Button size="sm" className="bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/20 hover:from-amber-600 hover:to-orange-700">
+   695→                    <Plus className="mr-1.5 size-4" /> Add Wallet
+   696→                  </Button>
+   697→                </DialogTrigger>
+   698→                <DialogContent className="border-gray-700 bg-[#1a1d25] text-gray-100 sm:max-w-md max-h-[90vh] overflow-y-auto">
+   699→                  <DialogHeader>
+   700→                    <DialogTitle className="text-white">Add New Wallet</DialogTitle>
+   701→                  </DialogHeader>
+   702→                  <div className="space-y-4 pt-2">
+   703→                    <div className="space-y-2">
+   704→                      <Label className="text-gray-300">Wallet Name</Label>
+   705→                      <Input
+   706→                        placeholder="e.g., Revenue Wallet"
+   707→                        value={newWalletName}
+   708→                        onChange={(e) => setNewWalletName(e.target.value)}
+   709→                        className="border-gray-700 bg-[#12141a] text-white placeholder:text-gray-500"
+   710→                      />
+   711→                    </div>
+   712→                    <div className="space-y-2">
+   713→                      <Label className="text-gray-300">Wallet Address</Label>
+   714→                      <Textarea
+   715→                        placeholder="0x... or bc1... or T..."
+   716→                        value={newWalletAddress}
+   717→                        onChange={(e) => setNewWalletAddress(e.target.value)}
+   718→                        className="border-gray-700 bg-[#12141a] text-white placeholder:text-gray-500"
+   719→                      />
+   720→                    </div>
+   721→                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+   722→                      <div className="space-y-2">
+   723→                        <Label className="text-gray-300">Network</Label>
+   724→                        <Select value={newWalletNetwork} onValueChange={setNewWalletNetwork}>
+   725→                          <SelectTrigger className="border-gray-700 bg-[#12141a] text-white">
+   726→                            <SelectValue placeholder="Select" />
+   727→                          </SelectTrigger>
+   728→                          <SelectContent className="border-gray-700 bg-[#1a1d25] text-white">
+   729→                            <SelectItem value="Ethereum">Ethereum</SelectItem>
+   730→                            <SelectItem value="Bitcoin">Bitcoin</SelectItem>
+   731→                            <SelectItem value="Tron">Tron</SelectItem>
+   732→                            <SelectItem value="Polygon">Polygon</SelectItem>
+   733→                            <SelectItem value="Solana">Solana</SelectItem>
+   734→                            <SelectItem value="BSC">BSC</SelectItem>
+   735→                          </SelectContent>
+   736→                        </Select>
+   737→                      </div>
+   738→                      <div className="space-y-2">
+   739→                        <Label className="text-gray-300">Type</Label>
+   740→                        <Select value={newWalletType} onValueChange={setNewWalletType}>
+   741→                          <SelectTrigger className="border-gray-700 bg-[#12141a] text-white">
+   742→                            <SelectValue placeholder="Select" />
+   743→                          </SelectTrigger>
+   744→                          <SelectContent className="border-gray-700 bg-[#1a1d25] text-white">
+   745→                            <SelectItem value="hot">Hot</SelectItem>
+   746→                            <SelectItem value="cold">Cold</SelectItem>
+   747→                            <SelectItem value="multi-sig">Multi-sig</SelectItem>
+   748→                          </SelectContent>
+   749→                        </Select>
+   750→                      </div>
+   751→                    </div>
+   752→                    <Button
+   753→                      onClick={handleAddWallet}
+   754→                      className="w-full bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/20 hover:from-amber-600 hover:to-orange-700"
+   755→                    >
+   756→                      Add Wallet
+   757→                    </Button>
+   758→                  </div>
+   759→                </DialogContent>
+   760→              </Dialog>
+   761→            </div>
+   762→
+   763→            {walletsLoading ? (
+   764→              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+   765→                {Array.from({ length: 5 }).map((_, i) => (
+   766→                  <Card key={i} className="border-gray-800/60 bg-[#12141a]">
+   767→                    <CardHeader className="pb-2">
+   768→                      <Skeleton className="h-5 w-32" />
+   769→                    </CardHeader>
+   770→                    <CardContent>
+   771→                      <Skeleton className="mb-2 h-4 w-48" />
+   772→                      <Skeleton className="h-8 w-24" />
+   773→                    </CardContent>
+   774→                  </Card>
+   775→                ))}
+   776→              </div>
+   777→            ) : (
+   778→              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+   779→                {wallets.map((wallet) => (
+   780→                  <Card
+   781→                    key={wallet.id}
+   782→                    className="border-gray-800/60 bg-[#12141a] transition-all hover:border-amber-500/30 hover:shadow-lg hover:shadow-amber-500/5"
+   783→                  >
+   784→                    <CardHeader className="pb-2">
+   785→                      <div className="flex items-start justify-between">
+   786→                        <div className="flex items-center gap-2">
+   787→                          <div className={`flex size-8 items-center justify-center rounded-md ${
+   788→                            wallet.type === 'hot'
+   789→                              ? 'bg-orange-500/20'
+   790→                              : wallet.type === 'cold'
+   791→                              ? 'bg-cyan-500/20'
+   792→                              : 'bg-purple-500/20'
+   793→                          }`}>
+   794→                            {wallet.type === 'hot' && <Flame className="size-4 text-orange-400" />}
+   795→                            {wallet.type === 'cold' && <Shield className="size-4 text-cyan-400" />}
+   796→                            {wallet.type === 'multi-sig' && <Wallet className="size-4 text-purple-400" />}
+   797→                          </div>
+   798→                          <div>
+   799→                            <CardTitle className="text-sm font-semibold text-white">{wallet.name}</CardTitle>
+   800→                            <p className="mt-0.5 font-mono text-xs text-gray-500">{truncateAddress(wallet.address, 10)}</p>
+   801→                          </div>
+   802→                        </div>
+   803→                        <WalletTypeBadge type={wallet.type} />
+   804→                      </div>
+   805→                    </CardHeader>
+   806→                    <CardContent>
+   807→                      <div className="space-y-3">
+   808→                        <div className="flex items-center justify-between">
+   809→                          <WalletStatusBadge status={wallet.status} />
+   810→                          <NetworkBadge network={wallet.network} />
+   811→                        </div>
+   812→                        <Separator className="bg-gray-800/60" />
+   813→                        <div className="flex items-end justify-between">
+   814→                          <div>
+   815→                            <p className="text-2xl font-bold text-white">
+   816→                              {formatBalance(wallet.balance)} <span className="text-sm font-medium text-gray-400">{wallet.symbol}</span>
+   817→                            </p>
+   818→                            <p className="text-sm text-emerald-400">{formatUsd(wallet.usdValue)}</p>
+   819→                          </div>
+   820→                        </div>
+   821→                        <Separator className="bg-gray-800/60" />
+   822→                        <div className="flex items-center justify-between">
+   823→                          <p className="text-xs text-gray-500">
+   824→                            <Clock className="mr-1 inline size-3" />
+   825→                            Last sync: {syncingWallets.has(wallet.id) ? 'Syncing...' : wallet.lastSync}
+   826→                          </p>
+   827→                          <div className="flex gap-1.5">
+   828→                            <Button
+   829→                              variant="ghost"
+   830→                              size="sm"
+   831→                              className="h-7 gap-1 text-xs text-gray-400 hover:text-amber-400"
+   832→                              onClick={() => handleCopyAddress(wallet.address)}
+   833→                            >
+   834→                              <Copy className="size-3" /> Copy
+   835→                            </Button>
+   836→                            <Button
+   837→                              variant="ghost"
+   838→                              size="sm"
+   839→                              className="h-7 gap-1 text-xs text-gray-400 hover:text-amber-400"
+   840→                              onClick={() => handleSync(wallet.id)}
+   841→                              disabled={syncingWallets.has(wallet.id)}
+   842→                            >
+   843→                              <RefreshCw className={`size-3 ${syncingWallets.has(wallet.id) ? 'animate-spin' : ''}`} /> Sync
+   844→                            </Button>
+   845→                            <Button
+   846→                              variant="ghost"
+   847→                              size="sm"
+   848→                              className="h-7 gap-1 text-xs text-gray-400 hover:text-amber-400"
+   849→                            >
+   850→                              <Eye className="size-3" /> View
+   851→                            </Button>
+   852→                          </div>
+   853→                        </div>
+   854→                      </div>
+   855→                    </CardContent>
+   856→                  </Card>
+   857→                ))}
+   858→              </div>
+   859→            )}
+   860→          </TabsContent>
+   861→
+   862→          {/* ═══ Tab 2: Transactions ═══ */}
+   863→          <TabsContent value="transactions">
+   864→            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+   865→              <h2 className="text-lg font-semibold text-white">Recent Transactions</h2>
+   866→              <div className="flex flex-wrap items-center gap-2">
+   867→                <div className="relative">
+   868→                  <Search className="absolute left-2.5 top-2.5 size-4 text-gray-500" />
+   869→                  <Input
+   870→                    placeholder="Search hash, address..."
+   871→                    value={txSearch}
+   872→                    onChange={(e) => setTxSearch(e.target.value)}
+   873→                    className="h-9 w-full sm:w-48 border-gray-700 bg-[#12141a] pl-8 text-sm text-white placeholder:text-gray-500"
+   874→                  />
+   875→                </div>
+   876→                <Select value={txTypeFilter} onValueChange={setTxTypeFilter}>
+   877→                  <SelectTrigger className="h-9 w-full sm:w-32 border-gray-700 bg-[#12141a] text-sm text-white">
+   878→                    <Filter className="mr-1 size-3 text-gray-500" />
+   879→                    <SelectValue placeholder="Type" />
+   880→                  </SelectTrigger>
+   881→                  <SelectContent className="border-gray-700 bg-[#1a1d25] text-white">
+   882→                    <SelectItem value="all">All Types</SelectItem>
+   883→                    <SelectItem value="deposit">Deposit</SelectItem>
+   884→                    <SelectItem value="withdrawal">Withdrawal</SelectItem>
+   885→                    <SelectItem value="transfer">Transfer</SelectItem>
+   886→                    <SelectItem value="swap">Swap</SelectItem>
+   887→                    <SelectItem value="staking">Staking</SelectItem>
+   888→                  </SelectContent>
+   889→                </Select>
+   890→                <Select value={txStatusFilter} onValueChange={setTxStatusFilter}>
+   891→                  <SelectTrigger className="h-9 w-full sm:w-36 border-gray-700 bg-[#12141a] text-sm text-white">
+   892→                    <SelectValue placeholder="Status" />
+   893→                  </SelectTrigger>
+   894→                  <SelectContent className="border-gray-700 bg-[#1a1d25] text-white">
+   895→                    <SelectItem value="all">All Status</SelectItem>
+   896→                    <SelectItem value="pending">Pending</SelectItem>
+   897→                    <SelectItem value="confirming">Confirming</SelectItem>
+   898→                    <SelectItem value="confirmed">Confirmed</SelectItem>
+   899→                    <SelectItem value="failed">Failed</SelectItem>
+   900→                  </SelectContent>
+   901→                </Select>
+   902→              </div>
+   903→            </div>
+   904→
+   905→            <Card className="border-gray-800/60 bg-[#12141a]">
+   906→              <CardContent className="p-0">
+   907→                <div className="overflow-x-auto">
+   908→                <ScrollArea className="max-h-[600px]">
+   909→                  <Table>
+   910→                    <TableHeader>
+   911→                      <TableRow className="border-gray-800/60 hover:bg-transparent">
+   912→                        <TableHead className="text-gray-400">TX Hash</TableHead>
+   913→                        <TableHead className="text-gray-400">Type</TableHead>
+   914→                        <TableHead className="text-gray-400 hidden sm:table-cell">From</TableHead>
+   915→                        <TableHead className="text-gray-400 hidden sm:table-cell">To</TableHead>
+   916→                        <TableHead className="text-right text-gray-400">Amount</TableHead>
+   917→                        <TableHead className="text-gray-400">Currency</TableHead>
+   918→                        <TableHead className="text-gray-400 hidden sm:table-cell">Gas Fee</TableHead>
+   919→                        <TableHead className="text-gray-400 hidden sm:table-cell">Confirms</TableHead>
+   920→                        <TableHead className="text-gray-400">Status</TableHead>
+   921→                        <TableHead className="text-gray-400 hidden sm:table-cell">Time</TableHead>
+   922→                      </TableRow>
+   923→                    </TableHeader>
+   924→                    <TableBody>
+   925→                      {filteredTransactions.length === 0 ? (
+   926→                        <TableRow className="border-gray-800/60 hover:bg-transparent">
+   927→                          <TableCell colSpan={10} className="h-24 text-center text-gray-500">
+   928→                            No transactions match your filters
+   929→                          </TableCell>
+   930→                        </TableRow>
+   931→                      ) : (
+   932→                        filteredTransactions.map((tx) => (
+   933→                          <TableRow key={tx.id} className="border-gray-800/60 hover:bg-amber-500/5">
+   934→                            <TableCell className="font-mono text-xs text-amber-400/80">
+   935→                              <div className="flex items-center gap-1.5">
+   936→                                {truncateAddress(tx.txHash, 6)}
+   937→                                <Button
+   938→                                  variant="ghost"
+   939→                                  size="sm"
+   940→                                  className="size-5 p-0 text-gray-500 hover:text-amber-400"
+   941→                                  onClick={() => handleCopyAddress(tx.txHash)}
+   942→                                >
+   943→                                  <Copy className="size-3" />
+   944→                                </Button>
+   945→                              </div>
+   946→                            </TableCell>
+   947→                            <TableCell>
+   948→                              <TxTypeBadge type={tx.type} />
+   949→                            </TableCell>
+   950→                            <TableCell className="font-mono text-xs text-gray-400 hidden sm:table-cell">{tx.from}</TableCell>
+   951→                            <TableCell className="font-mono text-xs text-gray-400 hidden sm:table-cell">{tx.to}</TableCell>
+   952→                            <TableCell className="text-right font-medium text-white">
+   953→                              {tx.amount.toLocaleString()}
+   954→                            </TableCell>
+   955→                            <TableCell className="text-xs text-gray-300">{tx.currency}</TableCell>
+   956→                            <TableCell className="text-xs text-gray-400 hidden sm:table-cell">{tx.gasFee}</TableCell>
+   957→                            <TableCell className="hidden sm:table-cell">
+   958→                              <div className="flex items-center gap-1.5">
+   959→                                <Progress
+   960→                                  value={(tx.confirmations / tx.maxConfirmations) * 100}
+   961→                                  className="h-1.5 w-12 bg-gray-800 [&>[data-slot=progress-indicator]]:bg-amber-500"
+   962→                                />
+   963→                                <span className="text-xs text-gray-500">
+   964→                                  {tx.confirmations}/{tx.maxConfirmations}
+   965→                                </span>
+   966→                              </div>
+   967→                            </TableCell>
+   968→                            <TableCell>
+   969→                              <TxStatusBadge status={tx.status} />
+   970→                            </TableCell>
+   971→                            <TableCell className="text-xs text-gray-500 hidden sm:table-cell">{tx.time}</TableCell>
+   972→                          </TableRow>
+   973→                        ))
+   974→                      )}
+   975→                    </TableBody>
+   976→                  </Table>
+   977→                </ScrollArea>
+   978→                </div>
+   979→              </CardContent>
+   980→            </Card>
+   981→          </TabsContent>
+   982→
+   983→          {/* ═══ Tab 3: Networks ═══ */}
+   984→          <TabsContent value="networks">
+   985→            <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+   986→              <h2 className="text-lg font-semibold text-white">Supported Networks ({networks.length})</h2>
+   987→              <Button variant="outline" size="sm" className="border-gray-700 text-gray-300 hover:border-amber-500/30 hover:text-amber-400">
+   988→                <Settings className="mr-1.5 size-4" /> Configure RPC
+   989→              </Button>
+   990→            </div>
+   991→
+   992→            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+   993→              {networks.map((network) => (
+   994→                <Card
+   995→                  key={network.id}
+   996→                  className={`border-gray-800/60 bg-[#12141a] transition-all ${
+   997→                    network.active
+   998→                      ? 'hover:border-amber-500/30 hover:shadow-lg hover:shadow-amber-500/5'
+   999→                      : 'opacity-60'
+  1000→                  }`}
+  1001→                >
+  1002→                  <CardHeader className="pb-2">
+  1003→                    <div className="flex items-start justify-between">
+  1004→                      <div className="flex items-center gap-3">
+  1005→                        <div className="flex size-10 items-center justify-center rounded-lg bg-gradient-to-br from-gray-800 to-gray-900 text-xl">
+  1006→                          {network.icon}
+  1007→                        </div>
+  1008→                        <div>
+  1009→                          <CardTitle className="text-sm font-semibold text-white">{network.name}</CardTitle>
+  1010→                          <div className="mt-0.5 flex items-center gap-2">
+  1011→                            <Badge variant="outline" className="border-gray-700 bg-gray-800 text-xs text-gray-400">
+  1012→                              {network.symbol}
+  1013→                            </Badge>
+  1014→                            {network.chainId !== null && (
+  1015→                              <Badge variant="outline" className="border-gray-700 bg-gray-800 text-xs text-gray-400">
+  1016→                                Chain {network.chainId}
+  1017→                              </Badge>
+  1018→                            )}
+  1019→                          </div>
+  1020→                        </div>
+  1021→                      </div>
+  1022→                      <div className="flex items-center gap-2">
+  1023→                        <Label htmlFor={`net-${network.id}`} className="text-xs text-gray-500">
+  1024→                          {network.active ? 'On' : 'Off'}
+  1025→                        </Label>
+  1026→                        <Switch
+  1027→                          id={`net-${network.id}`}
+  1028→                          checked={network.active}
+  1029→                          onCheckedChange={() => handleToggleNetwork(network.id)}
+  1030→                        />
+  1031→                      </div>
+  1032→                    </div>
+  1033→                  </CardHeader>
+  1034→                  <CardContent>
+  1035→                    <div className="space-y-3">
+  1036→                      <div>
+  1037→                        <p className="mb-1 text-xs font-medium text-gray-500">RPC URL</p>
+  1038→                        <div className="flex items-center gap-1.5">
+  1039→                          <Link2 className="size-3 text-gray-600" />
+  1040→                          <p className="truncate font-mono text-xs text-gray-400">{network.rpcUrl}</p>
+  1041→                        </div>
+  1042→                      </div>
+  1043→                      <div>
+  1044→                        <p className="mb-1 text-xs font-medium text-gray-500">Explorer</p>
+  1045→                        <div className="flex items-center gap-1.5">
+  1046→                          <ExternalLink className="size-3 text-gray-600" />
+  1047→                          <p className="truncate font-mono text-xs text-gray-400">{network.explorerUrl}</p>
+  1048→                        </div>
+  1049→                      </div>
+  1050→                      <Separator className="bg-gray-800/60" />
+  1051→                      <div className="flex items-center justify-between">
+  1052→                        <Badge
+  1053→                          variant="outline"
+  1054→                          className={
+  1055→                            network.supported && network.active
+  1056→                              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+  1057→                              : network.supported
+  1058→                              ? 'border-yellow-500/30 bg-yellow-500/10 text-yellow-400'
+  1059→                              : 'border-red-500/30 bg-red-500/10 text-red-400'
+  1060→                          }
+  1061→                        >
+  1062→                          {network.supported && network.active && <CheckCircle className="mr-1 size-3" />}
+  1063→                          {network.supported && !network.active && <AlertTriangle className="mr-1 size-3" />}
+  1064→                          {!network.supported && <XCircle className="mr-1 size-3" />}
+  1065→                          {network.supported && network.active
+  1066→                            ? 'Active'
+  1067→                            : network.supported
+  1068→                            ? 'Inactive'
+  1069→                            : 'Unsupported'}
+  1070→                        </Badge>
+  1071→                        <Button
+  1072→                          variant="ghost"
+  1073→                          size="sm"
+  1074→                          className="h-7 gap-1 text-xs text-gray-400 hover:text-amber-400"
+  1075→                        >
+  1076→                          <Settings className="size-3" /> Config
+  1077→                        </Button>
+  1078→                      </div>
+  1079→                    </div>
+  1080→                  </CardContent>
+  1081→                </Card>
+  1082→              ))}
+  1083→            </div>
+  1084→          </TabsContent>
+  1085→
+  1086→          {/* ═══ Tab 4: Smart Contracts ═══ */}
+  1087→          <TabsContent value="contracts">
+  1088→            <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+  1089→              <h2 className="text-lg font-semibold text-white">Smart Contracts ({contracts.length})</h2>
+  1090→              <Button variant="outline" size="sm" className="border-gray-700 text-gray-300 hover:border-amber-500/30 hover:text-amber-400">
+  1091→                <Plus className="mr-1.5 size-4" /> Deploy New
+  1092→              </Button>
+  1093→            </div>
+  1094→
+  1095→            <Card className="border-gray-800/60 bg-[#12141a]">
+  1096→              <CardContent className="p-0">
+  1097→                <div className="overflow-x-auto">
+  1098→                <ScrollArea className="max-h-[500px]">
+  1099→                  <Table>
+  1100→                    <TableHeader>
+  1101→                      <TableRow className="border-gray-800/60 hover:bg-transparent">
+  1102→                        <TableHead className="text-gray-400">Name</TableHead>
+  1103→                        <TableHead className="text-gray-400">Address</TableHead>
+  1104→                        <TableHead className="text-gray-400">Network</TableHead>
+  1105→                        <TableHead className="text-gray-400">Type</TableHead>
+  1106→                        <TableHead className="text-gray-400">Verified</TableHead>
+  1107→                        <TableHead className="text-gray-400">Deployed</TableHead>
+  1108→                        <TableHead className="text-gray-400">Actions</TableHead>
+  1109→                      </TableRow>
+  1110→                    </TableHeader>
+  1111→                    <TableBody>
+  1112→                      {contracts.map((contract) => (
+  1113→                        <TableRow key={contract.id} className="border-gray-800/60 hover:bg-amber-500/5">
+  1114→                          <TableCell className="font-medium text-white">{contract.name}</TableCell>
+  1115→                          <TableCell>
+  1116→                            <div className="flex items-center gap-1.5">
+  1117→                              <span className="font-mono text-xs text-amber-400/80">
+  1118→                                {truncateAddress(contract.address, 8)}
+  1119→                              </span>
+  1120→                              <Button
+  1121→                                variant="ghost"
+  1122→                                size="sm"
+  1123→                                className="size-5 p-0 text-gray-500 hover:text-amber-400"
+  1124→                                onClick={() => handleCopyAddress(contract.address)}
+  1125→                              >
+  1126→                                <Copy className="size-3" />
+  1127→                              </Button>
+  1128→                            </div>
+  1129→                          </TableCell>
+  1130→                          <TableCell>
+  1131→                            <NetworkBadge network={contract.network} />
+  1132→                          </TableCell>
+  1133→                          <TableCell>
+  1134→                            <ContractTypeBadge type={contract.type} />
+  1135→                          </TableCell>
+  1136→                          <TableCell>
+  1137→                            {contract.verified ? (
+  1138→                              <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+  1139→                                <CheckCircle className="mr-1 size-3" /> Verified
+  1140→                              </Badge>
+  1141→                            ) : (
+  1142→                              <Badge variant="outline" className="border-red-500/30 bg-red-500/10 text-red-400">
+  1143→                                <XCircle className="mr-1 size-3" /> Unverified
+  1144→                              </Badge>
+  1145→                            )}
+  1146→                          </TableCell>
+  1147→                          <TableCell className="text-xs text-gray-400">{contract.deployedDate}</TableCell>
+  1148→                          <TableCell>
+  1149→                            <div className="flex items-center gap-1">
+  1150→                              <Button
+  1151→                                variant="ghost"
+  1152→                                size="sm"
+  1153→                                className="h-7 gap-1 text-xs text-gray-400 hover:text-amber-400"
+  1154→                                onClick={() => setViewContractId(contract.id)}
+  1155→                              >
+  1156→                                <Eye className="size-3" /> View
+  1157→                              </Button>
+  1158→                              <Button
+  1159→                                variant="ghost"
+  1160→                                size="sm"
+  1161→                                className="h-7 gap-1 text-xs text-gray-400 hover:text-amber-400"
+  1162→                              >
+  1163→                                <ExternalLink className="size-3" /> Explorer
+  1164→                              </Button>
+  1165→                            </div>
+  1166→                          </TableCell>
+  1167→                        </TableRow>
+  1168→                      ))}
+  1169→                    </TableBody>
+  1170→                  </Table>
+  1171→                </ScrollArea>
+  1172→                </div>
+  1173→              </CardContent>
+  1174→            </Card>
+  1175→
+  1176→            {/* Contract Detail Dialog */}
+  1177→            <Dialog open={viewContractId !== null} onOpenChange={(open) => !open && setViewContractId(null)}>
+  1178→              <DialogContent className="border-gray-700 bg-[#1a1d25] text-gray-100 sm:max-w-lg max-h-[90vh] overflow-y-auto">
+  1179→                <DialogHeader>
+  1180→                  <DialogTitle className="text-white">Contract Details</DialogTitle>
+  1181→                </DialogHeader>
+  1182→                {viewContractId && (() => {
+  1183→                  const contract = contracts.find((c) => c.id === viewContractId)
+  1184→                  if (!contract) return null
+  1185→                  return (
+  1186→                    <div className="space-y-4 pt-2">
+  1187→                      <div className="flex items-center gap-3">
+  1188→                        <div className="flex size-10 items-center justify-center rounded-lg bg-amber-500/20">
+  1189→                          <Shield className="size-5 text-amber-400" />
+  1190→                        </div>
+  1191→                        <div>
+  1192→                          <p className="text-lg font-semibold text-white">{contract.name}</p>
+  1193→                          <ContractTypeBadge type={contract.type} />
+  1194→                        </div>
+  1195→                      </div>
+  1196→                      <Separator className="bg-gray-800/60" />
+  1197→                      <div className="space-y-3">
+  1198→                        <div>
+  1199→                          <p className="mb-1 text-xs font-medium text-gray-500">Contract Address</p>
+  1200→                          <div className="flex items-center gap-2">
+  1201→                            <code className="rounded bg-[#12141a] px-2 py-1 font-mono text-xs text-amber-400/80">
+  1202→                              {contract.address}
+  1203→                            </code>
+  1204→                            <Button
+  1205→                              variant="ghost"
+  1206→                              size="sm"
+  1207→                              className="size-6 p-0 text-gray-500 hover:text-amber-400"
+  1208→                              onClick={() => handleCopyAddress(contract.address)}
+  1209→                            >
+  1210→                              <Copy className="size-3" />
+  1211→                            </Button>
+  1212→                          </div>
+  1213→                        </div>
+  1214→                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+  1215→                          <div>
+  1216→                            <p className="mb-1 text-xs font-medium text-gray-500">Network</p>
+  1217→                            <NetworkBadge network={contract.network} />
+  1218→                          </div>
+  1219→                          <div>
+  1220→                            <p className="mb-1 text-xs font-medium text-gray-500">Verification</p>
+  1221→                            {contract.verified ? (
+  1222→                              <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+  1223→                                <CheckCircle className="mr-1 size-3" /> Verified on Explorer
+  1224→                              </Badge>
+  1225→                            ) : (
+  1226→                              <Badge variant="outline" className="border-red-500/30 bg-red-500/10 text-red-400">
+  1227→                                <XCircle className="mr-1 size-3" /> Not Verified
+  1228→                              </Badge>
+  1229→                            )}
+  1230→                          </div>
+  1231→                        </div>
+  1232→                        <div>
+  1233→                          <p className="mb-1 text-xs font-medium text-gray-500">Deployed Date</p>
+  1234→                          <p className="text-sm text-gray-300">{contract.deployedDate}</p>
+  1235→                        </div>
+  1236→                      </div>
+  1237→                      <Separator className="bg-gray-800/60" />
+  1238→                      <div className="flex gap-2">
+  1239→                        <Button className="flex-1 bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/20 hover:from-amber-600 hover:to-orange-700">
+  1240→                          <ExternalLink className="mr-1.5 size-4" /> View on Explorer
+  1241→                        </Button>
+  1242→                        <Button variant="outline" className="flex-1 border-gray-700 text-gray-300 hover:border-amber-500/30 hover:text-amber-400">
+  1243→                          <RefreshCw className="mr-1.5 size-4" /> Verify Contract
+  1244→                        </Button>
+  1245→                      </div>
+  1246→                    </div>
+  1247→                  )
+  1248→                })()}
+  1249→              </DialogContent>
+  1250→            </Dialog>
+  1251→          </TabsContent>
+  1252→        </Tabs>
+  1253→      </div>
+  1254→    </div>
+  1255→  )
+  1256→}
+  1257→

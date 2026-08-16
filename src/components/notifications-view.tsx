@@ -433,7 +433,7 @@ export function NotificationsView() {
     return (
       <div className="space-y-4">
         <Skeleton className="h-10 w-64" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[1, 2, 3].map(i => (
             <Skeleton key={i} className="h-24 rounded-lg" />
           ))}
@@ -446,7 +446,7 @@ export function NotificationsView() {
   if (error) {
     return (
       <Card className="border-destructive/50">
-        <CardContent className="p-6 text-center">
+        <CardContent className="p-3 sm:p-6 text-center">
           <XCircle className="size-8 text-destructive mx-auto mb-2" />
           <p className="text-sm text-destructive">Failed to load notifications</p>
           <Button variant="outline" size="sm" className="mt-2" onClick={refetch}>
@@ -477,7 +477,7 @@ export function NotificationsView() {
       </div>
 
       {/* Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Card className="bg-card border-border">
           <CardContent className="p-3 text-center">
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total</p>
@@ -526,10 +526,10 @@ export function NotificationsView() {
           {/* Filter Bar */}
           <Card className="bg-card border-border">
             <CardContent className="p-3">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-col sm:flex-row flex-wrap items-center gap-2">
                 <Filter className="size-4 text-muted-foreground shrink-0" />
                 <Select value={filterCategory} onValueChange={v => { setFilterCategory(v); setPage(0) }}>
-                  <SelectTrigger className="w-[130px] h-8 text-xs">
+                  <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs">
                     <SelectValue placeholder="Category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -540,7 +540,7 @@ export function NotificationsView() {
                   </SelectContent>
                 </Select>
                 <Select value={filterType} onValueChange={v => { setFilterType(v); setPage(0) }}>
-                  <SelectTrigger className="w-[110px] h-8 text-xs">
+                  <SelectTrigger className="w-full sm:w-[110px] h-8 text-xs">
                     <SelectValue placeholder="Type" />
                   </SelectTrigger>
                   <SelectContent>
@@ -551,7 +551,7 @@ export function NotificationsView() {
                   </SelectContent>
                 </Select>
                 <Select value={filterPriority} onValueChange={v => { setFilterPriority(v); setPage(0) }}>
-                  <SelectTrigger className="w-[110px] h-8 text-xs">
+                  <SelectTrigger className="w-full sm:w-[110px] h-8 text-xs">
                     <SelectValue placeholder="Priority" />
                   </SelectTrigger>
                   <SelectContent>
@@ -562,7 +562,7 @@ export function NotificationsView() {
                   </SelectContent>
                 </Select>
                 <Select value={filterRead} onValueChange={v => { setFilterRead(v); setPage(0) }}>
-                  <SelectTrigger className="w-[110px] h-8 text-xs">
+                  <SelectTrigger className="w-full sm:w-[110px] h-8 text-xs">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>
@@ -571,7 +571,7 @@ export function NotificationsView() {
                     <SelectItem value="read">Read</SelectItem>
                   </SelectContent>
                 </Select>
-                <div className="relative flex-1 min-w-[150px]">
+                <div className="relative flex-1 min-w-0 sm:min-w-[150px]">
                   <Search className="size-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     placeholder="Search notifications..."
@@ -768,7 +768,7 @@ export function NotificationsView() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-3 pt-0">
-              <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 flex-wrap">
                 <div className="flex items-center gap-2">
                   <Switch
                     checked={quietEnabled}
@@ -784,7 +784,7 @@ export function NotificationsView() {
                     value={quietStart}
                     onChange={e => setQuietStart(e.target.value)}
                     disabled={!quietEnabled}
-                    className="w-[120px] h-8 text-xs"
+                    className="w-full sm:w-[120px] h-8 text-xs"
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -794,7 +794,7 @@ export function NotificationsView() {
                     value={quietEnd}
                     onChange={e => setQuietEnd(e.target.value)}
                     disabled={!quietEnabled}
-                    className="w-[120px] h-8 text-xs"
+                    className="w-full sm:w-[120px] h-8 text-xs"
                   />
                 </div>
                 {quietEnabled && (
@@ -824,12 +824,12 @@ export function NotificationsView() {
                   <Plus className="size-3 mr-1" /> Create Template
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-lg">
+              <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle className="text-sm">Create Notification Template</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-3 pt-2">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
                       <Label className="text-xs">Name</Label>
                       <Input value={newTemplateName} onChange={e => setNewTemplateName(e.target.value)} placeholder="Template name" className="h-8 text-xs mt-1" />
@@ -851,7 +851,7 @@ export function NotificationsView() {
                   <div>
                     <Label className="text-xs">Channel</Label>
                     <Select value={newTemplateChannel} onValueChange={setNewTemplateChannel}>
-                      <SelectTrigger className="h-8 text-xs mt-1 w-[150px]">
+                      <SelectTrigger className="h-8 text-xs mt-1 w-full sm:w-[150px]">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -883,6 +883,7 @@ export function NotificationsView() {
           <Card className="bg-card border-border">
             <CardContent className="p-0">
               <ScrollArea className="max-h-[480px]">
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -934,13 +935,14 @@ export function NotificationsView() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               </ScrollArea>
             </CardContent>
           </Card>
 
           {/* Template Preview Dialog */}
           <Dialog open={!!previewTemplate} onOpenChange={open => !open && setPreviewTemplate(null)}>
-            <DialogContent className="sm:max-w-lg">
+            <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-sm">Template Preview: {previewTemplate?.name}</DialogTitle>
               </DialogHeader>
@@ -987,7 +989,7 @@ export function NotificationsView() {
                   <Plus className="size-3 mr-1" /> Add Channel
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
+              <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle className="text-sm">Add Notification Channel</DialogTitle>
                 </DialogHeader>
@@ -1142,13 +1144,13 @@ export function NotificationsView() {
 
               return (
                 <Card key={ch.id} className={`bg-card border-border ${!ch.isActive ? 'opacity-60' : ''} transition-opacity`}>
-                  <CardContent className="p-4">
+                  <CardContent className="p-3 sm:p-4">
                     <div className="flex items-start justify-between gap-2 mb-3">
                       <div className="flex items-center gap-2">
                         <span className="text-lg">{typeInfo.emoji}</span>
                         <div>
                           <p className="text-sm font-medium">{typeInfo.label}</p>
-                          <p className="text-[10px] text-muted-foreground truncate max-w-[180px]">{configDisplay}</p>
+                          <p className="text-[10px] text-muted-foreground truncate max-w-[120px] sm:max-w-[180px]">{configDisplay}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
@@ -1199,7 +1201,7 @@ export function NotificationsView() {
                               <Settings className="size-3 mr-0.5" /> Configure
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="sm:max-w-md">
+                          <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
                             <DialogHeader>
                               <DialogTitle className="text-sm">Configure {typeInfo.label} Channel</DialogTitle>
                             </DialogHeader>

@@ -1,0 +1,603 @@
+     1→'use client'
+     2→
+     3→import { useState } from 'react'
+     4→import {
+     5→  AreaChart,
+     6→  Area,
+     7→  BarChart,
+     8→  Bar,
+     9→  XAxis,
+    10→  YAxis,
+    11→  CartesianGrid,
+    12→  Tooltip,
+    13→  ResponsiveContainer,
+    14→} from 'recharts'
+    15→import {
+    16→  DollarSign,
+    17→  ArrowDownToLine,
+    18→  ArrowUpFromLine,
+    19→  ShieldCheck,
+    20→  Clock,
+    21→  AlertTriangle,
+    22→  TrendingUp,
+    23→  Layers,
+    24→  RefreshCw,
+    25→} from 'lucide-react'
+    26→import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+    27→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    28→import { Badge } from '@/components/ui/badge'
+    29→import { Button } from '@/components/ui/button'
+    30→import {
+    31→  Table,
+    32→  TableBody,
+    33→  TableCell,
+    34→  TableHead,
+    35→  TableHeader,
+    36→  TableRow,
+    37→} from '@/components/ui/table'
+    38→import { Progress } from '@/components/ui/progress'
+    39→import { Skeleton } from '@/components/ui/skeleton'
+    40→import { Input } from '@/components/ui/input'
+    41→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+    42→import { useFinancial, useEscrow, useWaterfall, useVariance } from '@/hooks/use-financial'
+    43→
+    44→const fmt = (n: number) => `$${n.toLocaleString('en-US')}`
+    45→
+    46→const WATERFALL_COLORS = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)', '#f59e0b', '#10b981']
+    47→
+    48→export function FinancialView() {
+    49→  const { data: financialData, loading: finLoading, error: finError, refetch: finRefetch } = useFinancial()
+    50→  const { data: escrowData, loading: escLoading, error: escError, refetch: escRefetch } = useEscrow()
+    51→  const { data: waterfallData, loading: wfLoading, error: wfError, refetch: wfRefetch } = useWaterfall()
+    52→  const { data: varianceData, loading: varLoading, error: varError, refetch: varRefetch } = useVariance()
+    53→
+    54→  const [ledgerFilter, setLedgerFilter] = useState('all')
+    55→
+    56→  const loading = finLoading || escLoading || wfLoading || varLoading
+    57→  const error = finError || escError || wfError || varError
+    58→
+    59→  if (loading) {
+    60→    return (
+    61→      <div className="space-y-4">
+    62→        <Skeleton className="h-10 w-full max-w-md" />
+    63→        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    64→          {Array.from({ length: 3 }).map((_, i) => (
+    65→            <Card key={i}><CardContent className="p-6"><Skeleton className="h-16 w-full" /></CardContent></Card>
+    66→          ))}
+    67→        </div>
+    68→      </div>
+    69→    )
+    70→  }
+    71→
+    72→  if (error) {
+    73→    return (
+    74→      <Card className="border-destructive/40">
+    75→        <CardContent className="p-6 text-center">
+    76→          <AlertTriangle className="size-8 text-destructive mx-auto mb-2" />
+    77→          <p className="text-sm font-medium text-destructive">Failed to load financial data</p>
+    78→          <p className="text-xs text-muted-foreground mt-1">{error}</p>
+    79→          <Button variant="outline" size="sm" className="mt-3 gap-1" onClick={() => { finRefetch(); escRefetch(); wfRefetch(); varRefetch() }}>
+    80→            <RefreshCw className="size-3" /> Retry
+    81→          </Button>
+    82→        </CardContent>
+    83→      </Card>
+    84→    )
+    85→  }
+    86→
+    87→  // Financial API returns: { deposits, withdrawals, houseEarnings, ledger }
+    88→  const financial = financialData as any
+    89→  const escrow = escrowData as any
+    90→  const waterfall = waterfallData as any
+    91→  const variance = varianceData as any
+    92→
+    93→  const totalDeposits = (financial?.deposits || []).reduce((s: number, d: any) => s + d.amount, 0)
+    94→  const totalWithdrawals = (financial?.withdrawals || []).reduce((s: number, w: any) => s + w.amount, 0)
+    95→  const totalRevenue = (financial?.houseEarnings || []).reduce((s: number, h: any) => s + h.grossRevenue, 0)
+    96→  const escrowBalance = escrow?.totalBalance || 0
+    97→  const pendingSettlements = escrow?.pendingSettlement || 0
+    98→
+    99→  const summary = {
+   100→    totalRevenue: Math.round(totalRevenue),
+   101→    totalDeposits: Math.round(totalDeposits),
+   102→    totalWithdrawals: Math.round(totalWithdrawals),
+   103→    pendingSettlements: Math.round(pendingSettlements),
+   104→    escrowBalance: Math.round(escrowBalance),
+   105→    netHouseEdge: financial?.houseEarnings?.length > 0
+   106→      ? Math.round((financial.houseEarnings.reduce((s: number, h: any) => s + h.houseEdge, 0) / financial.houseEarnings.length) * 100) / 100
+   107→      : 4.32,
+   108→  }
+   109→
+   110→  // Deposit trend — group by month
+   111→  const depositTrend = (() => {
+   112→    const deposits = financial?.deposits || []
+   113→    const withdrawals = financial?.withdrawals || []
+   114→    const monthMap = new Map<string, { deposits: number; withdrawals: number }>()
+   115→    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+   116→
+   117→    deposits.forEach((d: any) => {
+   118→      const date = new Date(d.createdAt)
+   119→      const monthLabel = months[date.getMonth()] || 'Unknown'
+   120→      if (!monthMap.has(monthLabel)) monthMap.set(monthLabel, { deposits: 0, withdrawals: 0 })
+   121→      monthMap.get(monthLabel)!.deposits += d.amount
+   122→    })
+   123→    withdrawals.forEach((w: any) => {
+   124→      const date = new Date(w.createdAt)
+   125→      const monthLabel = months[date.getMonth()] || 'Unknown'
+   126→      if (!monthMap.has(monthLabel)) monthMap.set(monthLabel, { deposits: 0, withdrawals: 0 })
+   127→      monthMap.get(monthLabel)!.withdrawals += w.amount
+   128→    })
+   129→
+   130→    if (monthMap.size === 0) {
+   131→      return months.map((month) => ({ month, deposits: 0, withdrawals: 0 }))
+   132→    }
+   133→    return Array.from(monthMap.entries()).map(([month, data]) => ({
+   134→      month,
+   135→      deposits: Math.round(data.deposits),
+   136→      withdrawals: Math.round(data.withdrawals),
+   137→    }))
+   138→  })()
+   139→
+   140→  // Escrow accounts from API
+   141→  const escrowAccounts = (() => {
+   142→    if (escrow) {
+   143→      return [{
+   144→        id: escrow.id || 'ESC-001',
+   145→        name: `Player Escrow (${escrow.settlementFrequency || 'daily'})`,
+   146→        balance: Math.round(escrow.totalBalance || 0),
+   147→        status: escrow.status || 'active',
+   148→        lastSettlement: escrow.lastSettlement
+   149→          ? new Date(escrow.lastSettlement).toLocaleString()
+   150→          : 'N/A',
+   151→      }]
+   152→    }
+   153→    return []
+   154→  })()
+   155→
+   156→  // Settlement history from escrow
+   157→  const settlements = (escrow?.settlements || []).map((s: any) => ({
+   158→    id: s.id,
+   159→    amount: Math.round(s.amount),
+   160→    status: s.status,
+   161→    date: new Date(s.settledAt).toLocaleDateString(),
+   162→  }))
+   163→
+   164→  // Waterfall tiers from API
+   165→  const waterfallTiers = (waterfall?.waterfallSteps || []).map((step: any, i: number) => ({
+   166→    tier: step.name,
+   167→    pct: Math.round(step.rate * 100),
+   168→    amount: Math.round(step.amount),
+   169→    color: WATERFALL_COLORS[i % WATERFALL_COLORS.length],
+   170→  }))
+   171→
+   172→  // Ledger entries from API
+   173→  const ledgerEntries = (financial?.ledger || []).map((entry: any) => ({
+   174→    id: entry.id,
+   175→    date: new Date(entry.createdAt).toLocaleDateString(),
+   176→    category: entry.category,
+   177→    description: entry.description,
+   178→    debit: entry.type === 'debit' ? Math.round(entry.amount) : 0,
+   179→    credit: entry.type === 'credit' ? Math.round(entry.amount) : 0,
+   180→    balance: Math.round(entry.amount),
+   181→    reference: entry.reference || '',
+   182→  }))
+   183→
+   184→  const filteredLedger = ledgerFilter === 'all'
+   185→    ? ledgerEntries
+   186→    : ledgerEntries.filter((e) => e.category.toLowerCase() === ledgerFilter)
+   187→
+   188→  // Variance items from API
+   189→  const varianceItems = (variance?.budgets || []).map((b: any) => ({
+   190→    category: b.category,
+   191→    budget: Math.round(b.targetAmount),
+   192→    actual: Math.round(b.actualAmount),
+   193→    variance: Math.round(b.variance),
+   194→    pct: b.targetAmount !== 0 ? Math.round((b.variance / b.targetAmount) * 10000) / 100 : 0,
+   195→    severity: Math.abs(b.variance / Math.max(b.targetAmount, 1)) > 0.05 ? 'high' : Math.abs(b.variance / Math.max(b.targetAmount, 1)) > 0.02 ? 'medium' : 'low',
+   196→  }))
+   197→
+   198→  return (
+   199→    <Tabs defaultValue="overview" className="space-y-4">
+   200→      <TabsList className="w-full sm:w-auto">
+   201→        <TabsTrigger value="overview" className="text-xs">Overview</TabsTrigger>
+   202→        <TabsTrigger value="escrow" className="text-xs">Escrow</TabsTrigger>
+   203→        <TabsTrigger value="waterfall" className="text-xs">Waterfall</TabsTrigger>
+   204→        <TabsTrigger value="ledger" className="text-xs">Ledger</TabsTrigger>
+   205→        <TabsTrigger value="variance" className="text-xs">Variance</TabsTrigger>
+   206→      </TabsList>
+   207→
+   208→      {/* ---- OVERVIEW TAB ---- */}
+   209→      <TabsContent value="overview" className="space-y-4">
+   210→        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+   211→          {[
+   212→            { label: 'Total Revenue', value: fmt(summary.totalRevenue), icon: DollarSign, color: 'text-emerald-400' },
+   213→            { label: 'Total Deposits', value: fmt(summary.totalDeposits), icon: ArrowDownToLine, color: 'text-chart-2' },
+   214→            { label: 'Escrow Balance', value: fmt(summary.escrowBalance), icon: ShieldCheck, color: 'text-primary' },
+   215→          ].map((item) => (
+   216→            <Card key={item.label}>
+   217→              <CardContent className="p-5">
+   218→                <div className="flex items-start justify-between">
+   219→                  <div>
+   220→                    <p className="text-xs text-muted-foreground uppercase tracking-wider">{item.label}</p>
+   221→                    <p className="text-2xl font-bold mt-1">{item.value}</p>
+   222→                  </div>
+   223→                  <div className="rounded-lg bg-muted p-2"><item.icon className={`size-4 ${item.color}`} /></div>
+   224→                </div>
+   225→              </CardContent>
+   226→            </Card>
+   227→          ))}
+   228→        </div>
+   229→
+   230→        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   231→          <Card>
+   232→            <CardHeader className="pb-2">
+   233→              <CardTitle className="text-sm">Deposit / Withdrawal Trend</CardTitle>
+   234→            </CardHeader>
+   235→            <CardContent>
+   236→              <ResponsiveContainer width="100%" height={240}>
+   237→                <AreaChart data={depositTrend} margin={{ top: 5, right: 5, left: 0, bottom: 0 }}>
+   238→                  <defs>
+   239→                    <linearGradient id="depGrad" x1="0" y1="0" x2="0" y2="1">
+   240→                      <stop offset="5%" stopColor="var(--chart-2)" stopOpacity={0.3} />
+   241→                      <stop offset="95%" stopColor="var(--chart-2)" stopOpacity={0} />
+   242→                    </linearGradient>
+   243→                    <linearGradient id="wdGrad" x1="0" y1="0" x2="0" y2="1">
+   244→                      <stop offset="5%" stopColor="var(--chart-3)" stopOpacity={0.3} />
+   245→                      <stop offset="95%" stopColor="var(--chart-3)" stopOpacity={0} />
+   246→                    </linearGradient>
+   247→                  </defs>
+   248→                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+   249→                  <XAxis dataKey="month" tick={{ fontSize: 10 }} stroke="var(--muted-foreground)" />
+   250→                  <YAxis tickFormatter={(v) => `$${(v / 1000).toFixed(0)}K`} tick={{ fontSize: 10 }} stroke="var(--muted-foreground)" />
+   251→                  <Tooltip
+   252→                    formatter={(value: number) => fmt(value)}
+   253→                    contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
+   254→                  />
+   255→                  <Area type="monotone" dataKey="deposits" stroke="var(--chart-2)" fill="url(#depGrad)" strokeWidth={2} name="Deposits" />
+   256→                  <Area type="monotone" dataKey="withdrawals" stroke="var(--chart-3)" fill="url(#wdGrad)" strokeWidth={2} name="Withdrawals" />
+   257→                </AreaChart>
+   258→              </ResponsiveContainer>
+   259→            </CardContent>
+   260→          </Card>
+   261→
+   262→          <Card>
+   263→            <CardHeader className="pb-2">
+   264→              <CardTitle className="text-sm">Financial Summary</CardTitle>
+   265→            </CardHeader>
+   266→            <CardContent>
+   267→              <div className="space-y-4">
+   268→                {[
+   269→                  { label: 'Net House Edge', value: `${summary.netHouseEdge}%`, pct: summary.netHouseEdge / 5 * 100 },
+   270→                  { label: 'Deposit Ratio', value: summary.totalRevenue > 0 ? `${((summary.totalDeposits / summary.totalRevenue) * 100).toFixed(1)}%` : '0%', pct: summary.totalRevenue > 0 ? (summary.totalDeposits / summary.totalRevenue) * 100 : 0 },
+   271→                  { label: 'Settlement Coverage', value: summary.pendingSettlements > 0 ? `${((summary.escrowBalance / summary.pendingSettlements) * 100).toFixed(0)}%` : '0%', pct: summary.pendingSettlements > 0 ? (summary.escrowBalance / summary.pendingSettlements) * 100 : 0 },
+   272→                ].map((item) => (
+   273→                  <div key={item.label} className="space-y-1">
+   274→                    <div className="flex justify-between text-xs">
+   275→                      <span className="text-muted-foreground">{item.label}</span>
+   276→                      <span className="font-medium">{item.value}</span>
+   277→                    </div>
+   278→                    <Progress value={Math.min(item.pct, 100)} className="h-1.5" />
+   279→                  </div>
+   280→                ))}
+   281→              </div>
+   282→            </CardContent>
+   283→          </Card>
+   284→        </div>
+   285→      </TabsContent>
+   286→
+   287→      {/* ---- ESCROW TAB ---- */}
+   288→      <TabsContent value="escrow" className="space-y-4">
+   289→        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   290→          <Card>
+   291→            <CardHeader className="pb-2">
+   292→              <div className="flex items-center gap-2">
+   293→                <ShieldCheck className="size-4 text-primary" />
+   294→                <CardTitle className="text-sm">Escrow Accounts</CardTitle>
+   295→              </div>
+   296→            </CardHeader>
+   297→            <CardContent>
+   298→              {escrowAccounts.length > 0 ? (
+   299→                <div className="space-y-3">
+   300→                  {escrowAccounts.map((acc: any) => (
+   301→                    <div key={acc.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+   302→                      <div>
+   303→                        <p className="text-xs font-medium">{acc.name}</p>
+   304→                        <p className="text-[10px] text-muted-foreground">{acc.id} · Last: {acc.lastSettlement}</p>
+   305→                      </div>
+   306→                      <div className="text-right">
+   307→                        <p className="text-sm font-bold">{fmt(acc.balance)}</p>
+   308→                        <Badge variant={acc.status === 'active' ? 'default' : acc.status === 'frozen' ? 'destructive' : 'secondary'} className="text-[9px] h-4 px-1">
+   309→                          {acc.status}
+   310→                        </Badge>
+   311→                      </div>
+   312→                    </div>
+   313→                  ))}
+   314→                </div>
+   315→              ) : (
+   316→                <p className="text-xs text-muted-foreground text-center py-4">No escrow accounts</p>
+   317→              )}
+   318→            </CardContent>
+   319→          </Card>
+   320→
+   321→          <Card>
+   322→            <CardHeader className="pb-2">
+   323→              <div className="flex items-center gap-2">
+   324→                <Clock className="size-4 text-chart-4" />
+   325→                <CardTitle className="text-sm">Settlement History</CardTitle>
+   326→              </div>
+   327→            </CardHeader>
+   328→            <CardContent>
+   329→              {settlements.length > 0 ? (
+   330→                <div className="overflow-x-auto">
+   331→                <Table>
+   332→                  <TableHeader>
+   333→                    <TableRow>
+   334→                      <TableHead className="text-xs">ID</TableHead>
+   335→                      <TableHead className="text-xs">Amount</TableHead>
+   336→                      <TableHead className="text-xs">Status</TableHead>
+   337→                      <TableHead className="text-xs">Date</TableHead>
+   338→                    </TableRow>
+   339→                  </TableHeader>
+   340→                  <TableBody>
+   341→                    {settlements.map((s: any) => (
+   342→                      <TableRow key={s.id}>
+   343→                        <TableCell className="text-xs font-mono">{s.id}</TableCell>
+   344→                        <TableCell className="text-xs">{fmt(s.amount)}</TableCell>
+   345→                        <TableCell>
+   346→                          <Badge variant={s.status === 'completed' ? 'default' : s.status === 'pending' ? 'secondary' : 'outline'} className="text-[9px] h-4">
+   347→                            {s.status}
+   348→                          </Badge>
+   349→                        </TableCell>
+   350→                        <TableCell className="text-xs text-muted-foreground">{s.date}</TableCell>
+   351→                      </TableRow>
+   352→                    ))}
+   353→                  </TableBody>
+   354→                </Table>
+   355→                </div>
+   356→              ) : (
+   357→                <p className="text-xs text-muted-foreground text-center py-4">No settlements</p>
+   358→              )}
+   359→            </CardContent>
+   360→          </Card>
+   361→        </div>
+   362→
+   363→        <Card>
+   364→          <CardHeader className="pb-2">
+   365→            <CardTitle className="text-sm">Settlement Schedule</CardTitle>
+   366→            <CardDescription>Next scheduled settlements</CardDescription>
+   367→          </CardHeader>
+   368→          <CardContent>
+   369→            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+   370→              {escrowAccounts.length > 0 ? (
+   371→                escrowAccounts.map((acc: any) => (
+   372→                  <div key={acc.id} className="p-3 rounded-lg border border-border bg-muted/30 space-y-1">
+   373→                    <p className="text-xs font-medium">{acc.name}</p>
+   374→                    <p className="text-sm font-bold text-primary">{fmt(acc.balance)}</p>
+   375→                    <p className="text-[10px] text-muted-foreground">Last: {acc.lastSettlement}</p>
+   376→                  </div>
+   377→                ))
+   378→              ) : (
+   379→                <p className="text-xs text-muted-foreground">No scheduled settlements</p>
+   380→              )}
+   381→            </div>
+   382→          </CardContent>
+   383→        </Card>
+   384→      </TabsContent>
+   385→
+   386→      {/* ---- WATERFALL TAB ---- */}
+   387→      <TabsContent value="waterfall" className="space-y-4">
+   388→        <Card>
+   389→          <CardHeader className="pb-2">
+   390→            <div className="flex items-center gap-2">
+   391→              <Layers className="size-4 text-primary" />
+   392→              <CardTitle className="text-sm">Revenue Waterfall Distribution</CardTitle>
+   393→            </div>
+   394→            <CardDescription>Payment priority tiers from gross revenue</CardDescription>
+   395→          </CardHeader>
+   396→          <CardContent>
+   397→            {waterfallTiers.length > 0 ? (
+   398→              <>
+   399→                {/* Visual Stacked Bar */}
+   400→                <div className="mb-6">
+   401→                  <div className="flex h-10 rounded-lg overflow-hidden">
+   402→                    {waterfallTiers.map((tier: any) => (
+   403→                      <div
+   404→                        key={tier.tier}
+   405→                        style={{ width: `${tier.pct}%`, backgroundColor: tier.color }}
+   406→                        className="flex items-center justify-center text-[9px] font-bold text-white transition-all hover:opacity-80"
+   407→                        title={`${tier.tier}: ${tier.pct}% (${fmt(tier.amount)})`}
+   408→                      >
+   409→                        {tier.pct >= 8 ? `${tier.pct}%` : ''}
+   410→                      </div>
+   411→                    ))}
+   412→                  </div>
+   413→                  <div className="flex flex-wrap gap-3 mt-3">
+   414→                    {waterfallTiers.map((tier: any) => (
+   415→                      <div key={tier.tier} className="flex items-center gap-1.5 text-[10px]">
+   416→                        <div className="size-2.5 rounded-sm shrink-0" style={{ backgroundColor: tier.color }} />
+   417→                        <span className="text-muted-foreground">{tier.tier}</span>
+   418→                      </div>
+   419→                    ))}
+   420→                  </div>
+   421→                </div>
+   422→
+   423→                {/* Detail Table */}
+   424→                <div className="overflow-x-auto">
+   425→                <Table>
+   426→                  <TableHeader>
+   427→                    <TableRow>
+   428→                      <TableHead className="text-xs">Tier</TableHead>
+   429→                      <TableHead className="text-xs text-right">Percentage</TableHead>
+   430→                      <TableHead className="text-xs text-right">Amount</TableHead>
+   431→                      <TableHead className="text-xs">Distribution</TableHead>
+   432→                    </TableRow>
+   433→                  </TableHeader>
+   434→                  <TableBody>
+   435→                    {waterfallTiers.map((tier: any) => (
+   436→                      <TableRow key={tier.tier}>
+   437→                        <TableCell className="text-xs font-medium">{tier.tier}</TableCell>
+   438→                        <TableCell className="text-xs text-right">{tier.pct}%</TableCell>
+   439→                        <TableCell className="text-xs text-right font-mono">{fmt(tier.amount)}</TableCell>
+   440→                        <TableCell>
+   441→                          <div className="w-full bg-muted rounded-full h-2 max-w-[120px]">
+   442→                            <div className="h-full rounded-full" style={{ width: `${tier.pct}%`, backgroundColor: tier.color }} />
+   443→                          </div>
+   444→                        </TableCell>
+   445→                      </TableRow>
+   446→                    ))}
+   447→                  </TableBody>
+   448→                </Table>
+   449→                </div>
+   450→              </>
+   451→            ) : (
+   452→              <p className="text-xs text-muted-foreground text-center py-8">No waterfall data available</p>
+   453→            )}
+   454→          </CardContent>
+   455→        </Card>
+   456→      </TabsContent>
+   457→
+   458→      {/* ---- LEDGER TAB ---- */}
+   459→      <TabsContent value="ledger" className="space-y-4">
+   460→        <Card>
+   461→          <CardHeader className="pb-2">
+   462→            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+   463→              <CardTitle className="text-sm">Master Ledger</CardTitle>
+   464→              <div className="flex gap-2">
+   465→                <Select value={ledgerFilter} onValueChange={setLedgerFilter}>
+   466→                  <SelectTrigger className="w-[140px] h-8 text-xs">
+   467→                    <SelectValue placeholder="Filter category" />
+   468→                  </SelectTrigger>
+   469→                  <SelectContent>
+   470→                    <SelectItem value="all">All Categories</SelectItem>
+   471→                    <SelectItem value="revenue">Revenue</SelectItem>
+   472→                    <SelectItem value="payout">Payout</SelectItem>
+   473→                    <SelectItem value="provider">Provider</SelectItem>
+   474→                    <SelectItem value="affiliate">Affiliate</SelectItem>
+   475→                    <SelectItem value="escrow">Escrow</SelectItem>
+   476→                  </SelectContent>
+   477→                </Select>
+   478→                <Input placeholder="Search entries..." className="w-[160px] h-8 text-xs" />
+   479→              </div>
+   480→            </div>
+   481→          </CardHeader>
+   482→          <CardContent>
+   483→            {filteredLedger.length > 0 ? (
+   484→              <div className="overflow-x-auto">
+   485→              <Table>
+   486→                <TableHeader>
+   487→                  <TableRow>
+   488→                    <TableHead className="text-xs">ID</TableHead>
+   489→                    <TableHead className="text-xs">Date</TableHead>
+   490→                    <TableHead className="text-xs">Category</TableHead>
+   491→                    <TableHead className="text-xs">Description</TableHead>
+   492→                    <TableHead className="text-xs text-right">Debit</TableHead>
+   493→                    <TableHead className="text-xs text-right">Credit</TableHead>
+   494→                  </TableRow>
+   495→                </TableHeader>
+   496→                <TableBody>
+   497→                  {filteredLedger.map((entry: any) => (
+   498→                    <TableRow key={entry.id}>
+   499→                      <TableCell className="text-xs font-mono">{entry.id}</TableCell>
+   500→                      <TableCell className="text-xs text-muted-foreground">{entry.date}</TableCell>
+   501→                      <TableCell><Badge variant="outline" className="text-[9px] h-4">{entry.category}</Badge></TableCell>
+   502→                      <TableCell className="text-xs">{entry.description}</TableCell>
+   503→                      <TableCell className="text-xs text-right text-destructive font-mono">
+   504→                        {entry.debit > 0 ? fmt(entry.debit) : '—'}
+   505→                      </TableCell>
+   506→                      <TableCell className="text-xs text-right text-emerald-400 font-mono">
+   507→                        {entry.credit > 0 ? fmt(entry.credit) : '—'}
+   508→                      </TableCell>
+   509→                    </TableRow>
+   510→                  ))}
+   511→                </TableBody>
+   512→              </Table>
+   513→              </div>
+   514→            ) : (
+   515→              <p className="text-xs text-muted-foreground text-center py-4">No ledger entries</p>
+   516→            )}
+   517→          </CardContent>
+   518→        </Card>
+   519→      </TabsContent>
+   520→
+   521→      {/* ---- VARIANCE TAB ---- */}
+   522→      <TabsContent value="variance" className="space-y-4">
+   523→        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   524→          <Card>
+   525→            <CardHeader className="pb-2">
+   526→              <div className="flex items-center gap-2">
+   527→                <TrendingUp className="size-4 text-primary" />
+   528→                <CardTitle className="text-sm">Budget vs Actual</CardTitle>
+   529→              </div>
+   530→            </CardHeader>
+   531→            <CardContent>
+   532→              {varianceItems.length > 0 ? (
+   533→                <ResponsiveContainer width="100%" height={280}>
+   534→                  <BarChart data={varianceItems} margin={{ top: 5, right: 5, left: 0, bottom: 0 }} layout="vertical">
+   535→                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+   536→                    <XAxis type="number" tickFormatter={(v) => `$${(v / 1000000).toFixed(1)}M`} tick={{ fontSize: 10 }} stroke="var(--muted-foreground)" />
+   537→                    <YAxis type="category" dataKey="category" tick={{ fontSize: 10 }} stroke="var(--muted-foreground)" width={100} />
+   538→                    <Tooltip
+   539→                      formatter={(value: number) => fmt(value)}
+   540→                      contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
+   541→                    />
+   542→                    <Bar dataKey="budget" fill="var(--chart-4)" radius={[0, 4, 4, 0]} name="Budget" />
+   543→                    <Bar dataKey="actual" fill="var(--chart-1)" radius={[0, 4, 4, 0]} name="Actual" />
+   544→                  </BarChart>
+   545→                </ResponsiveContainer>
+   546→              ) : (
+   547→                <div className="h-[280px] flex items-center justify-center text-sm text-muted-foreground">
+   548→                  No variance data available
+   549→                </div>
+   550→              )}
+   551→            </CardContent>
+   552→          </Card>
+   553→
+   554→          <Card>
+   555→            <CardHeader className="pb-2">
+   556→              <div className="flex items-center gap-2">
+   557→                <AlertTriangle className="size-4 text-yellow-400" />
+   558→                <CardTitle className="text-sm">Variance Analysis</CardTitle>
+   559→              </div>
+   560→            </CardHeader>
+   561→            <CardContent>
+   562→              {varianceItems.length > 0 ? (
+   563→                <div className="space-y-3">
+   564→                  {varianceItems.map((item: any) => (
+   565→                    <div key={item.category} className="p-3 rounded-lg bg-muted/50 space-y-2">
+   566→                      <div className="flex items-center justify-between">
+   567→                        <span className="text-xs font-medium">{item.category}</span>
+   568→                        <Badge
+   569→                          variant={item.severity === 'high' ? 'destructive' : item.severity === 'medium' ? 'secondary' : 'outline'}
+   570→                          className="text-[9px] h-4 px-1"
+   571→                        >
+   572→                          {item.severity}
+   573→                        </Badge>
+   574→                      </div>
+   575→                      <div className="flex justify-between text-[10px] text-muted-foreground">
+   576→                        <span>Budget: {fmt(item.budget)}</span>
+   577→                        <span>Actual: {fmt(item.actual)}</span>
+   578→                      </div>
+   579→                      <div className="flex items-center gap-2">
+   580→                        <div className="flex-1 bg-muted rounded-full h-2">
+   581→                          <div
+   582→                            className={`h-full rounded-full ${item.variance >= 0 ? 'bg-emerald-400' : 'bg-destructive'}`}
+   583→                            style={{ width: `${Math.min(Math.abs(item.pct) * 10, 100)}%` }}
+   584→                          />
+   585→                        </div>
+   586→                        <span className={`text-xs font-mono font-medium ${item.variance >= 0 ? 'text-emerald-400' : 'text-destructive'}`}>
+   587→                          {item.pct >= 0 ? '+' : ''}{item.pct.toFixed(2)}%
+   588→                        </span>
+   589→                      </div>
+   590→                    </div>
+   591→                  ))}
+   592→                </div>
+   593→              ) : (
+   594→                <p className="text-xs text-muted-foreground text-center py-4">No variance data</p>
+   595→              )}
+   596→            </CardContent>
+   597→          </Card>
+   598→        </div>
+   599→      </TabsContent>
+   600→    </Tabs>
+   601→  )
+   602→}
+   603→

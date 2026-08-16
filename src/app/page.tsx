@@ -111,22 +111,22 @@ export default function Home() {
       <AppSidebar />
       <SidebarInset>
         {/* Header */}
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border px-4">
+        <header className="flex h-12 shrink-0 items-center gap-1.5 sm:gap-2 border-b border-border px-2 sm:px-4">
           <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="mr-2 !h-4" />
+          <Separator orientation="vertical" className="mr-1 sm:mr-2 !h-4" />
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <Icon className="size-4 text-primary shrink-0" />
             <div className="min-w-0">
-              <h1 className="text-sm font-semibold truncate">{meta.title}</h1>
+              <h1 className="text-xs sm:text-sm font-semibold truncate">{meta.title}</h1>
               <p className="text-[10px] text-muted-foreground truncate hidden sm:block">{meta.description}</p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
-            <Badge variant="outline" className="text-[9px] border-primary/30 text-primary h-5">
+          <div className="flex items-center gap-1 shrink-0">
+            <Badge variant="outline" className="text-[9px] border-primary/30 text-primary h-5 hidden sm:flex">
               {activeRole === 'super_admin' ? 'SUPER ADMIN' : activeRole.toUpperCase()}
             </Badge>
             <NotificationPanel />
-            <button className="p-2.5 rounded-md hover:bg-muted transition-colors">
+            <button className="p-2 sm:p-2.5 rounded-md hover:bg-muted transition-colors">
               <Settings className="size-4 text-muted-foreground" />
             </button>
           </div>
@@ -138,17 +138,17 @@ export default function Home() {
         </main>
 
         {/* Sticky Footer */}
-        <footer className="mt-auto shrink-0 border-t border-border px-4 py-2">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-              <span className="font-medium text-primary/80">TOLS Platform</span>
+        <footer className="mt-auto shrink-0 border-t border-border px-2 sm:px-4 py-1.5 sm:py-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-3 text-[10px] text-muted-foreground">
+              <span className="font-medium text-primary/80">TOLS</span>
               <span className="hidden sm:inline">v2.0</span>
-              <span className="hidden sm:inline">© 2025 TOLS Operations</span>
+              <span className="hidden md:inline">© 2025 TOLS Operations</span>
             </div>
-            <div className="flex items-center gap-3 text-[10px]">
+            <div className="flex items-center gap-2 sm:gap-3 text-[10px]">
               <span className="flex items-center gap-1">
                 <span className="size-1.5 rounded-full bg-emerald-500" />
-                <span className="text-muted-foreground hidden sm:inline">DB</span>
+                <span className="text-muted-foreground hidden xs:inline">DB</span>
               </span>
               <span className="flex items-center gap-1">
                 <span className="size-1.5 rounded-full bg-emerald-500" />
@@ -160,7 +160,7 @@ export default function Home() {
               </span>
               <span className="flex items-center gap-1">
                 <span className="size-1.5 rounded-full bg-primary" />
-                <span className="text-muted-foreground hidden sm:inline">Escrow</span>
+                <span className="text-muted-foreground hidden md:inline">Escrow</span>
               </span>
             </div>
           </div>

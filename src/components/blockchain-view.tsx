@@ -640,7 +640,7 @@ export function BlockchainView() {
   return (
     <div className="min-h-screen bg-[#0d0f14] text-gray-100">
       {/* Header */}
-      <div className="border-b border-gray-800/60 bg-[#12141a] px-6 py-5">
+      <div className="border-b border-gray-800/60 bg-[#12141a] px-3 sm:px-6 py-4 sm:py-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div className="flex size-10 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 shadow-lg shadow-amber-500/20">
@@ -668,9 +668,9 @@ export function BlockchainView() {
       </div>
 
       {/* Tabs */}
-      <div className="p-6">
+      <div className="p-3 sm:p-6">
         <Tabs defaultValue="wallets" className="w-full">
-          <TabsList className="mb-6 bg-[#1a1d25] p-1">
+          <TabsList className="mb-6 grid w-full grid-cols-2 sm:grid-cols-4 bg-[#1a1d25] p-1">
             <TabsTrigger value="wallets" className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400">
               <Wallet className="mr-1.5 size-4" /> Wallets
             </TabsTrigger>
@@ -687,7 +687,7 @@ export function BlockchainView() {
 
           {/* ═══ Tab 1: Wallets ═══ */}
           <TabsContent value="wallets">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <h2 className="text-lg font-semibold text-white">Wallets ({wallets.length})</h2>
               <Dialog open={addWalletOpen} onOpenChange={setAddWalletOpen}>
                 <DialogTrigger asChild>
@@ -695,7 +695,7 @@ export function BlockchainView() {
                     <Plus className="mr-1.5 size-4" /> Add Wallet
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="border-gray-700 bg-[#1a1d25] text-gray-100 sm:max-w-md">
+                <DialogContent className="border-gray-700 bg-[#1a1d25] text-gray-100 sm:max-w-md max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle className="text-white">Add New Wallet</DialogTitle>
                   </DialogHeader>
@@ -761,7 +761,7 @@ export function BlockchainView() {
             </div>
 
             {walletsLoading ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Card key={i} className="border-gray-800/60 bg-[#12141a]">
                     <CardHeader className="pb-2">
@@ -775,7 +775,7 @@ export function BlockchainView() {
                 ))}
               </div>
             ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {wallets.map((wallet) => (
                   <Card
                     key={wallet.id}
@@ -812,7 +812,7 @@ export function BlockchainView() {
                         <Separator className="bg-gray-800/60" />
                         <div className="flex items-end justify-between">
                           <div>
-                            <p className="text-2xl font-bold text-white">
+                            <p className="text-xl sm:text-2xl font-bold text-white">
                               {formatBalance(wallet.balance)} <span className="text-sm font-medium text-gray-400">{wallet.symbol}</span>
                             </p>
                             <p className="text-sm text-emerald-400">{formatUsd(wallet.usdValue)}</p>
@@ -870,11 +870,11 @@ export function BlockchainView() {
                     placeholder="Search hash, address..."
                     value={txSearch}
                     onChange={(e) => setTxSearch(e.target.value)}
-                    className="h-9 w-48 border-gray-700 bg-[#12141a] pl-8 text-sm text-white placeholder:text-gray-500"
+                    className="h-9 w-full sm:w-48 border-gray-700 bg-[#12141a] pl-8 text-sm text-white placeholder:text-gray-500"
                   />
                 </div>
                 <Select value={txTypeFilter} onValueChange={setTxTypeFilter}>
-                  <SelectTrigger className="h-9 w-32 border-gray-700 bg-[#12141a] text-sm text-white">
+                  <SelectTrigger className="h-9 w-full sm:w-32 border-gray-700 bg-[#12141a] text-sm text-white">
                     <Filter className="mr-1 size-3 text-gray-500" />
                     <SelectValue placeholder="Type" />
                   </SelectTrigger>
@@ -888,7 +888,7 @@ export function BlockchainView() {
                   </SelectContent>
                 </Select>
                 <Select value={txStatusFilter} onValueChange={setTxStatusFilter}>
-                  <SelectTrigger className="h-9 w-36 border-gray-700 bg-[#12141a] text-sm text-white">
+                  <SelectTrigger className="h-9 w-full sm:w-36 border-gray-700 bg-[#12141a] text-sm text-white">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent className="border-gray-700 bg-[#1a1d25] text-white">
@@ -904,20 +904,21 @@ export function BlockchainView() {
 
             <Card className="border-gray-800/60 bg-[#12141a]">
               <CardContent className="p-0">
+                <div className="overflow-x-auto">
                 <ScrollArea className="max-h-[600px]">
                   <Table>
                     <TableHeader>
                       <TableRow className="border-gray-800/60 hover:bg-transparent">
                         <TableHead className="text-gray-400">TX Hash</TableHead>
                         <TableHead className="text-gray-400">Type</TableHead>
-                        <TableHead className="text-gray-400">From</TableHead>
-                        <TableHead className="text-gray-400">To</TableHead>
+                        <TableHead className="text-gray-400 hidden sm:table-cell">From</TableHead>
+                        <TableHead className="text-gray-400 hidden sm:table-cell">To</TableHead>
                         <TableHead className="text-right text-gray-400">Amount</TableHead>
                         <TableHead className="text-gray-400">Currency</TableHead>
-                        <TableHead className="text-gray-400">Gas Fee</TableHead>
-                        <TableHead className="text-gray-400">Confirms</TableHead>
+                        <TableHead className="text-gray-400 hidden sm:table-cell">Gas Fee</TableHead>
+                        <TableHead className="text-gray-400 hidden sm:table-cell">Confirms</TableHead>
                         <TableHead className="text-gray-400">Status</TableHead>
-                        <TableHead className="text-gray-400">Time</TableHead>
+                        <TableHead className="text-gray-400 hidden sm:table-cell">Time</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -946,14 +947,14 @@ export function BlockchainView() {
                             <TableCell>
                               <TxTypeBadge type={tx.type} />
                             </TableCell>
-                            <TableCell className="font-mono text-xs text-gray-400">{tx.from}</TableCell>
-                            <TableCell className="font-mono text-xs text-gray-400">{tx.to}</TableCell>
+                            <TableCell className="font-mono text-xs text-gray-400 hidden sm:table-cell">{tx.from}</TableCell>
+                            <TableCell className="font-mono text-xs text-gray-400 hidden sm:table-cell">{tx.to}</TableCell>
                             <TableCell className="text-right font-medium text-white">
                               {tx.amount.toLocaleString()}
                             </TableCell>
                             <TableCell className="text-xs text-gray-300">{tx.currency}</TableCell>
-                            <TableCell className="text-xs text-gray-400">{tx.gasFee}</TableCell>
-                            <TableCell>
+                            <TableCell className="text-xs text-gray-400 hidden sm:table-cell">{tx.gasFee}</TableCell>
+                            <TableCell className="hidden sm:table-cell">
                               <div className="flex items-center gap-1.5">
                                 <Progress
                                   value={(tx.confirmations / tx.maxConfirmations) * 100}
@@ -967,27 +968,28 @@ export function BlockchainView() {
                             <TableCell>
                               <TxStatusBadge status={tx.status} />
                             </TableCell>
-                            <TableCell className="text-xs text-gray-500">{tx.time}</TableCell>
+                            <TableCell className="text-xs text-gray-500 hidden sm:table-cell">{tx.time}</TableCell>
                           </TableRow>
                         ))
                       )}
                     </TableBody>
                   </Table>
                 </ScrollArea>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
 
           {/* ═══ Tab 3: Networks ═══ */}
           <TabsContent value="networks">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <h2 className="text-lg font-semibold text-white">Supported Networks ({networks.length})</h2>
               <Button variant="outline" size="sm" className="border-gray-700 text-gray-300 hover:border-amber-500/30 hover:text-amber-400">
                 <Settings className="mr-1.5 size-4" /> Configure RPC
               </Button>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {networks.map((network) => (
                 <Card
                   key={network.id}
@@ -1083,7 +1085,7 @@ export function BlockchainView() {
 
           {/* ═══ Tab 4: Smart Contracts ═══ */}
           <TabsContent value="contracts">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <h2 className="text-lg font-semibold text-white">Smart Contracts ({contracts.length})</h2>
               <Button variant="outline" size="sm" className="border-gray-700 text-gray-300 hover:border-amber-500/30 hover:text-amber-400">
                 <Plus className="mr-1.5 size-4" /> Deploy New
@@ -1092,16 +1094,17 @@ export function BlockchainView() {
 
             <Card className="border-gray-800/60 bg-[#12141a]">
               <CardContent className="p-0">
+                <div className="overflow-x-auto">
                 <ScrollArea className="max-h-[500px]">
                   <Table>
                     <TableHeader>
                       <TableRow className="border-gray-800/60 hover:bg-transparent">
                         <TableHead className="text-gray-400">Name</TableHead>
-                        <TableHead className="text-gray-400">Address</TableHead>
-                        <TableHead className="text-gray-400">Network</TableHead>
+                        <TableHead className="text-gray-400 hidden sm:table-cell">Address</TableHead>
+                        <TableHead className="text-gray-400 hidden sm:table-cell">Network</TableHead>
                         <TableHead className="text-gray-400">Type</TableHead>
-                        <TableHead className="text-gray-400">Verified</TableHead>
-                        <TableHead className="text-gray-400">Deployed</TableHead>
+                        <TableHead className="text-gray-400 hidden sm:table-cell">Verified</TableHead>
+                        <TableHead className="text-gray-400 hidden sm:table-cell">Deployed</TableHead>
                         <TableHead className="text-gray-400">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1109,7 +1112,7 @@ export function BlockchainView() {
                       {contracts.map((contract) => (
                         <TableRow key={contract.id} className="border-gray-800/60 hover:bg-amber-500/5">
                           <TableCell className="font-medium text-white">{contract.name}</TableCell>
-                          <TableCell>
+                          <TableCell className="hidden sm:table-cell">
                             <div className="flex items-center gap-1.5">
                               <span className="font-mono text-xs text-amber-400/80">
                                 {truncateAddress(contract.address, 8)}
@@ -1124,13 +1127,13 @@ export function BlockchainView() {
                               </Button>
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="hidden sm:table-cell">
                             <NetworkBadge network={contract.network} />
                           </TableCell>
                           <TableCell>
                             <ContractTypeBadge type={contract.type} />
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="hidden sm:table-cell">
                             {contract.verified ? (
                               <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
                                 <CheckCircle className="mr-1 size-3" /> Verified
@@ -1141,7 +1144,7 @@ export function BlockchainView() {
                               </Badge>
                             )}
                           </TableCell>
-                          <TableCell className="text-xs text-gray-400">{contract.deployedDate}</TableCell>
+                          <TableCell className="text-xs text-gray-400 hidden sm:table-cell">{contract.deployedDate}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
                               <Button
@@ -1166,12 +1169,13 @@ export function BlockchainView() {
                     </TableBody>
                   </Table>
                 </ScrollArea>
+                </div>
               </CardContent>
             </Card>
 
             {/* Contract Detail Dialog */}
             <Dialog open={viewContractId !== null} onOpenChange={(open) => !open && setViewContractId(null)}>
-              <DialogContent className="border-gray-700 bg-[#1a1d25] text-gray-100 sm:max-w-lg">
+              <DialogContent className="border-gray-700 bg-[#1a1d25] text-gray-100 sm:max-w-lg max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle className="text-white">Contract Details</DialogTitle>
                 </DialogHeader>

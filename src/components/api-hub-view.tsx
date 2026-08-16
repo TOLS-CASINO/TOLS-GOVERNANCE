@@ -290,10 +290,10 @@ function OverviewTab({ data }: { data: ApiHubData }) {
   return (
     <div className="space-y-4">
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {kpis.map((kpi) => (
           <Card key={kpi.label} className="bg-card/50">
-            <CardContent className="p-4">
+            <CardContent className="p-3 sm:p-4">
               <div className="flex items-center gap-2 mb-2">
                 <kpi.icon className={`size-4 ${kpi.color}`} />
                 <span className="text-[10px] text-muted-foreground truncate">{kpi.label}</span>
@@ -455,7 +455,7 @@ function TokensTab({ tokens }: { tokens: ApiToken[] }) {
       {/* Header */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <div className="relative flex-1 max-w-xs">
+          <div className="relative flex-1 max-w-full sm:max-w-xs">
             <Search className="absolute left-2.5 top-2 size-3.5 text-muted-foreground" />
             <Input
               placeholder="Search tokens..."
@@ -474,7 +474,7 @@ function TokensTab({ tokens }: { tokens: ApiToken[] }) {
               Generate New Token
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Key className="size-4 text-primary" />
@@ -575,6 +575,7 @@ function TokensTab({ tokens }: { tokens: ApiToken[] }) {
       <Card className="bg-card/50">
         <CardContent className="p-0">
           <ScrollArea className="max-h-[520px]">
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -593,7 +594,7 @@ function TokensTab({ tokens }: { tokens: ApiToken[] }) {
                   <TableRow key={token.id}>
                     <TableCell className="text-xs font-medium">{token.name}</TableCell>
                     <TableCell>
-                      <code className="text-[10px] font-mono text-muted-foreground">{maskToken(token.tokenPrefix)}</code>
+                      <code className="text-[10px] font-mono text-muted-foreground truncate block max-w-[80px] sm:max-w-none">{maskToken(token.tokenPrefix)}</code>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
@@ -662,6 +663,7 @@ function TokensTab({ tokens }: { tokens: ApiToken[] }) {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </ScrollArea>
         </CardContent>
       </Card>
@@ -759,7 +761,7 @@ function WebhooksTab({ webhooks, deliveries }: { webhooks: WebhookItem[]; delive
               Add Webhook
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Webhook className="size-4 text-primary" />
@@ -813,6 +815,7 @@ function WebhooksTab({ webhooks, deliveries }: { webhooks: WebhookItem[]; delive
       <Card className="bg-card/50">
         <CardContent className="p-0">
           <ScrollArea className="max-h-[520px]">
+            <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -831,7 +834,7 @@ function WebhooksTab({ webhooks, deliveries }: { webhooks: WebhookItem[]; delive
                     <TableRow key={wh.id} className="cursor-pointer" onClick={() => setExpandedWebhook(expandedWebhook === wh.id ? null : wh.id)}>
                       <TableCell className="text-xs font-medium">{wh.name}</TableCell>
                       <TableCell>
-                        <code className="text-[10px] font-mono text-muted-foreground max-w-[200px] truncate block">{wh.url}</code>
+                        <code className="text-[10px] font-mono text-muted-foreground max-w-[120px] sm:max-w-[200px] truncate block">{wh.url}</code>
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap gap-1">
@@ -921,6 +924,7 @@ function WebhooksTab({ webhooks, deliveries }: { webhooks: WebhookItem[]; delive
                 ))}
               </TableBody>
             </Table>
+            </div>
           </ScrollArea>
         </CardContent>
       </Card>
@@ -980,7 +984,7 @@ function IntegrationsTab({ integrations }: { integrations: Integration[] }) {
               Add Integration
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Plug className="size-4 text-primary" />
@@ -1010,7 +1014,7 @@ function IntegrationsTab({ integrations }: { integrations: Integration[] }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {integrationList.map(intg => (
           <Card key={intg.id} className={`bg-card/50 ${intg.status === 'disconnected' ? 'opacity-60' : ''}`}>
-            <CardContent className="p-4 space-y-3">
+            <CardContent className="p-3 sm:p-4 space-y-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2.5">
                   <span className="text-2xl">{intg.logo}</span>
@@ -1106,7 +1110,7 @@ function McpTab({ endpoints }: { endpoints: McpEndpoint[] }) {
       <div className="space-y-3">
         {endpointList.map(endpoint => (
           <Card key={endpoint.id} className={`bg-card/50 ${!endpoint.isActive ? 'opacity-60' : ''}`}>
-            <CardContent className="p-4 space-y-3">
+            <CardContent className="p-3 sm:p-4 space-y-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
@@ -1125,7 +1129,7 @@ function McpTab({ endpoints }: { endpoints: McpEndpoint[] }) {
                   <p className="text-xs text-muted-foreground mb-2">{endpoint.description}</p>
                   <div className="flex items-center gap-1.5">
                     <Code className="size-3 text-muted-foreground" />
-                    <code className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded">
+                    <code className="text-[10px] font-mono text-cyan-400 bg-cyan-500/10 px-1.5 py-0.5 rounded truncate block max-w-[200px] sm:max-w-none">
                       {endpoint.baseUrl}
                     </code>
                   </div>
@@ -1227,7 +1231,7 @@ function LoadingSkeleton() {
         <Skeleton className="h-5 w-24" />
       </div>
       <Skeleton className="h-9 w-full" />
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {Array.from({ length: 6 }).map((_, i) => (
           <Skeleton key={i} className="h-20 rounded-lg" />
         ))}
@@ -1243,7 +1247,7 @@ function LoadingSkeleton() {
 function ErrorState({ error, onRetry }: { error: string; onRetry: () => void }) {
   return (
     <Card className="bg-red-500/5 border-red-500/20">
-      <CardContent className="p-6 text-center space-y-3">
+      <CardContent className="p-3 sm:p-6 text-center space-y-3">
         <AlertCircle className="size-8 text-red-400 mx-auto" />
         <p className="text-sm text-red-400">Failed to load API Hub data</p>
         <p className="text-xs text-muted-foreground">{error}</p>

@@ -1,0 +1,958 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState, useMemo } from 'react'
+     4→     4→import {
+     5→     5→  Shield,
+     6→     6→  Users,
+     7→     7→  Key,
+     8→     8→  Lock,
+     9→     9→  Smartphone,
+    10→    10→  Globe,
+    11→    11→  Clock,
+    12→    12→  Plus,
+    13→    13→  Search,
+    14→    14→  Trash2,
+    15→    15→  CheckCircle,
+    16→    16→  XCircle,
+    17→    17→  AlertTriangle,
+    18→    18→  Eye,
+    19→    19→  RefreshCw,
+    20→    20→} from 'lucide-react'
+    21→    21→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    22→    22→import {
+    23→    23→  Tabs,
+    24→    24→  TabsContent,
+    25→    25→  TabsList,
+    26→    26→  TabsTrigger,
+    27→    27→} from '@/components/ui/tabs'
+    28→    28→import {
+    29→    29→  Table,
+    30→    30→  TableBody,
+    31→    31→  TableCell,
+    32→    32→  TableHead,
+    33→    33→  TableHeader,
+    34→    34→  TableRow,
+    35→    35→} from '@/components/ui/table'
+    36→    36→import { Badge } from '@/components/ui/badge'
+    37→    37→import { Button } from '@/components/ui/button'
+    38→    38→import {
+    39→    39→  Dialog,
+    40→    40→  DialogContent,
+    41→    41→  DialogHeader,
+    42→    42→  DialogTitle,
+    43→    43→  DialogTrigger,
+    44→    44→} from '@/components/ui/dialog'
+    45→    45→import { Input } from '@/components/ui/input'
+    46→    46→import {
+    47→    47→  Select,
+    48→    48→  SelectContent,
+    49→    49→  SelectItem,
+    50→    50→  SelectTrigger,
+    51→    51→  SelectValue,
+    52→    52→} from '@/components/ui/select'
+    53→    53→import { Switch } from '@/components/ui/switch'
+    54→    54→import { Label } from '@/components/ui/label'
+    55→    55→import { ScrollArea } from '@/components/ui/scroll-area'
+    56→    56→import { Skeleton } from '@/components/ui/skeleton'
+    57→    57→import { Separator } from '@/components/ui/separator'
+    58→    58→import { Textarea } from '@/components/ui/textarea'
+    59→    59→import { useApi } from '@/hooks/use-api'
+    60→    60→import { api } from '@/services/api'
+    61→    61→
+    62→    62→/* ─── Types ─── */
+    63→    63→
+    64→    64→interface User {
+    65→    65→  id: string
+    66→    66→  name: string
+    67→    67→  email: string
+    68→    68→  role: string
+    69→    69→  casino: string
+    70→    70→  status: 'active' | 'inactive' | 'suspended'
+    71→    71→  lastLogin: string
+    72→    72→  avatar?: string
+    73→    73→}
+    74→    74→
+    75→    75→interface Session {
+    76→    76→  id: string
+    77→    77→  user: string
+    78→    78→  ipAddress: string
+    79→    79→  device: string
+    80→    80→  browser: string
+    81→    81→  started: string
+    82→    82→  expires: string
+    83→    83→  isActive: boolean
+    84→    84→}
+    85→    85→
+    86→    86→type PermissionAction = 'read' | 'write' | 'delete' | 'approve'
+    87→    87→
+    88→    88→interface PermissionMatrix {
+    89→    89→  [role: string]: {
+    90→    90→    [resource: string]: PermissionAction[]
+    91→    91→  }
+    92→    92→}
+    93→    93→
+    94→    94→interface PasswordPolicy {
+    95→    95→  minLength: number
+    96→    96→  requireUppercase: boolean
+    97→    97→  requireNumbers: boolean
+    98→    98→  requireSpecialChars: boolean
+    99→    99→  expiryDays: number
+   100→   100→}
+   101→   101→
+   102→   102→interface SessionSettings {
+   103→   103→  maxConcurrent: number
+   104→   104→  sessionTimeout: number
+   105→   105→  idleTimeout: number
+   106→   106→}
+   107→   107→
+   108→   108→interface TwoFactorSettings {
+   109→   109→  enabled: boolean
+   110→   110→  enforceForAdmins: boolean
+   111→   111→  enforceForFinance: boolean
+   112→   112→  method: 'totp' | 'sms' | 'email'
+   113→   113→}
+   114→   114→
+   115→   115→interface SecurityConfig {
+   116→   116→  passwordPolicy: PasswordPolicy
+   117→   117→  sessionSettings: SessionSettings
+   118→   118→  twoFactor: TwoFactorSettings
+   119→   119→  ipWhitelist: string[]
+   120→   120→  maxLoginAttempts: number
+   121→   121→  lockoutDuration: number
+   122→   122→}
+   123→   123→
+   124→   124→/* ─── Mock Data ─── */
+   125→   125→
+   126→   126→const MOCK_USERS: User[] = [
+   127→   127→  { id: 'u1', name: 'Marcus Vex', email: 'marcus@tols.io', role: 'Admin', casino: 'All Casinos', status: 'active', lastLogin: '2025-01-15 09:32' },
+   128→   128→  { id: 'u2', name: 'Elena Rossi', email: 'elena@tols.io', role: 'Finance Manager', casino: 'Royal Spin', status: 'active', lastLogin: '2025-01-15 08:17' },
+   129→   129→  { id: 'u3', name: 'Dmitri Volkov', email: 'dmitri@tols.io', role: 'Controller', casino: 'Golden Reef', status: 'active', lastLogin: '2025-01-14 22:45' },
+   130→   130→  { id: 'u4', name: 'Sarah Chen', email: 'sarah@tols.io', role: 'Marketing', casino: 'Luxe Bet', status: 'active', lastLogin: '2025-01-15 07:03' },
+   131→   131→  { id: 'u5', name: 'James Okafor', email: 'james@tols.io', role: 'Support Agent', casino: 'Royal Spin', status: 'inactive', lastLogin: '2025-01-10 16:28' },
+   132→   132→  { id: 'u6', name: 'Priya Sharma', email: 'priya@tols.io', role: 'Viewer', casino: 'All Casinos', status: 'suspended', lastLogin: '2025-01-08 11:55' },
+   133→   133→]
+   134→   134→
+   135→   135→const MOCK_SESSIONS: Session[] = [
+   136→   136→  { id: 's1', user: 'Marcus Vex', ipAddress: '203.45.67.89', device: 'Desktop', browser: 'Chrome 121', started: '2025-01-15 09:32', expires: '2025-01-15 21:32', isActive: true },
+   137→   137→  { id: 's2', user: 'Elena Rossi', ipAddress: '178.22.11.44', device: 'Laptop', browser: 'Firefox 122', started: '2025-01-15 08:17', expires: '2025-01-15 20:17', isActive: true },
+   138→   138→  { id: 's3', user: 'Dmitri Volkov', ipAddress: '91.202.114.3', device: 'Desktop', browser: 'Edge 120', started: '2025-01-14 22:45', expires: '2025-01-15 10:45', isActive: true },
+   139→   139→  { id: 's4', user: 'Sarah Chen', ipAddress: '58.163.72.201', device: 'Mobile', browser: 'Safari 17', started: '2025-01-15 07:03', expires: '2025-01-15 19:03', isActive: true },
+   140→   140→]
+   141→   141→
+   142→   142→const ROLES = ['Admin', 'Controller', 'Finance', 'Marketing', 'Support', 'Viewer']
+   143→   143→const RESOURCES = ['Players', 'Financial', 'Wallets', 'Promotions', 'Settings', 'Vendors', 'API']
+   144→   144→
+   145→   145→const DEFAULT_PERMISSIONS: PermissionMatrix = {
+   146→   146→  Admin:     { Players: ['read','write','delete','approve'], Financial: ['read','write','delete','approve'], Wallets: ['read','write','delete','approve'], Promotions: ['read','write','delete','approve'], Settings: ['read','write','delete','approve'], Vendors: ['read','write','delete','approve'], API: ['read','write','delete','approve'] },
+   147→   147→  Controller:{ Players: ['read','write','approve'], Financial: ['read','write','approve'], Wallets: ['read','write'], Promotions: ['read','approve'], Settings: ['read'], Vendors: ['read','approve'], API: ['read'] },
+   148→   148→  Finance:   { Players: ['read'], Financial: ['read','write','approve'], Wallets: ['read','write'], Promotions: ['read'], Settings: ['read'], Vendors: ['read'], API: ['read'] },
+   149→   149→  Marketing: { Players: ['read','write'], Financial: ['read'], Wallets: ['read'], Promotions: ['read','write','delete'], Settings: ['read'], Vendors: ['read'], API: ['read'] },
+   150→   150→  Support:   { Players: ['read','write'], Financial: ['read'], Wallets: ['read'], Promotions: ['read'], Settings: ['read'], Vendors: ['read'], API: [] },
+   151→   151→  Viewer:    { Players: ['read'], Financial: ['read'], Wallets: ['read'], Promotions: ['read'], Settings: ['read'], Vendors: ['read'], API: ['read'] },
+   152→   152→}
+   153→   153→
+   154→   154→const DEFAULT_SECURITY: SecurityConfig = {
+   155→   155→  passwordPolicy: { minLength: 12, requireUppercase: true, requireNumbers: true, requireSpecialChars: true, expiryDays: 90 },
+   156→   156→  sessionSettings: { maxConcurrent: 3, sessionTimeout: 720, idleTimeout: 30 },
+   157→   157→  twoFactor: { enabled: true, enforceForAdmins: true, enforceForFinance: true, method: 'totp' },
+   158→   158→  ipWhitelist: ['203.45.67.0/24', '178.22.11.0/24', '10.0.0.0/8'],
+   159→   159→  maxLoginAttempts: 5,
+   160→   160→  lockoutDuration: 30,
+   161→   161→}
+   162→   162→
+   163→   163→const ROLE_COLORS: Record<string, string> = {
+   164→   164→  Admin: 'text-emerald-400',
+   165→   165→  'Finance Manager': 'text-chart-4',
+   166→   166→  Controller: 'text-chart-2',
+   167→   167→  Marketing: 'text-chart-3',
+   168→   168→  'Support Agent': 'text-amber-400',
+   169→   169→  Viewer: 'text-muted-foreground',
+   170→   170→}
+   171→   171→
+   172→   172→const STATUS_CONFIG: Record<string, { color: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
+   173→   173→  active: { color: 'text-emerald-400', variant: 'default' },
+   174→   174→  inactive: { color: 'text-muted-foreground', variant: 'secondary' },
+   175→   175→  suspended: { color: 'text-red-400', variant: 'destructive' },
+   176→   176→}
+   177→   177→
+   178→   178→/* ─── Component ─── */
+   179→   179→
+   180→   180→export function AuthView() {
+   181→   181→  // Data fetching (mocked — no backend endpoint yet)
+   182→   182→  const { data: _apiData, loading, error, refetch } = useApi(() => Promise.resolve({ users: MOCK_USERS, sessions: MOCK_SESSIONS }), [])
+   183→   183→
+   184→   184→  // Users tab state
+   185→   185→  const [users, setUsers] = useState<User[]>(MOCK_USERS)
+   186→   186→  const [userSearch, setUserSearch] = useState('')
+   187→   187→  const [roleFilter, setRoleFilter] = useState('all')
+   188→   188→  const [addUserOpen, setAddUserOpen] = useState(false)
+   189→   189→  const [newUser, setNewUser] = useState({ name: '', email: '', role: 'Viewer', casino: 'All Casinos' })
+   190→   190→
+   191→   191→  // Sessions tab state
+   192→   192→  const [sessions, setSessions] = useState<Session[]>(MOCK_SESSIONS)
+   193→   193→
+   194→   194→  // Permissions tab state
+   195→   195→  const [permissions, setPermissions] = useState<PermissionMatrix>(DEFAULT_PERMISSIONS)
+   196→   196→
+   197→   197→  // Security tab state
+   198→   198→  const [security, setSecurity] = useState<SecurityConfig>(DEFAULT_SECURITY)
+   199→   199→  const [newIp, setNewIp] = useState('')
+   200→   200→
+   201→   201→  // ─── Derived data ───
+   202→   202→
+   203→   203→  const filteredUsers = useMemo(() => {
+   204→   204→    return users.filter((u) => {
+   205→   205→      const matchesSearch = !userSearch ||
+   206→   206→        u.name.toLowerCase().includes(userSearch.toLowerCase()) ||
+   207→   207→        u.email.toLowerCase().includes(userSearch.toLowerCase())
+   208→   208→      const matchesRole = roleFilter === 'all' || u.role === roleFilter
+   209→   209→      return matchesSearch && matchesRole
+   210→   210→    })
+   211→   211→  }, [users, userSearch, roleFilter])
+   212→   212→
+   213→   213→  const allRoles = useMemo(() => [...new Set(users.map((u) => u.role))].sort(), [users])
+   214→   214→
+   215→   215→  // ─── Handlers ───
+   216→   216→
+   217→   217→  const handleAddUser = () => {
+   218→   218→    if (!newUser.name || !newUser.email) return
+   219→   219→    const user: User = {
+   220→   220→      id: `u${Date.now()}`,
+   221→   221→      name: newUser.name,
+   222→   222→      email: newUser.email,
+   223→   223→      role: newUser.role,
+   224→   224→      casino: newUser.casino,
+   225→   225→      status: 'active',
+   226→   226→      lastLogin: '—',
+   227→   227→    }
+   228→   228→    setUsers((prev) => [...prev, user])
+   229→   229→    setNewUser({ name: '', email: '', role: 'Viewer', casino: 'All Casinos' })
+   230→   230→    setAddUserOpen(false)
+   231→   231→  }
+   232→   232→
+   233→   233→  const handleDeleteUser = (id: string) => {
+   234→   234→    setUsers((prev) => prev.filter((u) => u.id !== id))
+   235→   235→  }
+   236→   236→
+   237→   237→  const handleToggleUserStatus = (id: string) => {
+   238→   238→    setUsers((prev) =>
+   239→   239→      prev.map((u) =>
+   240→   240→        u.id === id
+   241→   241→          ? { ...u, status: u.status === 'active' ? 'suspended' : 'active' }
+   242→   242→          : u
+   243→   243→      )
+   244→   244→    )
+   245→   245→  }
+   246→   246→
+   247→   247→  const handleRevokeSession = (id: string) => {
+   248→   248→    setSessions((prev) => prev.filter((s) => s.id !== id))
+   249→   249→  }
+   250→   250→
+   251→   251→  const handleTogglePermission = (role: string, resource: string, action: PermissionAction) => {
+   252→   252→    setPermissions((prev) => {
+   253→   253→      const current = prev[role]?.[resource] || []
+   254→   254→      const updated = current.includes(action)
+   255→   255→        ? current.filter((a) => a !== action)
+   256→   256→        : [...current, action]
+   257→   257→      return {
+   258→   258→        ...prev,
+   259→   259→        [role]: {
+   260→   260→          ...prev[role],
+   261→   261→          [resource]: updated,
+   262→   262→        },
+   263→   263→      }
+   264→   264→    })
+   265→   265→  }
+   266→   266→
+   267→   267→  const handleAddIp = () => {
+   268→   268→    if (!newIp.trim()) return
+   269→   269→    setSecurity((prev) => ({
+   270→   270→      ...prev,
+   271→   271→      ipWhitelist: [...prev.ipWhitelist, newIp.trim()],
+   272→   272→    }))
+   273→   273→    setNewIp('')
+   274→   274→  }
+   275→   275→
+   276→   276→  const handleRemoveIp = (ip: string) => {
+   277→   277→    setSecurity((prev) => ({
+   278→   278→      ...prev,
+   279→   279→      ipWhitelist: prev.ipWhitelist.filter((i) => i !== ip),
+   280→   280→    }))
+   281→   281→  }
+   282→   282→
+   283→   283→  const updateSecurity = <K extends keyof SecurityConfig>(key: K, value: SecurityConfig[K]) => {
+   284→   284→    setSecurity((prev) => ({ ...prev, [key]: value }))
+   285→   285→  }
+   286→   286→
+   287→   287→  // ─── Loading / Error ───
+   288→   288→
+   289→   289→  if (loading) {
+   290→   290→    return (
+   291→   291→      <div className="space-y-4">
+   292→   292→        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+   293→   293→          {Array.from({ length: 3 }).map((_, i) => (
+   294→   294→            <Card key={i}><CardContent className="p-6"><Skeleton className="h-24 w-full" /></CardContent></Card>
+   295→   295→          ))}
+   296→   296→        </div>
+   297→   297→        <Card><CardContent className="p-6"><Skeleton className="h-48 w-full" /></CardContent></Card>
+   298→   298→      </div>
+   299→   299→    )
+   300→   300→  }
+   301→   301→
+   302→   302→  if (error) {
+   303→   303→    return (
+   304→   304→      <Card className="border-destructive/40">
+   305→   305→        <CardContent className="p-6 text-center">
+   306→   306→          <AlertTriangle className="size-8 text-destructive mx-auto mb-2" />
+   307→   307→          <p className="text-sm font-medium text-destructive">Failed to load auth data</p>
+   308→   308→          <p className="text-xs text-muted-foreground mt-1">{error}</p>
+   309→   309→          <Button variant="outline" size="sm" className="mt-3 gap-1" onClick={refetch}>
+   310→   310→            <RefreshCw className="size-3" /> Retry
+   311→   311→          </Button>
+   312→   312→        </CardContent>
+   313→   313→      </Card>
+   314→   314→    )
+   315→   315→  }
+   316→   316→
+   317→   317→  // ─── Render ───
+   318→   318→
+   319→   319→  return (
+   320→   320→    <div className="space-y-4">
+   321→   321→      {/* Summary Cards */}
+   322→   322→      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+   323→   323→        <Card>
+   324→   324→          <CardContent className="p-4">
+   325→   325→            <div className="flex items-center gap-3">
+   326→   326→              <div className="rounded-lg bg-muted p-2"><Users className="size-4 text-primary" /></div>
+   327→   327→              <div>
+   328→   328→                <p className="text-lg font-bold">{users.length}</p>
+   329→   329→                <p className="text-[10px] text-muted-foreground uppercase">Total Users</p>
+   330→   330→              </div>
+   331→   331→            </div>
+   332→   332→          </CardContent>
+   333→   333→        </Card>
+   334→   334→        <Card>
+   335→   335→          <CardContent className="p-4">
+   336→   336→            <div className="flex items-center gap-3">
+   337→   337→              <div className="rounded-lg bg-muted p-2"><Shield className="size-4 text-emerald-400" /></div>
+   338→   338→              <div>
+   339→   339→                <p className="text-lg font-bold">{users.filter((u) => u.status === 'active').length}</p>
+   340→   340→                <p className="text-[10px] text-muted-foreground uppercase">Active Users</p>
+   341→   341→              </div>
+   342→   342→            </div>
+   343→   343→          </CardContent>
+   344→   344→        </Card>
+   345→   345→        <Card>
+   346→   346→          <CardContent className="p-4">
+   347→   347→            <div className="flex items-center gap-3">
+   348→   348→              <div className="rounded-lg bg-muted p-2"><Globe className="size-4 text-chart-4" /></div>
+   349→   349→              <div>
+   350→   350→                <p className="text-lg font-bold">{sessions.length}</p>
+   351→   351→                <p className="text-[10px] text-muted-foreground uppercase">Active Sessions</p>
+   352→   352→              </div>
+   353→   353→            </div>
+   354→   354→          </CardContent>
+   355→   355→        </Card>
+   356→   356→        <Card>
+   357→   357→          <CardContent className="p-4">
+   358→   358→            <div className="flex items-center gap-3">
+   359→   359→              <div className="rounded-lg bg-muted p-2"><Lock className="size-4 text-amber-400" /></div>
+   360→   360→              <div>
+   361→   361→                <p className="text-lg font-bold">{security.twoFactor.enabled ? 'ON' : 'OFF'}</p>
+   362→   362→                <p className="text-[10px] text-muted-foreground uppercase">2FA Status</p>
+   363→   363→              </div>
+   364→   364→            </div>
+   365→   365→          </CardContent>
+   366→   366→        </Card>
+   367→   367→      </div>
+   368→   368→
+   369→   369→      {/* Main Tabs */}
+   370→   370→      <Tabs defaultValue="users" className="space-y-4">
+   371→   371→        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+   372→   372→          <TabsTrigger value="users" className="text-xs gap-1">
+   373→   373→            <Users className="size-3" /> Users
+   374→   374→          </TabsTrigger>
+   375→   375→          <TabsTrigger value="sessions" className="text-xs gap-1">
+   376→   376→            <Globe className="size-3" /> Sessions
+   377→   377→          </TabsTrigger>
+   378→   378→          <TabsTrigger value="permissions" className="text-xs gap-1">
+   379→   379→            <Shield className="size-3" /> Permissions
+   380→   380→          </TabsTrigger>
+   381→   381→          <TabsTrigger value="security" className="text-xs gap-1">
+   382→   382→            <Lock className="size-3" /> Security
+   383→   383→          </TabsTrigger>
+   384→   384→        </TabsList>
+   385→   385→
+   386→   386→        {/* ──────── Tab 1: Users ──────── */}
+   387→   387→        <TabsContent value="users">
+   388→   388→          <Card>
+   389→   389→            <CardHeader className="pb-2">
+   390→   390→              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+   391→   391→                <div className="flex items-center gap-2">
+   392→   392→                  <Users className="size-4 text-primary" />
+   393→   393→                  <CardTitle className="text-sm">User Management</CardTitle>
+   394→   394→                </div>
+   395→   395→                <div className="flex items-center gap-2">
+   396→   396→                  <div className="relative">
+   397→   397→                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
+   398→   398→                    <Input
+   399→   399→                      value={userSearch}
+   400→   400→                      onChange={(e) => setUserSearch(e.target.value)}
+   401→   401→                      placeholder="Search users..."
+   402→   402→                      className="w-[160px] h-7 text-xs pl-7"
+   403→   403→                    />
+   404→   404→                  </div>
+   405→   405→                  <Select value={roleFilter} onValueChange={setRoleFilter}>
+   406→   406→                    <SelectTrigger className="w-[130px] h-7 text-xs">
+   407→   407→                      <SelectValue placeholder="Filter role" />
+   408→   408→                    </SelectTrigger>
+   409→   409→                    <SelectContent>
+   410→   410→                      <SelectItem value="all">All Roles</SelectItem>
+   411→   411→                      {allRoles.map((r) => (
+   412→   412→                        <SelectItem key={r} value={r}>{r}</SelectItem>
+   413→   413→                      ))}
+   414→   414→                    </SelectContent>
+   415→   415→                  </Select>
+   416→   416→                  <Dialog open={addUserOpen} onOpenChange={setAddUserOpen}>
+   417→   417→                    <DialogTrigger asChild>
+   418→   418→                      <Button size="sm" className="text-xs gap-1 h-7">
+   419→   419→                        <Plus className="size-3" /> Add User
+   420→   420→                      </Button>
+   421→   421→                    </DialogTrigger>
+   422→   422→                    <DialogContent>
+   423→   423→                      <DialogHeader>
+   424→   424→                        <DialogTitle className="flex items-center gap-2">
+   425→   425→                          <Plus className="size-4 text-primary" /> Add New User
+   426→   426→                        </DialogTitle>
+   427→   427→                      </DialogHeader>
+   428→   428→                      <div className="space-y-4 pt-2">
+   429→   429→                        <div className="space-y-2">
+   430→   430→                          <Label className="text-xs">Full Name</Label>
+   431→   431→                          <Input
+   432→   432→                            value={newUser.name}
+   433→   433→                            onChange={(e) => setNewUser((p) => ({ ...p, name: e.target.value }))}
+   434→   434→                            placeholder="Enter full name"
+   435→   435→                            className="text-xs"
+   436→   436→                          />
+   437→   437→                        </div>
+   438→   438→                        <div className="space-y-2">
+   439→   439→                          <Label className="text-xs">Email</Label>
+   440→   440→                          <Input
+   441→   441→                            value={newUser.email}
+   442→   442→                            onChange={(e) => setNewUser((p) => ({ ...p, email: e.target.value }))}
+   443→   443→                            placeholder="Enter email address"
+   444→   444→                            className="text-xs"
+   445→   445→                            type="email"
+   446→   446→                          />
+   447→   447→                        </div>
+   448→   448→                        <div className="space-y-2">
+   449→   449→                          <Label className="text-xs">Role</Label>
+   450→   450→                          <Select value={newUser.role} onValueChange={(v) => setNewUser((p) => ({ ...p, role: v }))}>
+   451→   451→                            <SelectTrigger className="text-xs">
+   452→   452→                              <SelectValue />
+   453→   453→                            </SelectTrigger>
+   454→   454→                            <SelectContent>
+   455→   455→                              {ROLES.map((r) => (
+   456→   456→                                <SelectItem key={r} value={r}>{r}</SelectItem>
+   457→   457→                              ))}
+   458→   458→                            </SelectContent>
+   459→   459→                          </Select>
+   460→   460→                        </div>
+   461→   461→                        <div className="space-y-2">
+   462→   462→                          <Label className="text-xs">Casino</Label>
+   463→   463→                          <Select value={newUser.casino} onValueChange={(v) => setNewUser((p) => ({ ...p, casino: v }))}>
+   464→   464→                            <SelectTrigger className="text-xs">
+   465→   465→                              <SelectValue />
+   466→   466→                            </SelectTrigger>
+   467→   467→                            <SelectContent>
+   468→   468→                              <SelectItem value="All Casinos">All Casinos</SelectItem>
+   469→   469→                              <SelectItem value="Royal Spin">Royal Spin</SelectItem>
+   470→   470→                              <SelectItem value="Golden Reef">Golden Reef</SelectItem>
+   471→   471→                              <SelectItem value="Luxe Bet">Luxe Bet</SelectItem>
+   472→   472→                            </SelectContent>
+   473→   473→                          </Select>
+   474→   474→                        </div>
+   475→   475→                        <Button onClick={handleAddUser} className="w-full text-xs gap-1" disabled={!newUser.name || !newUser.email}>
+   476→   476→                          <Plus className="size-3" /> Create User
+   477→   477→                        </Button>
+   478→   478→                      </div>
+   479→   479→                    </DialogContent>
+   480→   480→                  </Dialog>
+   481→   481→                </div>
+   482→   482→              </div>
+   483→   483→            </CardHeader>
+   484→   484→            <CardContent>
+   485→   485→              <div className="overflow-x-auto">
+   486→   486→                <Table>
+   487→   487→                  <TableHeader>
+   488→   488→                    <TableRow>
+   489→   489→                      <TableHead className="text-xs">Name</TableHead>
+   490→   490→                      <TableHead className="text-xs">Email</TableHead>
+   491→   491→                      <TableHead className="text-xs">Role</TableHead>
+   492→   492→                      <TableHead className="text-xs">Casino</TableHead>
+   493→   493→                      <TableHead className="text-xs">Status</TableHead>
+   494→   494→                      <TableHead className="text-xs">Last Login</TableHead>
+   495→   495→                      <TableHead className="text-xs">Actions</TableHead>
+   496→   496→                    </TableRow>
+   497→   497→                  </TableHeader>
+   498→   498→                  <TableBody>
+   499→   499→                    {filteredUsers.length > 0 ? (
+   500→   500→                      filteredUsers.map((user) => {
+   501→   501→                        const statusCfg = STATUS_CONFIG[user.status] || STATUS_CONFIG.inactive
+   502→   502→                        return (
+   503→   503→                          <TableRow key={user.id}>
+   504→   504→                            <TableCell className="text-xs font-medium">{user.name}</TableCell>
+   505→   505→                            <TableCell className="text-xs text-muted-foreground">{user.email}</TableCell>
+   506→   506→                            <TableCell>
+   507→   507→                              <Badge variant="outline" className="text-[9px] h-4 gap-1">
+   508→   508→                                <Shield className="size-2.5" />
+   509→   509→                                {user.role}
+   510→   510→                              </Badge>
+   511→   511→                            </TableCell>
+   512→   512→                            <TableCell className="text-xs text-muted-foreground">{user.casino}</TableCell>
+   513→   513→                            <TableCell>
+   514→   514→                              <Badge variant={statusCfg.variant} className="text-[9px] h-4 gap-1">
+   515→   515→                                {user.status === 'active' ? <CheckCircle className="size-2.5" /> : user.status === 'suspended' ? <XCircle className="size-2.5" /> : <Clock className="size-2.5" />}
+   516→   516→                                {user.status}
+   517→   517→                              </Badge>
+   518→   518→                            </TableCell>
+   519→   519→                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{user.lastLogin}</TableCell>
+   520→   520→                            <TableCell>
+   521→   521→                              <div className="flex items-center gap-1">
+   522→   522→                                <Button
+   523→   523→                                  variant="ghost"
+   524→   524→                                  size="sm"
+   525→   525→                                  className="size-6 p-0"
+   526→   526→                                  onClick={() => handleToggleUserStatus(user.id)}
+   527→   527→                                  title={user.status === 'active' ? 'Suspend' : 'Activate'}
+   528→   528→                                >
+   529→   529→                                  {user.status === 'active' ? <XCircle className="size-3 text-amber-400" /> : <CheckCircle className="size-3 text-emerald-400" />}
+   530→   530→                                </Button>
+   531→   531→                                <Button
+   532→   532→                                  variant="ghost"
+   533→   533→                                  size="sm"
+   534→   534→                                  className="size-6 p-0"
+   535→   535→                                  onClick={() => handleDeleteUser(user.id)}
+   536→   536→                                  title="Delete"
+   537→   537→                                >
+   538→   538→                                  <Trash2 className="size-3 text-red-400" />
+   539→   539→                                </Button>
+   540→   540→                              </div>
+   541→   541→                            </TableCell>
+   542→   542→                          </TableRow>
+   543→   543→                        )
+   544→   544→                      })
+   545→   545→                    ) : (
+   546→   546→                      <TableRow>
+   547→   547→                        <TableCell colSpan={7} className="text-xs text-muted-foreground text-center py-4">No users found</TableCell>
+   548→   548→                      </TableRow>
+   549→   549→                    )}
+   550→   550→                  </TableBody>
+   551→   551→                </Table>
+   552→   552→              </div>
+   553→   553→            </CardContent>
+   554→   554→          </Card>
+   555→   555→        </TabsContent>
+   556→   556→
+   557→   557→        {/* ──────── Tab 2: Sessions ──────── */}
+   558→   558→        <TabsContent value="sessions">
+   559→   559→          <Card>
+   560→   560→            <CardHeader className="pb-2">
+   561→   561→              <div className="flex items-center gap-2">
+   562→   562→                <Globe className="size-4 text-chart-4" />
+   563→   563→                <CardTitle className="text-sm">Active Sessions</CardTitle>
+   564→   564→                <Badge variant="outline" className="text-[9px] h-4 ml-2">{sessions.length} active</Badge>
+   565→   565→              </div>
+   566→   566→            </CardHeader>
+   567→   567→            <CardContent>
+   568→   568→              <div className="overflow-x-auto">
+   569→   569→                <Table>
+   570→   570→                  <TableHeader>
+   571→   571→                    <TableRow>
+   572→   572→                      <TableHead className="text-xs">User</TableHead>
+   573→   573→                      <TableHead className="text-xs">IP Address</TableHead>
+   574→   574→                      <TableHead className="text-xs">Device / Browser</TableHead>
+   575→   575→                      <TableHead className="text-xs">Started</TableHead>
+   576→   576→                      <TableHead className="text-xs">Expires</TableHead>
+   577→   577→                      <TableHead className="text-xs">Actions</TableHead>
+   578→   578→                    </TableRow>
+   579→   579→                  </TableHeader>
+   580→   580→                  <TableBody>
+   581→   581→                    {sessions.length > 0 ? (
+   582→   582→                      sessions.map((session) => (
+   583→   583→                        <TableRow key={session.id}>
+   584→   584→                          <TableCell className="text-xs font-medium">{session.user}</TableCell>
+   585→   585→                          <TableCell className="text-xs font-mono text-muted-foreground">{session.ipAddress}</TableCell>
+   586→   586→                          <TableCell>
+   587→   587→                            <div className="flex items-center gap-1.5">
+   588→   588→                              <Smartphone className="size-3 text-muted-foreground" />
+   589→   589→                              <span className="text-xs">{session.device}</span>
+   590→   590→                              <Separator orientation="vertical" className="h-3" />
+   591→   591→                              <span className="text-xs text-muted-foreground">{session.browser}</span>
+   592→   592→                            </div>
+   593→   593→                          </TableCell>
+   594→   594→                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{session.started}</TableCell>
+   595→   595→                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{session.expires}</TableCell>
+   596→   596→                          <TableCell>
+   597→   597→                            <Button
+   598→   598→                              variant="ghost"
+   599→   599→                              size="sm"
+   600→   600→                              className="text-xs gap-1 h-6 text-red-400 hover:text-red-300"
+   601→   601→                              onClick={() => handleRevokeSession(session.id)}
+   602→   602→                            >
+   603→   603→                              <XCircle className="size-3" /> Revoke
+   604→   604→                            </Button>
+   605→   605→                          </TableCell>
+   606→   606→                        </TableRow>
+   607→   607→                      ))
+   608→   608→                    ) : (
+   609→   609→                      <TableRow>
+   610→   610→                        <TableCell colSpan={6} className="text-xs text-muted-foreground text-center py-4">No active sessions</TableCell>
+   611→   611→                      </TableRow>
+   612→   612→                    )}
+   613→   613→                  </TableBody>
+   614→   614→                </Table>
+   615→   615→              </div>
+   616→   616→            </CardContent>
+   617→   617→          </Card>
+   618→   618→        </TabsContent>
+   619→   619→
+   620→   620→        {/* ──────── Tab 3: Roles & Permissions ──────── */}
+   621→   621→        <TabsContent value="permissions">
+   622→   622→          <Card>
+   623→   623→            <CardHeader className="pb-2">
+   624→   624→              <div className="flex items-center gap-2">
+   625→   625→                <Shield className="size-4 text-primary" />
+   626→   626→                <CardTitle className="text-sm">Roles & Permissions Matrix</CardTitle>
+   627→   627→              </div>
+   628→   628→            </CardHeader>
+   629→   629→            <CardContent>
+   630→   630→              <ScrollArea className="w-full">
+   631→   631→                <div className="overflow-x-auto">
+   632→   632→                  <Table>
+   633→   633→                    <TableHeader>
+   634→   634→                      <TableRow>
+   635→   635→                        <TableHead className="text-xs w-[100px]">Resource</TableHead>
+   636→   636→                        {ROLES.map((role) => (
+   637→   637→                          <TableHead key={role} className="text-xs text-center min-w-[120px]">
+   638→   638→                            <div className="flex flex-col items-center gap-0.5">
+   639→   639→                              <span className="text-[10px] font-medium">{role}</span>
+   640→   640→                            </div>
+   641→   641→                          </TableHead>
+   642→   642→                        ))}
+   643→   643→                      </TableRow>
+   644→   644→                    </TableHeader>
+   645→   645→                    <TableBody>
+   646→   646→                      {RESOURCES.map((resource) => (
+   647→   647→                        <TableRow key={resource}>
+   648→   648→                          <TableCell className="text-xs font-medium">{resource}</TableCell>
+   649→   649→                          {ROLES.map((role) => {
+   650→   650→                            const perms = permissions[role]?.[resource] || []
+   651→   651→                            return (
+   652→   652→                              <TableCell key={role} className="text-center">
+   653→   653→                                <div className="flex items-center justify-center gap-1.5">
+   654→   654→                                  {(['read', 'write', 'delete', 'approve'] as PermissionAction[]).map((action) => {
+   655→   655→                                    const isActive = perms.includes(action)
+   656→   656→                                    const actionColors: Record<PermissionAction, string> = {
+   657→   657→                                      read: isActive ? 'text-emerald-400' : 'text-muted-foreground/40',
+   658→   658→                                      write: isActive ? 'text-chart-4' : 'text-muted-foreground/40',
+   659→   659→                                      delete: isActive ? 'text-red-400' : 'text-muted-foreground/40',
+   660→   660→                                      approve: isActive ? 'text-amber-400' : 'text-muted-foreground/40',
+   661→   661→                                    }
+   662→   662→                                    const actionLabels: Record<PermissionAction, string> = {
+   663→   663→                                      read: 'R',
+   664→   664→                                      write: 'W',
+   665→   665→                                      delete: 'D',
+   666→   666→                                      approve: 'A',
+   667→   667→                                    }
+   668→   668→                                    return (
+   669→   669→                                      <button
+   670→   670→                                        key={action}
+   671→   671→                                        onClick={() => handleTogglePermission(role, resource, action)}
+   672→   672→                                        className={`flex items-center justify-center size-5 rounded text-[9px] font-bold border transition-colors ${
+   673→   673→                                          isActive
+   674→   674→                                            ? 'border-current bg-current/10 ' + actionColors[action]
+   675→   675→                                            : 'border-border text-muted-foreground/30 hover:border-muted-foreground/50'
+   676→   676→                                        }`}
+   677→   677→                                        title={`${action} ${resource} (${role})`}
+   678→   678→                                      >
+   679→   679→                                        {actionLabels[action]}
+   680→   680→                                      </button>
+   681→   681→                                    )
+   682→   682→                                  })}
+   683→   683→                                </div>
+   684→   684→                              </TableCell>
+   685→   685→                            )
+   686→   686→                          })}
+   687→   687→                        </TableRow>
+   688→   688→                      ))}
+   689→   689→                    </TableBody>
+   690→   690→                  </Table>
+   691→   691→                </div>
+   692→   692→              </ScrollArea>
+   693→   693→
+   694→   694→              {/* Permission Legend */}
+   695→   695→              <div className="mt-4 flex items-center gap-4 pt-3 border-t border-border">
+   696→   696→                <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Legend:</span>
+   697→   697→                <div className="flex items-center gap-1.5"><span className="size-3 rounded bg-emerald-400/20 text-emerald-400 text-[8px] font-bold flex items-center justify-center">R</span><span className="text-[10px] text-muted-foreground">Read</span></div>
+   698→   698→                <div className="flex items-center gap-1.5"><span className="size-3 rounded bg-chart-4/20 text-chart-4 text-[8px] font-bold flex items-center justify-center">W</span><span className="text-[10px] text-muted-foreground">Write</span></div>
+   699→   699→                <div className="flex items-center gap-1.5"><span className="size-3 rounded bg-red-400/20 text-red-400 text-[8px] font-bold flex items-center justify-center">D</span><span className="text-[10px] text-muted-foreground">Delete</span></div>
+   700→   700→                <div className="flex items-center gap-1.5"><span className="size-3 rounded bg-amber-400/20 text-amber-400 text-[8px] font-bold flex items-center justify-center">A</span><span className="text-[10px] text-muted-foreground">Approve</span></div>
+   701→   701→              </div>
+   702→   702→            </CardContent>
+   703→   703→          </Card>
+   704→   704→        </TabsContent>
+   705→   705→
+   706→   706→        {/* ──────── Tab 4: Security Settings ──────── */}
+   707→   707→        <TabsContent value="security">
+   708→   708→          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+   709→   709→            {/* Password Policy */}
+   710→   710→            <Card>
+   711→   711→              <CardHeader className="pb-2">
+   712→   712→                <div className="flex items-center gap-2">
+   713→   713→                  <Key className="size-4 text-primary" />
+   714→   714→                  <CardTitle className="text-sm">Password Policy</CardTitle>
+   715→   715→                </div>
+   716→   716→              </CardHeader>
+   717→   717→              <CardContent className="space-y-4">
+   718→   718→                <div className="space-y-2">
+   719→   719→                  <Label className="text-xs">Minimum Length</Label>
+   720→   720→                  <Input
+   721→   721→                    type="number"
+   722→   722→                    value={security.passwordPolicy.minLength}
+   723→   723→                    onChange={(e) => updateSecurity('passwordPolicy', { ...security.passwordPolicy, minLength: parseInt(e.target.value) || 0 })}
+   724→   724→                    className="text-xs h-8 w-24"
+   725→   725→                  />
+   726→   726→                </div>
+   727→   727→                <Separator />
+   728→   728→                <div className="flex items-center justify-between">
+   729→   729→                  <Label className="text-xs">Require Uppercase</Label>
+   730→   730→                  <Switch
+   731→   731→                    checked={security.passwordPolicy.requireUppercase}
+   732→   732→                    onCheckedChange={(v) => updateSecurity('passwordPolicy', { ...security.passwordPolicy, requireUppercase: v })}
+   733→   733→                  />
+   734→   734→                </div>
+   735→   735→                <div className="flex items-center justify-between">
+   736→   736→                  <Label className="text-xs">Require Numbers</Label>
+   737→   737→                  <Switch
+   738→   738→                    checked={security.passwordPolicy.requireNumbers}
+   739→   739→                    onCheckedChange={(v) => updateSecurity('passwordPolicy', { ...security.passwordPolicy, requireNumbers: v })}
+   740→   740→                  />
+   741→   741→                </div>
+   742→   742→                <div className="flex items-center justify-between">
+   743→   743→                  <Label className="text-xs">Require Special Characters</Label>
+   744→   744→                  <Switch
+   745→   745→                    checked={security.passwordPolicy.requireSpecialChars}
+   746→   746→                    onCheckedChange={(v) => updateSecurity('passwordPolicy', { ...security.passwordPolicy, requireSpecialChars: v })}
+   747→   747→                  />
+   748→   748→                </div>
+   749→   749→                <Separator />
+   750→   750→                <div className="space-y-2">
+   751→   751→                  <Label className="text-xs">Password Expiry (days)</Label>
+   752→   752→                  <Input
+   753→   753→                    type="number"
+   754→   754→                    value={security.passwordPolicy.expiryDays}
+   755→   755→                    onChange={(e) => updateSecurity('passwordPolicy', { ...security.passwordPolicy, expiryDays: parseInt(e.target.value) || 0 })}
+   756→   756→                    className="text-xs h-8 w-24"
+   757→   757→                  />
+   758→   758→                </div>
+   759→   759→              </CardContent>
+   760→   760→            </Card>
+   761→   761→
+   762→   762→            {/* Session Settings */}
+   763→   763→            <Card>
+   764→   764→              <CardHeader className="pb-2">
+   765→   765→                <div className="flex items-center gap-2">
+   766→   766→                  <Clock className="size-4 text-chart-4" />
+   767→   767→                  <CardTitle className="text-sm">Session Settings</CardTitle>
+   768→   768→                </div>
+   769→   769→              </CardHeader>
+   770→   770→              <CardContent className="space-y-4">
+   771→   771→                <div className="space-y-2">
+   772→   772→                  <Label className="text-xs">Max Concurrent Sessions</Label>
+   773→   773→                  <Input
+   774→   774→                    type="number"
+   775→   775→                    value={security.sessionSettings.maxConcurrent}
+   776→   776→                    onChange={(e) => updateSecurity('sessionSettings', { ...security.sessionSettings, maxConcurrent: parseInt(e.target.value) || 1 })}
+   777→   777→                    className="text-xs h-8 w-24"
+   778→   778→                  />
+   779→   779→                </div>
+   780→   780→                <Separator />
+   781→   781→                <div className="space-y-2">
+   782→   782→                  <Label className="text-xs">Session Timeout (minutes)</Label>
+   783→   783→                  <Input
+   784→   784→                    type="number"
+   785→   785→                    value={security.sessionSettings.sessionTimeout}
+   786→   786→                    onChange={(e) => updateSecurity('sessionSettings', { ...security.sessionSettings, sessionTimeout: parseInt(e.target.value) || 0 })}
+   787→   787→                    className="text-xs h-8 w-24"
+   788→   788→                  />
+   789→   789→                </div>
+   790→   790→                <div className="space-y-2">
+   791→   791→                  <Label className="text-xs">Idle Timeout (minutes)</Label>
+   792→   792→                  <Input
+   793→   793→                    type="number"
+   794→   794→                    value={security.sessionSettings.idleTimeout}
+   795→   795→                    onChange={(e) => updateSecurity('sessionSettings', { ...security.sessionSettings, idleTimeout: parseInt(e.target.value) || 0 })}
+   796→   796→                    className="text-xs h-8 w-24"
+   797→   797→                  />
+   798→   798→                </div>
+   799→   799→              </CardContent>
+   800→   800→            </Card>
+   801→   801→
+   802→   802→            {/* Two-Factor Auth */}
+   803→   803→            <Card>
+   804→   804→              <CardHeader className="pb-2">
+   805→   805→                <div className="flex items-center gap-2">
+   806→   806→                  <Smartphone className="size-4 text-emerald-400" />
+   807→   807→                  <CardTitle className="text-sm">Two-Factor Authentication</CardTitle>
+   808→   808→                </div>
+   809→   809→              </CardHeader>
+   810→   810→              <CardContent className="space-y-4">
+   811→   811→                <div className="flex items-center justify-between">
+   812→   812→                  <div className="flex items-center gap-2">
+   813→   813→                    <Label className="text-xs">Enable 2FA</Label>
+   814→   814→                    <Badge variant={security.twoFactor.enabled ? 'default' : 'secondary'} className="text-[9px] h-4">
+   815→   815→                      {security.twoFactor.enabled ? 'Active' : 'Disabled'}
+   816→   816→                    </Badge>
+   817→   817→                  </div>
+   818→   818→                  <Switch
+   819→   819→                    checked={security.twoFactor.enabled}
+   820→   820→                    onCheckedChange={(v) => updateSecurity('twoFactor', { ...security.twoFactor, enabled: v })}
+   821→   821→                  />
+   822→   822→                </div>
+   823→   823→                <Separator />
+   824→   824→                <div className="flex items-center justify-between">
+   825→   825→                  <Label className="text-xs">Enforce for Admins</Label>
+   826→   826→                  <Switch
+   827→   827→                    checked={security.twoFactor.enforceForAdmins}
+   828→   828→                    onCheckedChange={(v) => updateSecurity('twoFactor', { ...security.twoFactor, enforceForAdmins: v })}
+   829→   829→                    disabled={!security.twoFactor.enabled}
+   830→   830→                  />
+   831→   831→                </div>
+   832→   832→                <div className="flex items-center justify-between">
+   833→   833→                  <Label className="text-xs">Enforce for Finance</Label>
+   834→   834→                  <Switch
+   835→   835→                    checked={security.twoFactor.enforceForFinance}
+   836→   836→                    onCheckedChange={(v) => updateSecurity('twoFactor', { ...security.twoFactor, enforceForFinance: v })}
+   837→   837→                    disabled={!security.twoFactor.enabled}
+   838→   838→                  />
+   839→   839→                </div>
+   840→   840→                <Separator />
+   841→   841→                <div className="space-y-2">
+   842→   842→                  <Label className="text-xs">Default Method</Label>
+   843→   843→                  <Select
+   844→   844→                    value={security.twoFactor.method}
+   845→   845→                    onValueChange={(v) => updateSecurity('twoFactor', { ...security.twoFactor, method: v as 'totp' | 'sms' | 'email' })}
+   846→   846→                    disabled={!security.twoFactor.enabled}
+   847→   847→                  >
+   848→   848→                    <SelectTrigger className="text-xs h-8 w-32">
+   849→   849→                      <SelectValue />
+   850→   850→                    </SelectTrigger>
+   851→   851→                    <SelectContent>
+   852→   852→                      <SelectItem value="totp">TOTP App</SelectItem>
+   853→   853→                      <SelectItem value="sms">SMS</SelectItem>
+   854→   854→                      <SelectItem value="email">Email</SelectItem>
+   855→   855→                    </SelectContent>
+   856→   856→                  </Select>
+   857→   857→                </div>
+   858→   858→              </CardContent>
+   859→   859→            </Card>
+   860→   860→
+   861→   861→            {/* Login Rate Limiting */}
+   862→   862→            <Card>
+   863→   863→              <CardHeader className="pb-2">
+   864→   864→                <div className="flex items-center gap-2">
+   865→   865→                  <AlertTriangle className="size-4 text-amber-400" />
+   866→   866→                  <CardTitle className="text-sm">Login Rate Limiting</CardTitle>
+   867→   867→                </div>
+   868→   868→              </CardHeader>
+   869→   869→              <CardContent className="space-y-4">
+   870→   870→                <div className="space-y-2">
+   871→   871→                  <Label className="text-xs">Max Login Attempts</Label>
+   872→   872→                  <Input
+   873→   873→                    type="number"
+   874→   874→                    value={security.maxLoginAttempts}
+   875→   875→                    onChange={(e) => setSecurity((p) => ({ ...p, maxLoginAttempts: parseInt(e.target.value) || 1 }))}
+   876→   876→                    className="text-xs h-8 w-24"
+   877→   877→                  />
+   878→   878→                </div>
+   879→   879→                <Separator />
+   880→   880→                <div className="space-y-2">
+   881→   881→                  <Label className="text-xs">Lockout Duration (minutes)</Label>
+   882→   882→                  <Input
+   883→   883→                    type="number"
+   884→   884→                    value={security.lockoutDuration}
+   885→   885→                    onChange={(e) => setSecurity((p) => ({ ...p, lockoutDuration: parseInt(e.target.value) || 0 }))}
+   886→   886→                    className="text-xs h-8 w-24"
+   887→   887→                  />
+   888→   888→                </div>
+   889→   889→                <Separator />
+   890→   890→                <div className="p-3 rounded-lg bg-amber-400/5 border border-amber-400/20">
+   891→   891→                  <div className="flex items-start gap-2">
+   892→   892→                    <AlertTriangle className="size-3.5 text-amber-400 mt-0.5 shrink-0" />
+   893→   893→                    <div className="text-[10px] text-muted-foreground">
+   894→   894→                      After <span className="font-bold text-amber-400">{security.maxLoginAttempts}</span> failed attempts,
+   895→   895→                      accounts will be locked for{' '}
+   896→   896→                      <span className="font-bold text-amber-400">{security.lockoutDuration}</span> minutes.
+   897→   897→                    </div>
+   898→   898→                  </div>
+   899→   899→                </div>
+   900→   900→              </CardContent>
+   901→   901→            </Card>
+   902→   902→
+   903→   903→            {/* IP Whitelist — Full Width */}
+   904→   904→            <Card className="lg:col-span-2">
+   905→   905→              <CardHeader className="pb-2">
+   906→   906→                <div className="flex items-center gap-2">
+   907→   907→                  <Globe className="size-4 text-chart-2" />
+   908→   908→                  <CardTitle className="text-sm">IP Whitelist</CardTitle>
+   909→   909→                  <Badge variant="outline" className="text-[9px] h-4 ml-2">{security.ipWhitelist.length} entries</Badge>
+   910→   910→                </div>
+   911→   911→              </CardHeader>
+   912→   912→              <CardContent className="space-y-4">
+   913→   913→                <div className="flex items-center gap-2">
+   914→   914→                  <div className="relative flex-1 max-w-sm">
+   915→   915→                    <Globe className="absolute left-2 top-1/2 -translate-y-1/2 size-3 text-muted-foreground" />
+   916→   916→                    <Input
+   917→   917→                      value={newIp}
+   918→   918→                      onChange={(e) => setNewIp(e.target.value)}
+   919→   919→                      placeholder="e.g. 192.168.1.0/24"
+   920→   920→                      className="text-xs h-8 pl-7"
+   921→   921→                      onKeyDown={(e) => e.key === 'Enter' && handleAddIp()}
+   922→   922→                    />
+   923→   923→                  </div>
+   924→   924→                  <Button size="sm" className="text-xs gap-1 h-8" onClick={handleAddIp} disabled={!newIp.trim()}>
+   925→   925→                    <Plus className="size-3" /> Add
+   926→   926→                  </Button>
+   927→   927→                </div>
+   928→   928→                <div className="space-y-1.5">
+   929→   929→                  {security.ipWhitelist.length > 0 ? (
+   930→   930→                    security.ipWhitelist.map((ip) => (
+   931→   931→                      <div key={ip} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+   932→   932→                        <div className="flex items-center gap-2">
+   933→   933→                          <Globe className="size-3 text-muted-foreground" />
+   934→   934→                          <span className="text-xs font-mono">{ip}</span>
+   935→   935→                        </div>
+   936→   936→                        <Button
+   937→   937→                          variant="ghost"
+   938→   938→                          size="sm"
+   939→   939→                          className="size-6 p-0 text-red-400 hover:text-red-300"
+   940→   940→                          onClick={() => handleRemoveIp(ip)}
+   941→   941→                        >
+   942→   942→                          <Trash2 className="size-3" />
+   943→   943→                        </Button>
+   944→   944→                      </div>
+   945→   945→                    ))
+   946→   946→                  ) : (
+   947→   947→                    <p className="text-xs text-muted-foreground text-center py-3">No IP whitelist entries</p>
+   948→   948→                  )}
+   949→   949→                </div>
+   950→   950→              </CardContent>
+   951→   951→            </Card>
+   952→   952→          </div>
+   953→   953→        </TabsContent>
+   954→   954→      </Tabs>
+   955→   955→    </div>
+   956→   956→  )
+   957→   957→}
+   958→   958→

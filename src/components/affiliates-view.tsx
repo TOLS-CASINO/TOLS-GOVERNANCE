@@ -180,7 +180,7 @@ export function AffiliatesView() {
   return (
     <div className="space-y-4">
       {/* Performance Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { label: 'Total Clicks', value: metrics.totalClicks.toLocaleString(), icon: MousePointerClick, color: 'text-chart-4' },
           { label: 'Signups', value: metrics.totalSignups.toLocaleString(), icon: Users, color: 'text-chart-2' },
@@ -291,8 +291,8 @@ export function AffiliatesView() {
 
             {/* Tier Distribution Pie */}
             {tierDistribution.length > 0 && (
-              <div className="mt-4 flex justify-center">
-                <ResponsiveContainer width={180} height={180}>
+              <div className="mt-4 flex justify-center"><div className="w-full max-w-[180px]">
+                <ResponsiveContainer width="100%" height={180}>
                   <PieChart>
                     <Pie data={tierDistribution} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} innerRadius={35}>
                       {tierDistribution.map((entry, idx) => (
@@ -302,7 +302,7 @@ export function AffiliatesView() {
                     <Tooltip contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }} />
                   </PieChart>
                 </ResponsiveContainer>
-              </div>
+              </div></div>
             )}
           </CardContent>
         </Card>

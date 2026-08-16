@@ -195,24 +195,24 @@ export function OnboardingView() {
               <div key={idx} className="flex flex-col items-center gap-1.5 flex-1">
                 <div
                   className={`
-                    h-10 w-10 rounded-full flex items-center justify-center transition-all duration-300 border-2
+                    h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center transition-all duration-300 border-2
                     ${isCompleted ? 'border-emerald-400 bg-emerald-400/10' : ''}
                     ${isActive ? 'border-primary bg-primary/10' : ''}
                     ${!isCompleted && !isActive ? 'border-muted-foreground/30 bg-muted/50' : ''}
                   `}
                 >
                   {isCompleted ? (
-                    <CheckCircle className="h-5 w-5 text-emerald-400" />
+                    <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-400" />
                   ) : (
                     <Icon
-                      className={`h-5 w-5 ${
+                      className={`h-4 w-4 sm:h-5 sm:w-5 ${
                         isActive ? 'text-primary' : 'text-muted-foreground'
                       }`}
                     />
                   )}
                 </div>
                 <span
-                  className={`text-[11px] font-medium text-center leading-tight ${
+                  className={`text-[9px] sm:text-[11px] font-medium text-center leading-tight ${
                     isCompleted
                       ? 'text-emerald-400'
                       : isActive
@@ -228,7 +228,7 @@ export function OnboardingView() {
         </div>
 
         {/* Connecting lines */}
-        <div className="flex items-center gap-1 px-5 -mt-8 mb-5">
+        <div className="flex items-center gap-1 px-3 sm:px-5 -mt-6 sm:-mt-8 mb-5">
           {STEP_META.map((_, idx) => {
             if (idx === STEP_META.length - 1) return null
             const isCompleted = idx < currentStep
@@ -254,7 +254,7 @@ export function OnboardingView() {
 
       {/* ── Step Content ──────────────────────────────────────────────────── */}
       <Card className="w-full max-w-2xl bg-card/80 backdrop-blur-sm border-border/50">
-        <CardContent className="p-6">
+        <CardContent className="p-3 sm:p-6">
           {currentStep === 0 && renderWelcomeStep()}
           {currentStep === 1 && renderCasinoSetupStep()}
           {currentStep === 2 && renderUserSetupStep()}
@@ -313,7 +313,7 @@ export function OnboardingView() {
           <div className="inline-flex h-16 w-16 rounded-2xl bg-primary/10 items-center justify-center mb-2">
             <Rocket className="h-8 w-8 text-primary" />
           </div>
-          <h2 className="text-2xl font-bold text-foreground">Welcome to TOLS Platform</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground">Welcome to TOLS Platform</h2>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
             Your all-in-one command center for iGaming operations. Let&apos;s get you set up in just a few steps.
           </p>
@@ -620,7 +620,7 @@ export function OnboardingView() {
               {selectedCount} selected
             </Badge>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {providerNames.map((name) => {
               const ProviderIcon = PROVIDER_ICONS[name] || Server
               const isChecked = formData.providers[name]
@@ -679,7 +679,7 @@ export function OnboardingView() {
           ].map((feature) => (
             <div
               key={feature.key}
-              className="flex items-start gap-4 p-4 rounded-lg bg-muted/20 border border-border/30"
+              className="flex items-start gap-3 sm:gap-4 p-3 sm:p-4 rounded-lg bg-muted/20 border border-border/30"
             >
               <div className="h-9 w-9 rounded-md bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
                 <feature.icon className="h-4 w-4 text-primary" />
@@ -717,7 +717,7 @@ export function OnboardingView() {
           <div className="inline-flex h-16 w-16 rounded-full bg-emerald-400/10 items-center justify-center mb-2">
             <CheckCircle className="h-8 w-8 text-emerald-400" />
           </div>
-          <h2 className="text-2xl font-bold text-foreground">Setup Complete!</h2>
+          <h2 className="text-xl sm:text-2xl font-bold text-foreground">Setup Complete!</h2>
           <p className="text-sm text-muted-foreground max-w-md mx-auto">
             Your TOLS Platform is configured and ready to go. Here&apos;s a summary of your setup.
           </p>

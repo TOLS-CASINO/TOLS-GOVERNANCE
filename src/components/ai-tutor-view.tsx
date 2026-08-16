@@ -143,7 +143,7 @@ export function AiTutorView() {
   return (
     <div className="flex flex-col h-[calc(100vh-120px)] min-h-[500px]">
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-border mb-3">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-3 border-b border-border mb-3 gap-2">
         <div className="flex items-center gap-2">
           <Sparkles className="size-5 text-primary" />
           <h2 className="text-sm font-semibold">AI Tutor</h2>
@@ -152,7 +152,7 @@ export function AiTutorView() {
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-muted-foreground">Context:</span>
           <Select value={context} onValueChange={(v) => setContext(v as Context)}>
-            <SelectTrigger className="w-[150px] h-7 text-xs">
+            <SelectTrigger className="w-[120px] sm:w-[150px] h-7 text-xs">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -195,7 +195,7 @@ export function AiTutorView() {
                   </Avatar>
                 )}
                 <div
-                  className={`max-w-[80%] rounded-xl px-3.5 py-2.5 text-xs leading-relaxed ${
+                  className={`max-w-[90%] sm:max-w-[80%] rounded-xl px-3.5 py-2.5 text-xs leading-relaxed ${
                     msg.role === 'user'
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-muted/80 text-foreground'

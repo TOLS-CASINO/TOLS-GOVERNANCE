@@ -296,7 +296,7 @@ export function PaymentsView() {
   return (
     <Tabs defaultValue="overview" className="space-y-4">
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <TabsList className="bg-muted/50">
+        <TabsList className="bg-muted/50 w-full sm:w-auto overflow-x-auto">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="deposits">Deposits</TabsTrigger>
           <TabsTrigger value="withdrawals">Withdrawals</TabsTrigger>
@@ -385,34 +385,34 @@ export function PaymentsView() {
       {/* ────────── Deposits ────────── */}
       <TabsContent value="deposits" className="space-y-4">
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative flex-1 min-w-[180px] max-w-xs">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div className="relative flex-1 min-w-0 sm:min-w-[180px] sm:max-w-xs">
             <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
             <Input placeholder="Search player or ID..." value={depSearch} onChange={(e) => setDepSearch(e.target.value)} className="pl-8 h-8 text-xs" />
           </div>
           <Select value={depStatusFilter} onValueChange={setDepStatusFilter}>
-            <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
               {allDepStatuses.map((s: string) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={depMethodFilter} onValueChange={setDepMethodFilter}>
-            <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue placeholder="Method" /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs"><SelectValue placeholder="Method" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Methods</SelectItem>
               {allMethods.map((m: string) => <SelectItem key={m} value={m}>{m.replace('_', ' ')}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={depProviderFilter} onValueChange={setDepProviderFilter}>
-            <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue placeholder="Provider" /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs"><SelectValue placeholder="Provider" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Providers</SelectItem>
               {allProviders.map((p: string) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={depCurrencyFilter} onValueChange={setDepCurrencyFilter}>
-            <SelectTrigger className="w-[110px] h-8 text-xs"><SelectValue placeholder="Currency" /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[110px] h-8 text-xs"><SelectValue placeholder="Currency" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Currencies</SelectItem>
               {allCurrencies.map((c: string) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -424,6 +424,7 @@ export function PaymentsView() {
         <Card className="bg-card/60 border-border/50">
           <CardContent className="p-0">
             <ScrollArea className="max-h-[520px]">
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -431,13 +432,13 @@ export function PaymentsView() {
                     <TableHead className="text-[11px]">Player</TableHead>
                     <TableHead className="text-[11px] text-right">Amount</TableHead>
                     <TableHead className="text-[11px]">Currency</TableHead>
-                    <TableHead className="text-[11px]">Method</TableHead>
-                    <TableHead className="text-[11px]">Provider</TableHead>
-                    <TableHead className="text-[11px] text-right">Fee</TableHead>
-                    <TableHead className="text-[11px] text-right">Net</TableHead>
+                    <TableHead className="text-[11px] hidden sm:table-cell">Method</TableHead>
+                    <TableHead className="text-[11px] hidden sm:table-cell">Provider</TableHead>
+                    <TableHead className="text-[11px] text-right hidden sm:table-cell">Fee</TableHead>
+                    <TableHead className="text-[11px] text-right hidden sm:table-cell">Net</TableHead>
                     <TableHead className="text-[11px]">Status</TableHead>
-                    <TableHead className="text-[11px]">TX Hash</TableHead>
-                    <TableHead className="text-[11px]">Action</TableHead>
+                    <TableHead className="text-[11px] hidden sm:table-cell">TX Hash</TableHead>
+                    <TableHead className="text-[11px] hidden sm:table-cell">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -452,13 +453,13 @@ export function PaymentsView() {
                       <TableCell className="text-xs font-medium">{d.playerName}</TableCell>
                       <TableCell className="text-xs text-right font-mono">{fmtAmount(d.amount, d.currency)}</TableCell>
                       <TableCell className="text-xs"><Badge variant="secondary" className="text-[9px]">{d.currency}</Badge></TableCell>
-                      <TableCell className="text-xs">{METHOD_ICONS[d.method] || '💰'} {d.method.replace('_', ' ')}</TableCell>
-                      <TableCell className="text-xs">{PROVIDER_ICONS[d.provider] || ''} {d.provider}</TableCell>
-                      <TableCell className="text-xs text-right font-mono text-muted-foreground">{fmtAmount(d.feeAmount, d.currency)}</TableCell>
-                      <TableCell className="text-xs text-right font-mono">{fmtAmount(d.netAmount, d.currency)}</TableCell>
+                      <TableCell className="text-xs hidden sm:table-cell">{METHOD_ICONS[d.method] || '💰'} {d.method.replace('_', ' ')}</TableCell>
+                      <TableCell className="text-xs hidden sm:table-cell">{PROVIDER_ICONS[d.provider] || ''} {d.provider}</TableCell>
+                      <TableCell className="text-xs text-right font-mono text-muted-foreground hidden sm:table-cell">{fmtAmount(d.feeAmount, d.currency)}</TableCell>
+                      <TableCell className="text-xs text-right font-mono hidden sm:table-cell">{fmtAmount(d.netAmount, d.currency)}</TableCell>
                       <TableCell><DepositStatusBadge status={d.status} /></TableCell>
-                      <TableCell className="text-xs font-mono max-w-[80px] truncate">{d.txHash ? `${d.txHash.slice(0, 10)}...` : '—'}</TableCell>
-                      <TableCell>
+                      <TableCell className="text-xs font-mono max-w-[80px] truncate hidden sm:table-cell">{d.txHash ? `${d.txHash.slice(0, 10)}...` : '—'}</TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         {d.status === 'pending' && (
                           <Button size="sm" variant="outline" className="h-6 text-[10px] gap-1 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10" onClick={(e) => { e.stopPropagation(); handleConfirmDeposit(d) }}>
                             <CheckCircle className="size-3" /> Confirm
@@ -469,13 +470,14 @@ export function PaymentsView() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
             </ScrollArea>
           </CardContent>
         </Card>
 
         {/* Deposit Detail Dialog */}
         <Dialog open={!!selectedDeposit} onOpenChange={(open) => !open && setSelectedDeposit(null)}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <ArrowDownLeft className="size-4 text-emerald-400" />
@@ -512,20 +514,20 @@ export function PaymentsView() {
       {/* ────────── Withdrawals ────────── */}
       <TabsContent value="withdrawals" className="space-y-4">
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative flex-1 min-w-[180px] max-w-xs">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+          <div className="relative flex-1 min-w-0 sm:min-w-[180px] sm:max-w-xs">
             <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
             <Input placeholder="Search player or ID..." value={wdSearch} onChange={(e) => setWdSearch(e.target.value)} className="pl-8 h-8 text-xs" />
           </div>
           <Select value={wdStatusFilter} onValueChange={setWdStatusFilter}>
-            <SelectTrigger className="w-[140px] h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[140px] h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
               {allWdStatuses.map((s: string) => <SelectItem key={s} value={s}>{s.replace('_', ' ')}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={wdMethodFilter} onValueChange={setWdMethodFilter}>
-            <SelectTrigger className="w-[130px] h-8 text-xs"><SelectValue placeholder="Method" /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs"><SelectValue placeholder="Method" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Methods</SelectItem>
               {allWdMethods.map((m: string) => <SelectItem key={m} value={m}>{m.replace('_', ' ')}</SelectItem>)}
@@ -537,6 +539,7 @@ export function PaymentsView() {
         <Card className="bg-card/60 border-border/50">
           <CardContent className="p-0">
             <ScrollArea className="max-h-[520px]">
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -544,13 +547,13 @@ export function PaymentsView() {
                     <TableHead className="text-[11px]">Player</TableHead>
                     <TableHead className="text-[11px] text-right">Amount</TableHead>
                     <TableHead className="text-[11px]">Currency</TableHead>
-                    <TableHead className="text-[11px]">Method</TableHead>
-                    <TableHead className="text-[11px] text-right">Fee</TableHead>
-                    <TableHead className="text-[11px] text-right">Net</TableHead>
+                    <TableHead className="text-[11px] hidden sm:table-cell">Method</TableHead>
+                    <TableHead className="text-[11px] text-right hidden sm:table-cell">Fee</TableHead>
+                    <TableHead className="text-[11px] text-right hidden sm:table-cell">Net</TableHead>
                     <TableHead className="text-[11px]">Status</TableHead>
-                    <TableHead className="text-[11px]">Approved By</TableHead>
-                    <TableHead className="text-[11px]">TX Hash</TableHead>
-                    <TableHead className="text-[11px]">Actions</TableHead>
+                    <TableHead className="text-[11px] hidden sm:table-cell">Approved By</TableHead>
+                    <TableHead className="text-[11px] hidden sm:table-cell">TX Hash</TableHead>
+                    <TableHead className="text-[11px] hidden sm:table-cell">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -565,13 +568,13 @@ export function PaymentsView() {
                       <TableCell className="text-xs font-medium">{w.playerName}</TableCell>
                       <TableCell className="text-xs text-right font-mono">{fmtAmount(w.amount, w.currency)}</TableCell>
                       <TableCell className="text-xs"><Badge variant="secondary" className="text-[9px]">{w.currency}</Badge></TableCell>
-                      <TableCell className="text-xs">{METHOD_ICONS[w.method] || '💰'} {w.method.replace('_', ' ')}</TableCell>
-                      <TableCell className="text-xs text-right font-mono text-muted-foreground">{fmtAmount(w.feeAmount, w.currency)}</TableCell>
-                      <TableCell className="text-xs text-right font-mono">{fmtAmount(w.netAmount, w.currency)}</TableCell>
+                      <TableCell className="text-xs hidden sm:table-cell">{METHOD_ICONS[w.method] || '💰'} {w.method.replace('_', ' ')}</TableCell>
+                      <TableCell className="text-xs text-right font-mono text-muted-foreground hidden sm:table-cell">{fmtAmount(w.feeAmount, w.currency)}</TableCell>
+                      <TableCell className="text-xs text-right font-mono hidden sm:table-cell">{fmtAmount(w.netAmount, w.currency)}</TableCell>
                       <TableCell><WithdrawalStatusBadge status={w.status} /></TableCell>
-                      <TableCell className="text-xs">{w.approvedBy || '—'}</TableCell>
-                      <TableCell className="text-xs font-mono max-w-[80px] truncate">{w.txHash ? `${w.txHash.slice(0, 10)}...` : '—'}</TableCell>
-                      <TableCell>
+                      <TableCell className="text-xs hidden sm:table-cell">{w.approvedBy || '—'}</TableCell>
+                      <TableCell className="text-xs font-mono max-w-[80px] truncate hidden sm:table-cell">{w.txHash ? `${w.txHash.slice(0, 10)}...` : '—'}</TableCell>
+                      <TableCell className="hidden sm:table-cell">
                         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                           {(w.status === 'pending' || w.status === 'under_review') && (
                             <>
@@ -592,13 +595,14 @@ export function PaymentsView() {
                   ))}
                 </TableBody>
               </Table>
+            </div>
             </ScrollArea>
           </CardContent>
         </Card>
 
         {/* Withdrawal Detail Dialog */}
         <Dialog open={!!selectedWithdrawal} onOpenChange={(open) => !open && setSelectedWithdrawal(null)}>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <ArrowUpRight className="size-4 text-blue-400" />
@@ -647,7 +651,7 @@ export function PaymentsView() {
 
       {/* ────────── Providers ────────── */}
       <TabsContent value="providers" className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {(providers || []).map((p: any) => (
             <Card key={p.id} className={`bg-card/60 border-border/50 ${!p.isActive ? 'opacity-60' : ''}`}>
               <CardHeader className="pb-3">

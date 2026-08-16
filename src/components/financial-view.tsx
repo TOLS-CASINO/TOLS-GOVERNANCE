@@ -60,9 +60,9 @@ export function FinancialView() {
     return (
       <div className="space-y-4">
         <Skeleton className="h-10 w-full max-w-md" />
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i}><CardContent className="p-6"><Skeleton className="h-16 w-full" /></CardContent></Card>
+            <Card key={i}><CardContent className="p-4 sm:p-6"><Skeleton className="h-16 w-full" /></CardContent></Card>
           ))}
         </div>
       </div>
@@ -207,18 +207,18 @@ export function FinancialView() {
 
       {/* ---- OVERVIEW TAB ---- */}
       <TabsContent value="overview" className="space-y-4">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {[
             { label: 'Total Revenue', value: fmt(summary.totalRevenue), icon: DollarSign, color: 'text-emerald-400' },
             { label: 'Total Deposits', value: fmt(summary.totalDeposits), icon: ArrowDownToLine, color: 'text-chart-2' },
             { label: 'Escrow Balance', value: fmt(summary.escrowBalance), icon: ShieldCheck, color: 'text-primary' },
           ].map((item) => (
             <Card key={item.label}>
-              <CardContent className="p-5">
+              <CardContent className="p-3 sm:p-5">
                 <div className="flex items-start justify-between">
                   <div>
                     <p className="text-xs text-muted-foreground uppercase tracking-wider">{item.label}</p>
-                    <p className="text-2xl font-bold mt-1">{item.value}</p>
+                    <p className="text-xl sm:text-2xl font-bold mt-1">{item.value}</p>
                   </div>
                   <div className="rounded-lg bg-muted p-2"><item.icon className={`size-4 ${item.color}`} /></div>
                 </div>
@@ -366,7 +366,7 @@ export function FinancialView() {
             <CardDescription>Next scheduled settlements</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {escrowAccounts.length > 0 ? (
                 escrowAccounts.map((acc: any) => (
                   <div key={acc.id} className="p-3 rounded-lg border border-border bg-muted/30 space-y-1">
@@ -461,9 +461,9 @@ export function FinancialView() {
           <CardHeader className="pb-2">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <CardTitle className="text-sm">Master Ledger</CardTitle>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Select value={ledgerFilter} onValueChange={setLedgerFilter}>
-                  <SelectTrigger className="w-[140px] h-8 text-xs">
+                  <SelectTrigger className="w-full sm:w-[140px] h-8 text-xs">
                     <SelectValue placeholder="Filter category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -475,7 +475,7 @@ export function FinancialView() {
                     <SelectItem value="escrow">Escrow</SelectItem>
                   </SelectContent>
                 </Select>
-                <Input placeholder="Search entries..." className="w-[160px] h-8 text-xs" />
+                <Input placeholder="Search entries..." className="w-full sm:w-[160px] h-8 text-xs" />
               </div>
             </div>
           </CardHeader>
@@ -572,9 +572,9 @@ export function FinancialView() {
                           {item.severity}
                         </Badge>
                       </div>
-                      <div className="flex justify-between text-[10px] text-muted-foreground">
-                        <span>Budget: {fmt(item.budget)}</span>
-                        <span>Actual: {fmt(item.actual)}</span>
+                      <div className="flex justify-between text-[10px] text-muted-foreground gap-2">
+                        <span className="truncate">Budget: {fmt(item.budget)}</span>
+                        <span className="truncate">Actual: {fmt(item.actual)}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="flex-1 bg-muted rounded-full h-2">

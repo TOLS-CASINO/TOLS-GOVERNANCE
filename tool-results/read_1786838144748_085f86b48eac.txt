@@ -1,0 +1,1066 @@
+     1→     1→'use client'
+     2→     2→
+     3→     3→import { useState, useEffect, useCallback } from 'react'
+     4→     4→import {
+     5→     5→  Brain,
+     6→     6→  TrendingUp,
+     7→     7→  Cpu,
+     8→     8→  Database,
+     9→     9→  Play,
+    10→    10→  Square,
+    11→    11→  RefreshCw,
+    12→    12→  Plus,
+    13→    13→  Search,
+    14→    14→  Filter,
+    15→    15→  Eye,
+    16→    16→  Clock,
+    17→    17→  CheckCircle,
+    18→    18→  XCircle,
+    19→    19→  AlertTriangle,
+    20→    20→  BarChart3,
+    21→    21→  Activity,
+    22→    22→  Zap,
+    23→    23→  Settings,
+    24→    24→  Loader2,
+    25→    25→} from 'lucide-react'
+    26→    26→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+    27→    27→import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+    28→    28→import {
+    29→    29→  Table,
+    30→    30→  TableBody,
+    31→    31→  TableCell,
+    32→    32→  TableHead,
+    33→    33→  TableHeader,
+    34→    34→  TableRow,
+    35→    35→} from '@/components/ui/table'
+    36→    36→import { Badge } from '@/components/ui/badge'
+    37→    37→import { Button } from '@/components/ui/button'
+    38→    38→import {
+    39→    39→  Dialog,
+    40→    40→  DialogContent,
+    41→    41→  DialogHeader,
+    42→    42→  DialogTitle,
+    43→    43→  DialogTrigger,
+    44→    44→} from '@/components/ui/dialog'
+    45→    45→import { Input } from '@/components/ui/input'
+    46→    46→import {
+    47→    47→  Select,
+    48→    48→  SelectContent,
+    49→    49→  SelectItem,
+    50→    50→  SelectTrigger,
+    51→    51→  SelectValue,
+    52→    52→} from '@/components/ui/select'
+    53→    53→import { Switch } from '@/components/ui/switch'
+    54→    54→import { Label } from '@/components/ui/label'
+    55→    55→import { ScrollArea } from '@/components/ui/scroll-area'
+    56→    56→import { Skeleton } from '@/components/ui/skeleton'
+    57→    57→import { Separator } from '@/components/ui/separator'
+    58→    58→import { Textarea } from '@/components/ui/textarea'
+    59→    59→import { Progress } from '@/components/ui/progress'
+    60→    60→import { useApi } from '@/hooks/use-api'
+    61→    61→import { api } from '@/services/api'
+    62→    62→
+    63→    63→/* ─── Types ─── */
+    64→    64→
+    65→    65→type ModelStatus = 'deployed' | 'trained' | 'training' | 'draft'
+    66→    66→type ModelType = 'classification' | 'regression' | 'anomaly_detection' | 'nlp'
+    67→    67→type JobStatus = 'queued' | 'running' | 'completed' | 'failed'
+    68→    68→type FeatureSource = 'database' | 'stream' | 'api'
+    69→    69→
+    70→    70→interface MLModel {
+    71→    71→  id: string
+    72→    72→  name: string
+    73→    73→  type: ModelType
+    74→    74→  algorithm: string
+    75→    75→  version: string
+    76→    76→  status: ModelStatus
+    77→    77→  accuracy: number | null
+    78→    78→  precision: number | null
+    79→    79→  recall: number | null
+    80→    80→  featuresCount: number
+    81→    81→  lastTrained: string
+    82→    82→  trainingProgress?: number
+    83→    83→}
+    84→    84→
+    85→    85→interface Prediction {
+    86→    86→  id: string
+    87→    87→  time: string
+    88→    88→  model: string
+    89→    89→  entity: string
+    90→    90→  input: string
+    91→    91→  output: string
+    92→    92→  confidence: number
+    93→    93→  duration: number
+    94→    94→}
+    95→    95→
+    96→    96→interface TrainingJob {
+    97→    97→  id: string
+    98→    98→  model: string
+    99→    99→  status: JobStatus
+   100→   100→  progress: number
+   101→   101→  started: string
+   102→   102→  duration: string
+   103→   103→}
+   104→   104→
+   105→   105→interface FeatureStoreItem {
+   106→   106→  id: string
+   107→   107→  name: string
+   108→   108→  featuresCount: number
+   109→   109→  source: FeatureSource
+   110→   110→  refreshInterval: string
+   111→   111→  lastRefresh: string
+   112→   112→  active: boolean
+   113→   113→}
+   114→   114→
+   115→   115→/* ─── Mock Data ─── */
+   116→   116→
+   117→   117→const MOCK_MODELS: MLModel[] = [
+   118→   118→  {
+   119→   119→    id: 'm1',
+   120→   120→    name: 'Churn Predictor',
+   121→   121→    type: 'classification',
+   122→   122→    algorithm: 'XGBoost',
+   123→   123→    version: 'v2.1.0',
+   124→   124→    status: 'deployed',
+   125→   125→    accuracy: 94.2,
+   126→   126→    precision: 93.1,
+   127→   127→    recall: 95.4,
+   128→   128→    featuresCount: 42,
+   129→   129→    lastTrained: '2025-01-15 08:30',
+   130→   130→  },
+   131→   131→  {
+   132→   132→    id: 'm2',
+   133→   133→    name: 'Revenue Forecaster',
+   134→   134→    type: 'regression',
+   135→   135→    algorithm: 'LSTM',
+   136→   136→    version: 'v1.3.0',
+   137→   137→    status: 'deployed',
+   138→   138→    accuracy: 89.7,
+   139→   139→    precision: null,
+   140→   140→    recall: null,
+   141→   141→    featuresCount: 28,
+   142→   142→    lastTrained: '2025-01-14 22:15',
+   143→   143→  },
+   144→   144→  {
+   145→   145→    id: 'm3',
+   146→   146→    name: 'Fraud Detector',
+   147→   147→    type: 'anomaly_detection',
+   148→   148→    algorithm: 'Random Forest',
+   149→   149→    version: 'v3.0.0',
+   150→   150→    status: 'deployed',
+   151→   151→    accuracy: 97.8,
+   152→   152→    precision: 96.2,
+   153→   153→    recall: null,
+   154→   154→    featuresCount: 35,
+   155→   155→    lastTrained: '2025-01-15 04:00',
+   156→   156→  },
+   157→   157→  {
+   158→   158→    id: 'm4',
+   159→   159→    name: 'Player Segmentation',
+   160→   160→    type: 'classification',
+   161→   161→    algorithm: 'Neural Network',
+   162→   162→    version: 'v1.0.0',
+   163→   163→    status: 'trained',
+   164→   164→    accuracy: 91.3,
+   165→   165→    precision: null,
+   166→   166→    recall: null,
+   167→   167→    featuresCount: 19,
+   168→   168→    lastTrained: '2025-01-13 16:45',
+   169→   169→  },
+   170→   170→  {
+   171→   171→    id: 'm5',
+   172→   172→    name: 'AML Risk Scorer',
+   173→   173→    type: 'classification',
+   174→   174→    algorithm: 'XGBoost',
+   175→   175→    version: 'v2.0.0',
+   176→   176→    status: 'training',
+   177→   177→    accuracy: null,
+   178→   178→    precision: null,
+   179→   179→    recall: null,
+   180→   180→    featuresCount: 51,
+   181→   181→    lastTrained: '2025-01-15 10:00',
+   182→   182→    trainingProgress: 67,
+   183→   183→  },
+   184→   184→  {
+   185→   185→    id: 'm6',
+   186→   186→    name: 'Game Recommender',
+   187→   187→    type: 'nlp',
+   188→   188→    algorithm: 'Neural Network',
+   189→   189→    version: 'v1.1.0',
+   190→   190→    status: 'draft',
+   191→   191→    accuracy: null,
+   192→   192→    precision: null,
+   193→   193→    recall: null,
+   194→   194→    featuresCount: 15,
+   195→   195→    lastTrained: '—',
+   196→   196→  },
+   197→   197→]
+   198→   198→
+   199→   199→const MOCK_PREDICTIONS: Prediction[] = [
+   200→   200→  { id: 'p1', time: '10:42:18', model: 'Churn Predictor', entity: 'player_8921', input: '{"sessions":45,"avg_bet":23.5,"days_active":12}', output: '{"churn_prob":0.87}', confidence: 0.87, duration: 12 },
+   201→   201→  { id: 'p2', time: '10:42:15', model: 'Fraud Detector', entity: 'txn_45291', input: '{"amount":5200,"currency":"USD","ip":"192.168.1.1"}', output: '{"fraud_score":0.93,"flag":true}', confidence: 0.93, duration: 8 },
+   202→   202→  { id: 'p3', time: '10:42:12', model: 'Revenue Forecaster', entity: 'game_slots_21', input: '{"hour":10,"day":"tue","players":342}', output: '{"forecast":15820.5}', confidence: 0.82, duration: 45 },
+   203→   203→  { id: 'p4', time: '10:42:09', model: 'Churn Predictor', entity: 'player_3347', input: '{"sessions":120,"avg_bet":8.2,"days_active":89}', output: '{"churn_prob":0.12}', confidence: 0.12, duration: 11 },
+   204→   204→  { id: 'p5', time: '10:42:06', model: 'Fraud Detector', entity: 'txn_45295', input: '{"amount":50,"currency":"EUR","ip":"10.0.0.5"}', output: '{"fraud_score":0.04,"flag":false}', confidence: 0.96, duration: 6 },
+   205→   205→  { id: 'p6', time: '10:42:03', model: 'Revenue Forecaster', entity: 'game_live_05', input: '{"hour":10,"day":"tue","players":87}', output: '{"forecast":4320.0}', confidence: 0.78, duration: 42 },
+   206→   206→  { id: 'p7', time: '10:42:00', model: 'Churn Predictor', entity: 'player_7812', input: '{"sessions":8,"avg_bet":55.0,"days_active":3}', output: '{"churn_prob":0.94}', confidence: 0.94, duration: 13 },
+   207→   207→  { id: 'p8', time: '10:41:57', model: 'Fraud Detector', entity: 'txn_45300', input: '{"amount":12000,"currency":"BTC","ip":"172.16.0.1"}', output: '{"fraud_score":0.99,"flag":true}', confidence: 0.99, duration: 9 },
+   208→   208→  { id: 'p9', time: '10:41:54', model: 'Player Segmentation', entity: 'player_5590', input: '{"ltv":3200,"freq":15,"recency":2}', output: '{"segment":"whale"}', confidence: 0.76, duration: 18 },
+   209→   209→  { id: 'p10', time: '10:41:51', model: 'Churn Predictor', entity: 'player_2214', input: '{"sessions":67,"avg_bet":12.8,"days_active":45}', output: '{"churn_prob":0.31}', confidence: 0.31, duration: 10 },
+   210→   210→  { id: 'p11', time: '10:41:48', model: 'Revenue Forecaster', entity: 'game_table_03', input: '{"hour":10,"day":"tue","players":156}', output: '{"forecast":8750.0}', confidence: 0.85, duration: 38 },
+   211→   211→  { id: 'p12', time: '10:41:45', model: 'Fraud Detector', entity: 'txn_45312', input: '{"amount":250,"currency":"USD","ip":"10.0.1.22"}', output: '{"fraud_score":0.08,"flag":false}', confidence: 0.92, duration: 7 },
+   212→   212→]
+   213→   213→
+   214→   214→const MOCK_TRAINING_JOBS: TrainingJob[] = [
+   215→   215→  { id: 'job-2847', model: 'AML Risk Scorer', status: 'running', progress: 67, started: '10:15:00', duration: '27m 18s' },
+   216→   216→  { id: 'job-2846', model: 'Churn Predictor', status: 'running', progress: 34, started: '10:28:00', duration: '14m 18s' },
+   217→   217→  { id: 'job-2845', model: 'Fraud Detector', status: 'queued', progress: 0, started: '—', duration: '—' },
+   218→   218→  { id: 'job-2844', model: 'Revenue Forecaster', status: 'completed', progress: 100, started: '09:00:00', duration: '1h 22m' },
+   219→   219→  { id: 'job-2843', model: 'Player Segmentation', status: 'completed', progress: 100, started: '08:30:00', duration: '45m' },
+   220→   220→  { id: 'job-2842', model: 'Game Recommender', status: 'failed', progress: 58, started: '07:15:00', duration: '23m (failed)' },
+   221→   221→]
+   222→   222→
+   223→   223→const MOCK_FEATURE_STORES: FeatureStoreItem[] = [
+   224→   224→  { id: 'fs1', name: 'Player Behavior', featuresCount: 47, source: 'database', refreshInterval: '15min', lastRefresh: '10:37:00', active: true },
+   225→   225→  { id: 'fs2', name: 'Transaction Patterns', featuresCount: 23, source: 'stream', refreshInterval: '5min', lastRefresh: '10:42:00', active: true },
+   226→   226→  { id: 'fs3', name: 'Game Analytics', featuresCount: 31, source: 'database', refreshInterval: '30min', lastRefresh: '10:12:00', active: true },
+   227→   227→  { id: 'fs4', name: 'Geo Demographics', featuresCount: 18, source: 'api', refreshInterval: '60min', lastRefresh: '09:42:00', active: false },
+   228→   228→]
+   229→   229→
+   230→   230→/* ─── Helpers ─── */
+   231→   231→
+   232→   232→const statusColor: Record<ModelStatus, string> = {
+   233→   233→  deployed: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+   234→   234→  trained: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+   235→   235→  training: 'bg-sky-500/20 text-sky-400 border-sky-500/30',
+   236→   236→  draft: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
+   237→   237→}
+   238→   238→
+   239→   239→const statusIcon: Record<ModelStatus, React.ReactNode> = {
+   240→   240→  deployed: <CheckCircle className="size-3" />,
+   241→   241→  trained: <Clock className="size-3" />,
+   242→   242→  training: <Loader2 className="size-3 animate-spin" />,
+   243→   243→  draft: <Square className="size-3" />,
+   244→   244→}
+   245→   245→
+   246→   246→const typeBadgeColor: Record<ModelType, string> = {
+   247→   247→  classification: 'bg-violet-500/20 text-violet-300 border-violet-500/30',
+   248→   248→  regression: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+   249→   249→  anomaly_detection: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+   250→   250→  nlp: 'bg-teal-500/20 text-teal-300 border-teal-500/30',
+   251→   251→}
+   252→   252→
+   253→   253→const jobStatusColor: Record<JobStatus, string> = {
+   254→   254→  queued: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
+   255→   255→  running: 'bg-sky-500/20 text-sky-400 border-sky-500/30',
+   256→   256→  completed: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+   257→   257→  failed: 'bg-rose-500/20 text-rose-400 border-rose-500/30',
+   258→   258→}
+   259→   259→
+   260→   260→const jobStatusIcon: Record<JobStatus, React.ReactNode> = {
+   261→   261→  queued: <Clock className="size-3" />,
+   262→   262→  running: <Loader2 className="size-3 animate-spin" />,
+   263→   263→  completed: <CheckCircle className="size-3" />,
+   264→   264→  failed: <XCircle className="size-3" />,
+   265→   265→}
+   266→   266→
+   267→   267→const sourceIcon: Record<FeatureSource, React.ReactNode> = {
+   268→   268→  database: <Database className="size-4 text-violet-400" />,
+   269→   269→  stream: <Activity className="size-4 text-cyan-400" />,
+   270→   270→  api: <Zap className="size-4 text-amber-400" />,
+   271→   271→}
+   272→   272→
+   273→   273→const sourceBadgeColor: Record<FeatureSource, string> = {
+   274→   274→  database: 'bg-violet-500/20 text-violet-300 border-violet-500/30',
+   275→   275→  stream: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/30',
+   276→   276→  api: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+   277→   277→}
+   278→   278→
+   279→   279→function confidenceColor(confidence: number): string {
+   280→   280→  if (confidence >= 0.9) return 'text-emerald-400'
+   281→   281→  if (confidence >= 0.7) return 'text-amber-400'
+   282→   282→  if (confidence >= 0.5) return 'text-orange-400'
+   283→   283→  return 'text-rose-400'
+   284→   284→}
+   285→   285→
+   286→   286→function confidenceBg(confidence: number): string {
+   287→   287→  if (confidence >= 0.9) return 'bg-emerald-500/20'
+   288→   288→  if (confidence >= 0.7) return 'bg-amber-500/20'
+   289→   289→  if (confidence >= 0.5) return 'bg-orange-500/20'
+   290→   290→  return 'bg-rose-500/20'
+   291→   291→}
+   292→   292→
+   293→   293→function truncate(str: string, max: number): string {
+   294→   294→  if (str.length <= max) return str
+   295→   295→  return str.slice(0, max) + '…'
+   296→   296→}
+   297→   297→
+   298→   298→const MODEL_TYPE_LABELS: Record<ModelType, string> = {
+   299→   299→  classification: 'Classification',
+   300→   300→  regression: 'Regression',
+   301→   301→  anomaly_detection: 'Anomaly Detection',
+   302→   302→  nlp: 'NLP',
+   303→   303→}
+   304→   304→
+   305→   305→/* ─── Main Component ─── */
+   306→   306→
+   307→   307→export function MLPipelineView() {
+   308→   308→  /* State */
+   309→   309→  const [models, setModels] = useState<MLModel[]>(MOCK_MODELS)
+   310→   310→  const [predictions] = useState<Prediction[]>(MOCK_PREDICTIONS)
+   311→   311→  const [trainingJobs, setTrainingJobs] = useState<TrainingJob[]>(MOCK_TRAINING_JOBS)
+   312→   312→  const [featureStores, setFeatureStores] = useState<FeatureStoreItem[]>(MOCK_FEATURE_STORES)
+   313→   313→
+   314→   314→  const [modelFilter, setModelFilter] = useState<string>('all')
+   315→   315→  const [confidenceThreshold, setConfidenceThreshold] = useState<string>('0')
+   316→   316→  const [addModelOpen, setAddModelOpen] = useState(false)
+   317→   317→  const [newModel, setNewModel] = useState({ name: '', type: 'classification' as ModelType, algorithm: '', description: '' })
+   318→   318→  const [searchQuery, setSearchQuery] = useState('')
+   319→   319→
+   320→   320→  /* useApi for data fetching */
+   321→   321→  const { data: pipelineData, loading, error, refetch } = useApi(
+   322→   322→    useCallback(() => api.dashboard.get().then(() => 'loaded'), []),
+   323→   323→    []
+   324→   324→  )
+   325→   325→
+   326→   326→  /* Simulate progress for running training jobs */
+   327→   327→  const [runningProgress, setRunningProgress] = useState<Record<string, number>>({
+   328→   328→    'job-2847': 67,
+   329→   329→    'job-2846': 34,
+   330→   330→  })
+   331→   331→
+   332→   332→  useEffect(() => {
+   333→   333→    const interval = setInterval(() => {
+   334→   334→      setRunningProgress((prev) => {
+   335→   335→        const next = { ...prev }
+   336→   336→        for (const key of Object.keys(next)) {
+   337→   337→          if (next[key] < 100) {
+   338→   338→            next[key] = Math.min(100, next[key] + Math.random() * 2)
+   339→   339→          }
+   340→   340→        }
+   341→   341→        return next
+   342→   342→      })
+   343→   343→    }, 1500)
+   344→   344→    return () => clearInterval(interval)
+   345→   345→  }, [])
+   346→   346→
+   347→   347→  /* Filtered predictions */
+   348→   348→  const filteredPredictions = predictions.filter((p) => {
+   349→   349→    if (modelFilter !== 'all' && p.model !== modelFilter) return false
+   350→   350→    if (Number(confidenceThreshold) > 0 && p.confidence < Number(confidenceThreshold)) return false
+   351→   351→    return true
+   352→   352→  })
+   353→   353→
+   354→   354→  /* Handle model action */
+   355→   355→  const handleModelAction = (modelId: string, action: 'deploy' | 'train' | 'view') => {
+   356→   356→    if (action === 'deploy') {
+   357→   357→      setModels((prev) =>
+   358→   358→        prev.map((m) => (m.id === modelId ? { ...m, status: 'deployed' as ModelStatus } : m))
+   359→   359→      )
+   360→   360→    } else if (action === 'train') {
+   361→   361→      setModels((prev) =>
+   362→   362→        prev.map((m) =>
+   363→   363→          m.id === modelId ? { ...m, status: 'training' as ModelStatus, trainingProgress: 0 } : m
+   364→   364→        )
+   365→   365→      )
+   366→   366→    }
+   367→   367→  }
+   368→   368→
+   369→   369→  /* Handle feature store toggle */
+   370→   370→  const handleFeatureToggle = (storeId: string, active: boolean) => {
+   371→   371→    setFeatureStores((prev) =>
+   372→   372→      prev.map((fs) => (fs.id === storeId ? { ...fs, active } : fs))
+   373→   373→    )
+   374→   374→  }
+   375→   375→
+   376→   376→  /* Handle cancel job */
+   377→   377→  const handleCancelJob = (jobId: string) => {
+   378→   378→    setTrainingJobs((prev) =>
+   379→   379→      prev.map((j) => (j.id === jobId ? { ...j, status: 'failed' as JobStatus } : j))
+   380→   380→    )
+   381→   381→    setRunningProgress((prev) => {
+   382→   382→      const next = { ...prev }
+   383→   383→      delete next[jobId]
+   384→   384→      return next
+   385→   385→    })
+   386→   386→  }
+   387→   387→
+   388→   388→  /* Loading state */
+   389→   389→  if (loading) {
+   390→   390→    return (
+   391→   391→      <div className="space-y-4">
+   392→   392→        <div className="flex items-center gap-2">
+   393→   393→          <Brain className="size-5 text-amber-400" />
+   394→   394→          <Skeleton className="h-6 w-48" />
+   395→   395→        </div>
+   396→   396→        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   397→   397→          {Array.from({ length: 6 }).map((_, i) => (
+   398→   398→            <Card key={i} className="border-zinc-800 bg-zinc-950/80">
+   399→   399→              <CardContent className="p-6">
+   400→   400→                <Skeleton className="h-32 w-full" />
+   401→   401→              </CardContent>
+   402→   402→            </Card>
+   403→   403→          ))}
+   404→   404→        </div>
+   405→   405→      </div>
+   406→   406→    )
+   407→   407→  }
+   408→   408→
+   409→   409→  return (
+   410→   410→    <div className="space-y-4">
+   411→   411→      {/* Header */}
+   412→   412→      <div className="flex items-center justify-between">
+   413→   413→        <div className="flex items-center gap-3">
+   414→   414→          <div className="flex items-center justify-center size-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-rose-500/20 border border-amber-500/20">
+   415→   415→            <Brain className="size-5 text-amber-400" />
+   416→   416→          </div>
+   417→   417→          <div>
+   418→   418→            <h2 className="text-lg font-semibold text-zinc-100">ML Pipeline & Predictions</h2>
+   419→   419→            <p className="text-xs text-zinc-500">
+   420→   420→              {models.filter((m) => m.status === 'deployed').length} deployed ·{' '}
+   421→   421→              {models.filter((m) => m.status === 'training').length} training ·{' '}
+   422→   422→              {predictions.length} predictions/min
+   423→   423→            </p>
+   424→   424→          </div>
+   425→   425→        </div>
+   426→   426→        <Dialog open={addModelOpen} onOpenChange={setAddModelOpen}>
+   427→   427→          <DialogTrigger asChild>
+   428→   428→            <Button
+   429→   429→              size="sm"
+   430→   430→              className="gap-1.5 text-xs bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-zinc-950 font-semibold border-0"
+   431→   431→            >
+   432→   432→              <Plus className="size-3.5" /> Add Model
+   433→   433→            </Button>
+   434→   434→          </DialogTrigger>
+   435→   435→          <DialogContent className="bg-zinc-950 border-zinc-800">
+   436→   436→            <DialogHeader>
+   437→   437→              <DialogTitle className="text-zinc-100">Add New ML Model</DialogTitle>
+   438→   438→            </DialogHeader>
+   439→   439→            <div className="space-y-4 py-2">
+   440→   440→              <div>
+   441→   441→                <Label className="text-xs text-zinc-400 mb-1.5 block">Model Name</Label>
+   442→   442→                <Input
+   443→   443→                  value={newModel.name}
+   444→   444→                  onChange={(e) => setNewModel((p) => ({ ...p, name: e.target.value }))}
+   445→   445→                  placeholder="e.g. Bonus Abuse Detector"
+   446→   446→                  className="h-9 text-xs bg-zinc-900 border-zinc-800 text-zinc-100 placeholder:text-zinc-600"
+   447→   447→                />
+   448→   448→              </div>
+   449→   449→              <div>
+   450→   450→                <Label className="text-xs text-zinc-400 mb-1.5 block">Model Type</Label>
+   451→   451→                <Select
+   452→   452→                  value={newModel.type}
+   453→   453→                  onValueChange={(v) => setNewModel((p) => ({ ...p, type: v as ModelType }))}
+   454→   454→                >
+   455→   455→                  <SelectTrigger className="h-9 text-xs bg-zinc-900 border-zinc-800 text-zinc-100">
+   456→   456→                    <SelectValue />
+   457→   457→                  </SelectTrigger>
+   458→   458→                  <SelectContent className="bg-zinc-900 border-zinc-800">
+   459→   459→                    <SelectItem value="classification">Classification</SelectItem>
+   460→   460→                    <SelectItem value="regression">Regression</SelectItem>
+   461→   461→                    <SelectItem value="anomaly_detection">Anomaly Detection</SelectItem>
+   462→   462→                    <SelectItem value="nlp">NLP</SelectItem>
+   463→   463→                  </SelectContent>
+   464→   464→                </Select>
+   465→   465→              </div>
+   466→   466→              <div>
+   467→   467→                <Label className="text-xs text-zinc-400 mb-1.5 block">Algorithm</Label>
+   468→   468→                <Input
+   469→   469→                  value={newModel.algorithm}
+   470→   470→                  onChange={(e) => setNewModel((p) => ({ ...p, algorithm: e.target.value }))}
+   471→   471→                  placeholder="e.g. XGBoost, LSTM, Random Forest"
+   472→   472→                  className="h-9 text-xs bg-zinc-900 border-zinc-800 text-zinc-100 placeholder:text-zinc-600"
+   473→   473→                />
+   474→   474→              </div>
+   475→   475→              <div>
+   476→   476→                <Label className="text-xs text-zinc-400 mb-1.5 block">Description</Label>
+   477→   477→                <Textarea
+   478→   478→                  value={newModel.description}
+   479→   479→                  onChange={(e) => setNewModel((p) => ({ ...p, description: e.target.value }))}
+   480→   480→                  placeholder="Describe the model purpose and target..."
+   481→   481→                  className="text-xs min-h-[60px] bg-zinc-900 border-zinc-800 text-zinc-100 placeholder:text-zinc-600"
+   482→   482→                />
+   483→   483→              </div>
+   484→   484→            </div>
+   485→   485→            <div className="flex justify-end gap-2 pt-2">
+   486→   486→              <Button
+   487→   487→                variant="ghost"
+   488→   488→                size="sm"
+   489→   489→                className="text-xs text-zinc-400"
+   490→   490→                onClick={() => setAddModelOpen(false)}
+   491→   491→              >
+   492→   492→                Cancel
+   493→   493→              </Button>
+   494→   494→              <Button
+   495→   495→                size="sm"
+   496→   496→                className="text-xs bg-amber-600 hover:bg-amber-500 text-zinc-950 font-semibold"
+   497→   497→                onClick={() => {
+   498→   498→                  if (!newModel.name.trim()) return
+   499→   499→                  setModels((prev) => [
+   500→   500→                    ...prev,
+   501→   501→                    {
+   502→   502→                      id: `m${Date.now()}`,
+   503→   503→                      name: newModel.name,
+   504→   504→                      type: newModel.type,
+   505→   505→                      algorithm: newModel.algorithm || 'Custom',
+   506→   506→                      version: 'v0.1.0',
+   507→   507→                      status: 'draft',
+   508→   508→                      accuracy: null,
+   509→   509→                      precision: null,
+   510→   510→                      recall: null,
+   511→   511→                      featuresCount: 0,
+   512→   512→                      lastTrained: '—',
+   513→   513→                    },
+   514→   514→                  ])
+   515→   515→                  setNewModel({ name: '', type: 'classification', algorithm: '', description: '' })
+   516→   516→                  setAddModelOpen(false)
+   517→   517→                }}
+   518→   518→              >
+   519→   519→                Add Model
+   520→   520→              </Button>
+   521→   521→            </div>
+   522→   522→          </DialogContent>
+   523→   523→        </Dialog>
+   524→   524→      </div>
+   525→   525→
+   526→   526→      {/* Tabs */}
+   527→   527→      <Tabs defaultValue="models" className="w-full">
+   528→   528→        <TabsList className="bg-zinc-900/80 border border-zinc-800 p-0.5 h-9">
+   529→   529→          <TabsTrigger
+   530→   530→            value="models"
+   531→   531→            className="text-xs data-[state=active]:bg-zinc-800 data-[state=active]:text-amber-400 text-zinc-500 px-3"
+   532→   532→          >
+   533→   533→            <Brain className="size-3.5 mr-1.5" /> Models
+   534→   534→          </TabsTrigger>
+   535→   535→          <TabsTrigger
+   536→   536→            value="predictions"
+   537→   537→            className="text-xs data-[state=active]:bg-zinc-800 data-[state=active]:text-amber-400 text-zinc-500 px-3"
+   538→   538→          >
+   539→   539→            <TrendingUp className="size-3.5 mr-1.5" /> Predictions
+   540→   540→          </TabsTrigger>
+   541→   541→          <TabsTrigger
+   542→   542→            value="training"
+   543→   543→            className="text-xs data-[state=active]:bg-zinc-800 data-[state=active]:text-amber-400 text-zinc-500 px-3"
+   544→   544→          >
+   545→   545→            <Cpu className="size-3.5 mr-1.5" /> Training Jobs
+   546→   546→          </TabsTrigger>
+   547→   547→          <TabsTrigger
+   548→   548→            value="features"
+   549→   549→            className="text-xs data-[state=active]:bg-zinc-800 data-[state=active]:text-amber-400 text-zinc-500 px-3"
+   550→   550→          >
+   551→   551→            <Database className="size-3.5 mr-1.5" /> Feature Store
+   552→   552→          </TabsTrigger>
+   553→   553→        </TabsList>
+   554→   554→
+   555→   555→        {/* ────── Tab 1: Models ────── */}
+   556→   556→        <TabsContent value="models" className="mt-4">
+   557→   557→          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+   558→   558→            {models.map((model) => (
+   559→   559→              <Card
+   560→   560→                key={model.id}
+   561→   561→                className="border-zinc-800 bg-zinc-950/80 hover:border-zinc-700 transition-colors relative overflow-hidden"
+   562→   562→              >
+   563→   563→                {/* Top accent bar */}
+   564→   564→                <div
+   565→   565→                  className={`absolute top-0 left-0 right-0 h-0.5 ${
+   566→   566→                    model.status === 'deployed'
+   567→   567→                      ? 'bg-gradient-to-r from-emerald-500 to-emerald-400'
+   568→   568→                      : model.status === 'training'
+   569→   569→                        ? 'bg-gradient-to-r from-sky-500 to-sky-400'
+   570→   570→                        : model.status === 'trained'
+   571→   571→                          ? 'bg-gradient-to-r from-amber-500 to-amber-400'
+   572→   572→                          : 'bg-gradient-to-r from-zinc-600 to-zinc-500'
+   573→   573→                  }`}
+   574→   574→                />
+   575→   575→
+   576→   576→                <CardContent className="p-5 pt-6">
+   577→   577→                  {/* Header */}
+   578→   578→                  <div className="flex items-start justify-between mb-3">
+   579→   579→                    <div className="flex-1 min-w-0">
+   580→   580→                      <h3 className="text-sm font-semibold text-zinc-100 truncate">{model.name}</h3>
+   581→   581→                      <p className="text-[10px] text-zinc-500 mt-0.5 font-mono">{model.version}</p>
+   582→   582→                    </div>
+   583→   583→                    <Badge
+   584→   584→                      variant="outline"
+   585→   585→                      className={`text-[9px] px-1.5 py-0 gap-1 ${statusColor[model.status]} shrink-0 ml-2`}
+   586→   586→                    >
+   587→   587→                      {statusIcon[model.status]}
+   588→   588→                      {model.status.charAt(0).toUpperCase() + model.status.slice(1)}
+   589→   589→                    </Badge>
+   590→   590→                  </div>
+   591→   591→
+   592→   592→                  {/* Type & Algorithm Badges */}
+   593→   593→                  <div className="flex items-center gap-1.5 mb-3">
+   594→   594→                    <Badge
+   595→   595→                      variant="outline"
+   596→   596→                      className={`text-[9px] px-1.5 py-0 ${typeBadgeColor[model.type]}`}
+   597→   597→                    >
+   598→   598→                      {MODEL_TYPE_LABELS[model.type]}
+   599→   599→                    </Badge>
+   600→   600→                    <Badge
+   601→   601→                      variant="outline"
+   602→   602→                      className="text-[9px] px-1.5 py-0 bg-zinc-800/50 text-zinc-400 border-zinc-700"
+   603→   603→                    >
+   604→   604→                      {model.algorithm}
+   605→   605→                    </Badge>
+   606→   606→                  </div>
+   607→   607→
+   608→   608→                  {/* Accuracy Metrics */}
+   609→   609→                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+   610→   610→                    {model.accuracy !== null && (
+   611→   611→                      <div className="p-2 rounded-lg bg-zinc-900/60 text-center">
+   612→   612→                        <p className="text-base font-bold text-emerald-400">{model.accuracy}%</p>
+   613→   613→                        <p className="text-[9px] text-zinc-500 uppercase tracking-wider">Accuracy</p>
+   614→   614→                      </div>
+   615→   615→                    )}
+   616→   616→                    {model.precision !== null && (
+   617→   617→                      <div className="p-2 rounded-lg bg-zinc-900/60 text-center">
+   618→   618→                        <p className="text-base font-bold text-cyan-400">{model.precision}%</p>
+   619→   619→                        <p className="text-[9px] text-zinc-500 uppercase tracking-wider">Precision</p>
+   620→   620→                      </div>
+   621→   621→                    )}
+   622→   622→                    {model.recall !== null && (
+   623→   623→                      <div className="p-2 rounded-lg bg-zinc-900/60 text-center">
+   624→   624→                        <p className="text-base font-bold text-amber-400">{model.recall}%</p>
+   625→   625→                        <p className="text-[9px] text-zinc-500 uppercase tracking-wider">Recall</p>
+   626→   626→                      </div>
+   627→   627→                    )}
+   628→   628→                    {model.trainingProgress !== undefined && model.status === 'training' && (
+   629→   629→                      <div className="col-span-2">
+   630→   630→                        <div className="flex items-center justify-between text-[9px] text-zinc-500 mb-1">
+   631→   631→                          <span>Training Progress</span>
+   632→   632→                          <span className="text-sky-400 font-mono">{Math.round(model.trainingProgress)}%</span>
+   633→   633→                        </div>
+   634→   634→                        <Progress
+   635→   635→                          value={model.trainingProgress}
+   636→   636→                          className="h-1.5 bg-zinc-800 [&>div]:bg-sky-500"
+   637→   637→                        />
+   638→   638→                      </div>
+   639→   639→                    )}
+   640→   640→                    {model.accuracy === null && model.status === 'draft' && (
+   641→   641→                      <div className="col-span-2 p-2 rounded-lg bg-zinc-900/60 text-center">
+   642→   642→                        <p className="text-[10px] text-zinc-500 italic">Not yet trained</p>
+   643→   643→                      </div>
+   644→   644→                    )}
+   645→   645→                  </div>
+   646→   646→
+   647→   647→                  <Separator className="bg-zinc-800 mb-3" />
+   648→   648→
+   649→   649→                  {/* Meta Info */}
+   650→   650→                  <div className="flex items-center justify-between text-[10px] text-zinc-500 mb-3">
+   651→   651→                    <span className="flex items-center gap-1">
+   652→   652→                      <Database className="size-3" /> {model.featuresCount} features
+   653→   653→                    </span>
+   654→   654→                    <span className="flex items-center gap-1">
+   655→   655→                      <Clock className="size-3" /> {model.lastTrained}
+   656→   656→                    </span>
+   657→   657→                  </div>
+   658→   658→
+   659→   659→                  {/* Actions */}
+   660→   660→                  <div className="flex items-center gap-1.5">
+   661→   661→                    {model.status === 'trained' && (
+   662→   662→                      <Button
+   663→   663→                        size="sm"
+   664→   664→                        variant="outline"
+   665→   665→                        className="h-7 text-[10px] gap-1 flex-1 border-emerald-600/30 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
+   666→   666→                        onClick={() => handleModelAction(model.id, 'deploy')}
+   667→   667→                      >
+   668→   668→                        <Play className="size-3" /> Deploy
+   669→   669→                      </Button>
+   670→   670→                    )}
+   671→   671→                    {(model.status === 'draft' || model.status === 'trained') && (
+   672→   672→                      <Button
+   673→   673→                        size="sm"
+   674→   674→                        variant="outline"
+   675→   675→                        className="h-7 text-[10px] gap-1 flex-1 border-sky-600/30 text-sky-400 hover:bg-sky-500/10 hover:text-sky-300"
+   676→   676→                        onClick={() => handleModelAction(model.id, 'train')}
+   677→   677→                      >
+   678→   678→                        <RefreshCw className="size-3" /> Train
+   679→   679→                      </Button>
+   680→   680→                    )}
+   681→   681→                    {model.status === 'deployed' && (
+   682→   682→                      <Button
+   683→   683→                        size="sm"
+   684→   684→                        variant="outline"
+   685→   685→                        className="h-7 text-[10px] gap-1 flex-1 border-rose-600/30 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300"
+   686→   686→                        onClick={() =>
+   687→   687→                          setModels((prev) =>
+   688→   688→                            prev.map((m) =>
+   689→   689→                              m.id === model.id ? { ...m, status: 'trained' as ModelStatus } : m
+   690→   690→                            )
+   691→   691→                          )
+   692→   692→                        }
+   693→   693→                      >
+   694→   694→                        <Square className="size-3" /> Undeploy
+   695→   695→                      </Button>
+   696→   696→                    )}
+   697→   697→                    {model.status === 'training' && (
+   698→   698→                      <Button
+   699→   699→                        size="sm"
+   700→   700→                        variant="outline"
+   701→   701→                        disabled
+   702→   702→                        className="h-7 text-[10px] gap-1 flex-1 border-zinc-700 text-zinc-600"
+   703→   703→                      >
+   704→   704→                        <Loader2 className="size-3 animate-spin" /> Training…
+   705→   705→                      </Button>
+   706→   706→                    )}
+   707→   707→                    <Button
+   708→   708→                      size="sm"
+   709→   709→                      variant="ghost"
+   710→   710→                      className="h-7 text-[10px] gap-1 text-zinc-500 hover:text-zinc-300"
+   711→   711→                      onClick={() => handleModelAction(model.id, 'view')}
+   712→   712→                    >
+   713→   713→                      <Eye className="size-3" /> View
+   714→   714→                    </Button>
+   715→   715→                  </div>
+   716→   716→                </CardContent>
+   717→   717→              </Card>
+   718→   718→            ))}
+   719→   719→          </div>
+   720→   720→        </TabsContent>
+   721→   721→
+   722→   722→        {/* ────── Tab 2: Predictions ────── */}
+   723→   723→        <TabsContent value="predictions" className="mt-4">
+   724→   724→          <Card className="border-zinc-800 bg-zinc-950/80">
+   725→   725→            <CardHeader className="pb-3">
+   726→   726→              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+   727→   727→                <CardTitle className="text-sm text-zinc-100 flex items-center gap-2">
+   728→   728→                  <Activity className="size-4 text-amber-400" /> Recent Predictions
+   729→   729→                </CardTitle>
+   730→   730→                <div className="flex items-center gap-2 w-full sm:w-auto">
+   731→   731→                  <Select value={modelFilter} onValueChange={setModelFilter}>
+   732→   732→                    <SelectTrigger className="h-8 text-[10px] w-full sm:w-[160px] bg-zinc-900 border-zinc-800 text-zinc-300">
+   733→   733→                      <Filter className="size-3 mr-1 text-zinc-500" />
+   734→   734→                      <SelectValue placeholder="All Models" />
+   735→   735→                    </SelectTrigger>
+   736→   736→                    <SelectContent className="bg-zinc-900 border-zinc-800">
+   737→   737→                      <SelectItem value="all">All Models</SelectItem>
+   738→   738→                      <SelectItem value="Churn Predictor">Churn Predictor</SelectItem>
+   739→   739→                      <SelectItem value="Fraud Detector">Fraud Detector</SelectItem>
+   740→   740→                      <SelectItem value="Revenue Forecaster">Revenue Forecaster</SelectItem>
+   741→   741→                      <SelectItem value="Player Segmentation">Player Segmentation</SelectItem>
+   742→   742→                    </SelectContent>
+   743→   743→                  </Select>
+   744→   744→                  <Select value={confidenceThreshold} onValueChange={setConfidenceThreshold}>
+   745→   745→                    <SelectTrigger className="h-8 text-[10px] w-full sm:w-[140px] bg-zinc-900 border-zinc-800 text-zinc-300">
+   746→   746→                      <SelectValue placeholder="Confidence ≥" />
+   747→   747→                    </SelectTrigger>
+   748→   748→                    <SelectContent className="bg-zinc-900 border-zinc-800">
+   749→   749→                      <SelectItem value="0">All Confidence</SelectItem>
+   750→   750→                      <SelectItem value="0.5">≥ 50%</SelectItem>
+   751→   751→                      <SelectItem value="0.7">≥ 70%</SelectItem>
+   752→   752→                      <SelectItem value="0.9">≥ 90%</SelectItem>
+   753→   753→                    </SelectContent>
+   754→   754→                  </Select>
+   755→   755→                </div>
+   756→   756→              </div>
+   757→   757→            </CardHeader>
+   758→   758→            <CardContent className="p-0">
+   759→   759→              <ScrollArea className="max-h-[480px]">
+   760→   760→                <Table>
+   761→   761→                  <TableHeader>
+   762→   762→                    <TableRow className="border-zinc-800 hover:bg-transparent">
+   763→   763→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider h-8">Time</TableHead>
+   764→   764→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Model</TableHead>
+   765→   765→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Entity</TableHead>
+   766→   766→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Input</TableHead>
+   767→   767→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Output</TableHead>
+   768→   768→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider text-right">Confidence</TableHead>
+   769→   769→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider text-right">Duration</TableHead>
+   770→   770→                    </TableRow>
+   771→   771→                  </TableHeader>
+   772→   772→                  <TableBody>
+   773→   773→                    {filteredPredictions.map((pred) => (
+   774→   774→                      <TableRow
+   775→   775→                        key={pred.id}
+   776→   776→                        className="border-zinc-800/50 hover:bg-zinc-900/40 transition-colors"
+   777→   777→                      >
+   778→   778→                        <TableCell className="text-[10px] text-zinc-400 font-mono whitespace-nowrap">
+   779→   779→                          {pred.time}
+   780→   780→                        </TableCell>
+   781→   781→                        <TableCell className="text-[10px] text-zinc-300 whitespace-nowrap">
+   782→   782→                          {pred.model}
+   783→   783→                        </TableCell>
+   784→   784→                        <TableCell className="text-[10px] text-zinc-400 font-mono whitespace-nowrap">
+   785→   785→                          {pred.entity}
+   786→   786→                        </TableCell>
+   787→   787→                        <TableCell className="text-[10px] text-zinc-500 font-mono max-w-[180px]">
+   788→   788→                          <span className="truncate block">{truncate(pred.input, 35)}</span>
+   789→   789→                        </TableCell>
+   790→   790→                        <TableCell className="text-[10px] text-zinc-500 font-mono max-w-[160px]">
+   791→   791→                          <span className="truncate block">{truncate(pred.output, 30)}</span>
+   792→   792→                        </TableCell>
+   793→   793→                        <TableCell className="text-right whitespace-nowrap">
+   794→   794→                          <span
+   795→   795→                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold ${confidenceBg(pred.confidence)} ${confidenceColor(pred.confidence)}`}
+   796→   796→                          >
+   797→   797→                            {(pred.confidence * 100).toFixed(0)}%
+   798→   798→                          </span>
+   799→   799→                        </TableCell>
+   800→   800→                        <TableCell className="text-[10px] text-zinc-500 font-mono text-right whitespace-nowrap">
+   801→   801→                          {pred.duration}ms
+   802→   802→                        </TableCell>
+   803→   803→                      </TableRow>
+   804→   804→                    ))}
+   805→   805→                    {filteredPredictions.length === 0 && (
+   806→   806→                      <TableRow>
+   807→   807→                        <TableCell colSpan={7} className="text-center text-xs text-zinc-500 py-8">
+   808→   808→                          No predictions match the current filters
+   809→   809→                        </TableCell>
+   810→   810→                      </TableRow>
+   811→   811→                    )}
+   812→   812→                  </TableBody>
+   813→   813→                </Table>
+   814→   814→              </ScrollArea>
+   815→   815→            </CardContent>
+   816→   816→          </Card>
+   817→   817→        </TabsContent>
+   818→   818→
+   819→   819→        {/* ────── Tab 3: Training Jobs ────── */}
+   820→   820→        <TabsContent value="training" className="mt-4">
+   821→   821→          <Card className="border-zinc-800 bg-zinc-950/80">
+   822→   822→            <CardHeader className="pb-3">
+   823→   823→              <div className="flex items-center justify-between">
+   824→   824→                <CardTitle className="text-sm text-zinc-100 flex items-center gap-2">
+   825→   825→                  <Cpu className="size-4 text-amber-400" /> Training Jobs
+   826→   826→                </CardTitle>
+   827→   827→                <div className="flex items-center gap-2">
+   828→   828→                  <Badge variant="outline" className="text-[9px] bg-sky-500/10 text-sky-400 border-sky-500/30">
+   829→   829→                    {trainingJobs.filter((j) => j.status === 'running').length} running
+   830→   830→                  </Badge>
+   831→   831→                  <Badge variant="outline" className="text-[9px] bg-zinc-800 text-zinc-400 border-zinc-700">
+   832→   832→                    {trainingJobs.filter((j) => j.status === 'queued').length} queued
+   833→   833→                  </Badge>
+   834→   834→                </div>
+   835→   835→              </div>
+   836→   836→            </CardHeader>
+   837→   837→            <CardContent className="p-0">
+   838→   838→              <ScrollArea className="max-h-[400px]">
+   839→   839→                <Table>
+   840→   840→                  <TableHeader>
+   841→   841→                    <TableRow className="border-zinc-800 hover:bg-transparent">
+   842→   842→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider h-8">Job ID</TableHead>
+   843→   843→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Model</TableHead>
+   844→   844→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Status</TableHead>
+   845→   845→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Progress</TableHead>
+   846→   846→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Started</TableHead>
+   847→   847→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider">Duration</TableHead>
+   848→   848→                      <TableHead className="text-[9px] text-zinc-500 uppercase tracking-wider text-right">Actions</TableHead>
+   849→   849→                    </TableRow>
+   850→   850→                  </TableHeader>
+   851→   851→                  <TableBody>
+   852→   852→                    {trainingJobs.map((job) => {
+   853→   853→                      const isRunning = job.status === 'running'
+   854→   854→                      const currentProgress = isRunning
+   855→   855→                        ? runningProgress[job.id] ?? job.progress
+   856→   856→                        : job.progress
+   857→   857→
+   858→   858→                      return (
+   859→   859→                        <TableRow
+   860→   860→                          key={job.id}
+   861→   861→                          className={`border-zinc-800/50 hover:bg-zinc-900/40 transition-colors ${isRunning ? 'animate-pulse' : ''}`}
+   862→   862→                        >
+   863→   863→                          <TableCell className="text-[10px] text-zinc-400 font-mono whitespace-nowrap">
+   864→   864→                            {job.id}
+   865→   865→                          </TableCell>
+   866→   866→                          <TableCell className="text-[10px] text-zinc-300 whitespace-nowrap">
+   867→   867→                            {job.model}
+   868→   868→                          </TableCell>
+   869→   869→                          <TableCell>
+   870→   870→                            <Badge
+   871→   871→                              variant="outline"
+   872→   872→                              className={`text-[9px] px-1.5 py-0 gap-1 ${jobStatusColor[job.status]}`}
+   873→   873→                            >
+   874→   874→                              {jobStatusIcon[job.status]}
+   875→   875→                              {job.status.charAt(0).toUpperCase() + job.status.slice(1)}
+   876→   876→                            </Badge>
+   877→   877→                          </TableCell>
+   878→   878→                          <TableCell>
+   879→   879→                            <div className="flex items-center gap-2 min-w-[140px]">
+   880→   880→                              <Progress
+   881→   881→                                value={currentProgress}
+   882→   882→                                className={`h-1.5 flex-1 bg-zinc-800 ${
+   883→   883→                                  job.status === 'failed'
+   884→   884→                                    ? '[&>div]:bg-rose-500'
+   885→   885→                                    : job.status === 'completed'
+   886→   886→                                      ? '[&>div]:bg-emerald-500'
+   887→   887→                                      : '[&>div]:bg-sky-500'
+   888→   888→                                }`}
+   889→   889→                              />
+   890→   890→                              <span
+   891→   891→                                className={`text-[10px] font-mono w-8 text-right ${
+   892→   892→                                  job.status === 'completed'
+   893→   893→                                    ? 'text-emerald-400'
+   894→   894→                                    : job.status === 'failed'
+   895→   895→                                      ? 'text-rose-400'
+   896→   896→                                      : 'text-zinc-400'
+   897→   897→                                }`}
+   898→   898→                              >
+   899→   899→                                {Math.round(currentProgress)}%
+   900→   900→                              </span>
+   901→   901→                            </div>
+   902→   902→                          </TableCell>
+   903→   903→                          <TableCell className="text-[10px] text-zinc-400 font-mono whitespace-nowrap">
+   904→   904→                            {job.started}
+   905→   905→                          </TableCell>
+   906→   906→                          <TableCell className="text-[10px] text-zinc-500 whitespace-nowrap">
+   907→   907→                            {job.duration}
+   908→   908→                          </TableCell>
+   909→   909→                          <TableCell className="text-right">
+   910→   910→                            <div className="flex items-center justify-end gap-1">
+   911→   911→                              {(job.status === 'running' || job.status === 'queued') && (
+   912→   912→                                <Button
+   913→   913→                                  size="sm"
+   914→   914→                                  variant="ghost"
+   915→   915→                                  className="h-6 text-[9px] gap-0.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 px-1.5"
+   916→   916→                                  onClick={() => handleCancelJob(job.id)}
+   917→   917→                                >
+   918→   918→                                  <XCircle className="size-3" /> Cancel
+   919→   919→                                </Button>
+   920→   920→                              )}
+   921→   921→                              <Button
+   922→   922→                                size="sm"
+   923→   923→                                variant="ghost"
+   924→   924→                                className="h-6 text-[9px] gap-0.5 text-zinc-500 hover:text-zinc-300 px-1.5"
+   925→   925→                              >
+   926→   926→                                <Eye className="size-3" /> Logs
+   927→   927→                              </Button>
+   928→   928→                            </div>
+   929→   929→                          </TableCell>
+   930→   930→                        </TableRow>
+   931→   931→                      )
+   932→   932→                    })}
+   933→   933→                  </TableBody>
+   934→   934→                </Table>
+   935→   935→              </ScrollArea>
+   936→   936→            </CardContent>
+   937→   937→          </Card>
+   938→   938→        </TabsContent>
+   939→   939→
+   940→   940→        {/* ────── Tab 4: Feature Store ────── */}
+   941→   941→        <TabsContent value="features" className="mt-4">
+   942→   942→          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   943→   943→            {featureStores.map((store) => (
+   944→   944→              <Card
+   945→   945→                key={store.id}
+   946→   946→                className="border-zinc-800 bg-zinc-950/80 hover:border-zinc-700 transition-colors"
+   947→   947→              >
+   948→   948→                <CardContent className="p-5">
+   949→   949→                  {/* Header */}
+   950→   950→                  <div className="flex items-start justify-between mb-4">
+   951→   951→                    <div className="flex items-center gap-3">
+   952→   952→                      <div className="flex items-center justify-center size-10 rounded-lg bg-zinc-900 border border-zinc-800">
+   953→   953→                        {sourceIcon[store.source]}
+   954→   954→                      </div>
+   955→   955→                      <div>
+   956→   956→                        <h3 className="text-sm font-semibold text-zinc-100">{store.name}</h3>
+   957→   957→                        <Badge
+   958→   958→                          variant="outline"
+   959→   959→                          className={`text-[9px] px-1.5 py-0 mt-1 ${sourceBadgeColor[store.source]}`}
+   960→   960→                        >
+   961→   961→                          {store.source}
+   962→   962→                        </Badge>
+   963→   963→                      </div>
+   964→   964→                    </div>
+   965→   965→                    <div className="flex items-center gap-2">
+   966→   966→                      <Label className="text-[9px] text-zinc-500">
+   967→   967→                        {store.active ? 'Active' : 'Inactive'}
+   968→   968→                      </Label>
+   969→   969→                      <Switch
+   970→   970→                        checked={store.active}
+   971→   971→                        onCheckedChange={(checked) => handleFeatureToggle(store.id, checked)}
+   972→   972→                        className="data-[state=checked]:bg-emerald-500 data-[state=unchecked]:bg-zinc-700"
+   973→   973→                      />
+   974→   974→                    </div>
+   975→   975→                  </div>
+   976→   976→
+   977→   977→                  {/* Stats Grid */}
+   978→   978→                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
+   979→   979→                    <div className="p-2 rounded-lg bg-zinc-900/60 text-center">
+   980→   980→                      <p className="text-lg font-bold text-zinc-100">{store.featuresCount}</p>
+   981→   981→                      <p className="text-[9px] text-zinc-500 uppercase tracking-wider">Features</p>
+   982→   982→                    </div>
+   983→   983→                    <div className="p-2 rounded-lg bg-zinc-900/60 text-center">
+   984→   984→                      <p className="text-sm font-bold text-zinc-200">{store.refreshInterval}</p>
+   985→   985→                      <p className="text-[9px] text-zinc-500 uppercase tracking-wider">Refresh</p>
+   986→   986→                    </div>
+   987→   987→                    <div className="p-2 rounded-lg bg-zinc-900/60 text-center">
+   988→   988→                      <p className="text-sm font-bold text-zinc-200 font-mono">{store.lastRefresh}</p>
+   989→   989→                      <p className="text-[9px] text-zinc-500 uppercase tracking-wider">Last Sync</p>
+   990→   990→                    </div>
+   991→   991→                  </div>
+   992→   992→
+   993→   993→                  <Separator className="bg-zinc-800 mb-3" />
+   994→   994→
+   995→   995→                  {/* Footer */}
+   996→   996→                  <div className="flex items-center justify-between">
+   997→   997→                    <span className="text-[10px] text-zinc-500 flex items-center gap-1">
+   998→   998→                      <RefreshCw className="size-3" /> Auto-refreshes every {store.refreshInterval}
+   999→   999→                    </span>
+  1000→  1000→                    <Button
+  1001→  1001→                      size="sm"
+  1002→  1002→                      variant="ghost"
+  1003→  1003→                      className="h-6 text-[9px] gap-1 text-zinc-500 hover:text-zinc-300"
+  1004→  1004→                    >
+  1005→  1005→                      <Settings className="size-3" /> Configure
+  1006→  1006→                    </Button>
+  1007→  1007→                  </div>
+  1008→  1008→                </CardContent>
+  1009→  1009→              </Card>
+  1010→  1010→            ))}
+  1011→  1011→          </div>
+  1012→  1012→
+  1013→  1013→          {/* Feature Store Summary */}
+  1014→  1014→          <Card className="border-zinc-800 bg-zinc-950/80 mt-4">
+  1015→  1015→            <CardContent className="p-4">
+  1016→  1016→              <div className="flex items-center justify-between">
+  1017→  1017→                <div className="flex items-center gap-6">
+  1018→  1018→                  <div className="flex items-center gap-2">
+  1019→  1019→                    <BarChart3 className="size-4 text-amber-400" />
+  1020→  1020→                    <span className="text-xs text-zinc-300">
+  1021→  1021→                      Total Features:{' '}
+  1022→  1022→                      <span className="font-bold text-zinc-100">
+  1023→  1023→                        {featureStores.reduce((a, s) => a + s.featuresCount, 0)}
+  1024→  1024→                      </span>
+  1025→  1025→                    </span>
+  1026→  1026→                  </div>
+  1027→  1027→                  <Separator orientation="vertical" className="h-4 bg-zinc-800" />
+  1028→  1028→                  <div className="flex items-center gap-2">
+  1029→  1029→                    <Activity className="size-4 text-emerald-400" />
+  1030→  1030→                    <span className="text-xs text-zinc-300">
+  1031→  1031→                      Active Stores:{' '}
+  1032→  1032→                      <span className="font-bold text-zinc-100">
+  1033→  1033→                        {featureStores.filter((s) => s.active).length}/{featureStores.length}
+  1034→  1034→                      </span>
+  1035→  1035→                    </span>
+  1036→  1036→                  </div>
+  1037→  1037→                  <Separator orientation="vertical" className="h-4 bg-zinc-800" />
+  1038→  1038→                  <div className="flex items-center gap-2">
+  1039→  1039→                    <Clock className="size-4 text-sky-400" />
+  1040→  1040→                    <span className="text-xs text-zinc-300">
+  1041→  1041→                      Fastest Refresh:{' '}
+  1042→  1042→                      <span className="font-bold text-zinc-100">
+  1043→  1043→                        {Math.min(
+  1044→  1044→                          ...featureStores.filter((s) => s.active).map((s) => parseInt(s.refreshInterval))
+  1045→  1045→                        )}
+  1046→  1046→                        min
+  1047→  1047→                      </span>
+  1048→  1048→                    </span>
+  1049→  1049→                  </div>
+  1050→  1050→                </div>
+  1051→  1051→                <Button
+  1052→  1052→                  size="sm"
+  1053→  1053→                  variant="outline"
+  1054→  1054→                  className="h-7 text-[10px] gap-1 border-zinc-700 text-zinc-400 hover:text-zinc-200 hover:border-zinc-600"
+  1055→  1055→                >
+  1056→  1056→                  <RefreshCw className="size-3" /> Refresh All
+  1057→  1057→                </Button>
+  1058→  1058→              </div>
+  1059→  1059→            </CardContent>
+  1060→  1060→          </Card>
+  1061→  1061→        </TabsContent>
+  1062→  1062→      </Tabs>
+  1063→  1063→    </div>
+  1064→  1064→  )
+  1065→  1065→}
+  1066→  1066→

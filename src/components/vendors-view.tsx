@@ -428,21 +428,21 @@ export function VendorsView() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
         <div>
-          <h2 className="text-2xl font-bold text-primary flex items-center gap-2">
-            <Server className="size-6 text-amber-500" />
+          <h2 className="text-xl sm:text-2xl font-bold text-primary flex items-center gap-2">
+            <Server className="size-5 sm:size-6 text-amber-500" />
             Vendors &amp; Providers
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Manage game providers, callbacks, credentials, and health monitoring
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-1" onClick={refetch}>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <Button variant="outline" size="sm" className="gap-1 flex-1 sm:flex-initial" onClick={refetch}>
             <RefreshCw className="size-3.5" /> Refresh
           </Button>
-          <Button size="sm" className="gap-1 bg-amber-600 hover:bg-amber-700 text-white">
+          <Button size="sm" className="gap-1 bg-amber-600 hover:bg-amber-700 text-white flex-1 sm:flex-initial">
             <Plus className="size-3.5" /> Add Provider
           </Button>
         </div>
@@ -595,7 +595,7 @@ export function VendorsView() {
           </Card>
 
           {/* Provider Cards Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredProviders.map((provider) => (
               <Card
                 key={provider.id}
@@ -780,6 +780,7 @@ export function VendorsView() {
           <Card className="bg-card border-border">
             <CardContent className="p-0">
               <ScrollArea className="max-h-96">
+              <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -787,11 +788,11 @@ export function VendorsView() {
                       <TableHead>Callback</TableHead>
                       <TableHead>Event Type</TableHead>
                       <TableHead>URL</TableHead>
-                      <TableHead>Auth</TableHead>
+                      <TableHead className="hidden sm:table-cell">Auth</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Last Received</TableHead>
-                      <TableHead className="text-right">Success Rate</TableHead>
-                      <TableHead className="text-right">Avg ms</TableHead>
+                      <TableHead className="hidden sm:table-cell">Last Received</TableHead>
+                      <TableHead className="text-right hidden sm:table-cell">Success Rate</TableHead>
+                      <TableHead className="text-right hidden sm:table-cell">Avg ms</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -818,7 +819,7 @@ export function VendorsView() {
                           <TableCell className="text-xs font-mono max-w-[200px] truncate">
                             {cb.url}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="hidden sm:table-cell">
                             <Badge
                               variant="outline"
                               className="text-[10px] bg-slate-500/10 text-slate-300 border-slate-500/25"
@@ -834,15 +835,15 @@ export function VendorsView() {
                               {cb.isActive ? 'Active' : 'Inactive'}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
+                          <TableCell className="text-xs text-muted-foreground hidden sm:table-cell">
                             {relativeTime(cb.lastReceivedAt)}
                           </TableCell>
                           <TableCell
-                            className={`text-xs text-right font-semibold ${successRateColor(sRate)}`}
+                            className={`text-xs text-right font-semibold hidden sm:table-cell ${successRateColor(sRate)}`}
                           >
                             {sRate.toFixed(1)}%
                           </TableCell>
-                          <TableCell className="text-xs text-right text-muted-foreground">
+                          <TableCell className="text-xs text-right text-muted-foreground hidden sm:table-cell">
                             {cb.avgProcessingMs}ms
                           </TableCell>
                         </TableRow>
@@ -850,6 +851,7 @@ export function VendorsView() {
                     })}
                   </TableBody>
                 </Table>
+              </div>
               </ScrollArea>
             </CardContent>
           </Card>
@@ -918,18 +920,19 @@ export function VendorsView() {
           <Card className="bg-card border-border">
             <CardContent className="p-0">
               <ScrollArea className="max-h-96">
+              <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Game</TableHead>
                       <TableHead>Provider</TableHead>
                       <TableHead>Type</TableHead>
-                      <TableHead className="text-right">RTP</TableHead>
-                      <TableHead>Volatility</TableHead>
-                      <TableHead className="text-right">Max Win</TableHead>
-                      <TableHead className="text-right">Bet Range</TableHead>
-                      <TableHead className="text-right">Sessions</TableHead>
-                      <TableHead className="text-right">Popularity</TableHead>
+                      <TableHead className="text-right hidden sm:table-cell">RTP</TableHead>
+                      <TableHead className="hidden sm:table-cell">Volatility</TableHead>
+                      <TableHead className="text-right hidden sm:table-cell">Max Win</TableHead>
+                      <TableHead className="text-right hidden lg:table-cell">Bet Range</TableHead>
+                      <TableHead className="text-right hidden lg:table-cell">Sessions</TableHead>
+                      <TableHead className="text-right hidden lg:table-cell">Popularity</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -965,10 +968,10 @@ export function VendorsView() {
                               {GAME_TYPE_LABELS[game.type] ?? game.type}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-xs text-right font-mono">
+                          <TableCell className="text-xs text-right font-mono hidden sm:table-cell">
                             {game.rtp != null ? `${game.rtp.toFixed(1)}%` : '—'}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="hidden sm:table-cell">
                             {game.volatility ? (
                               <Badge
                                 variant="outline"
@@ -980,22 +983,22 @@ export function VendorsView() {
                               '—'
                             )}
                           </TableCell>
-                          <TableCell className="text-xs text-right font-mono">
+                          <TableCell className="text-xs text-right font-mono hidden sm:table-cell">
                             {game.maxWin != null
                               ? game.maxWin >= 1000
                                 ? `${(game.maxWin / 1000).toFixed(0)}K`
                                 : game.maxWin.toFixed(0)
                               : '—'}
                           </TableCell>
-                          <TableCell className="text-xs text-right font-mono">
+                          <TableCell className="text-xs text-right font-mono hidden lg:table-cell">
                             {game.minBet != null && game.maxBet != null
                               ? `$${game.minBet}-$${game.maxBet}`
                               : '—'}
                           </TableCell>
-                          <TableCell className="text-xs text-right text-muted-foreground">
+                          <TableCell className="text-xs text-right text-muted-foreground hidden lg:table-cell">
                             {game.totalSessions.toLocaleString()}
                           </TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="text-right hidden lg:table-cell">
                             <div className="flex items-center justify-end gap-1">
                               <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
                                 <div
@@ -1013,6 +1016,7 @@ export function VendorsView() {
                     })}
                   </TableBody>
                 </Table>
+              </div>
               </ScrollArea>
             </CardContent>
           </Card>
@@ -1050,7 +1054,7 @@ export function VendorsView() {
           </Card>
 
           {/* Credential Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {filteredCredentials.map((cred) => {
               const prov = providerMap.get(cred.providerId)
               const expiringSoon = isExpiringSoon(cred.expiresAt)
@@ -1240,15 +1244,16 @@ export function VendorsView() {
           <Card className="bg-card border-border">
             <CardContent className="p-0">
               <ScrollArea className="max-h-96">
+              <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Provider</TableHead>
                       <TableHead>Metric</TableHead>
                       <TableHead className="text-right">Value</TableHead>
-                      <TableHead className="text-right">Threshold</TableHead>
+                      <TableHead className="text-right hidden sm:table-cell">Threshold</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead>Checked</TableHead>
+                      <TableHead className="hidden sm:table-cell">Checked</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1271,7 +1276,7 @@ export function VendorsView() {
                           <TableCell className="text-xs text-right font-mono font-semibold">
                             {log.value} {log.unit}
                           </TableCell>
-                          <TableCell className="text-xs text-right font-mono text-muted-foreground">
+                          <TableCell className="text-xs text-right font-mono text-muted-foreground hidden sm:table-cell">
                             {log.threshold != null ? `${log.threshold} ${log.unit}` : '—'}
                           </TableCell>
                           <TableCell>
@@ -1291,7 +1296,7 @@ export function VendorsView() {
                               </Badge>
                             )}
                           </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
+                          <TableCell className="text-xs text-muted-foreground hidden sm:table-cell">
                             {relativeTime(log.checkedAt)}
                           </TableCell>
                         </TableRow>
@@ -1299,6 +1304,7 @@ export function VendorsView() {
                     })}
                   </TableBody>
                 </Table>
+              </div>
               </ScrollArea>
             </CardContent>
           </Card>
@@ -1316,7 +1322,7 @@ export function VendorsView() {
 
       {/* ═══════ Configure Provider Dialog ═══════ */}
       <Dialog open={configDialogOpen} onOpenChange={setConfigDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Settings className="size-5 text-amber-500" />
