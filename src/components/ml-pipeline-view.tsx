@@ -343,7 +343,7 @@ export function MLPipelineView() {
         const next = { ...prev }
         for (const key of Object.keys(next)) {
           if (next[key] < 100) {
-            next[key] = Math.min(100, next[key] + Math.random() * 2)
+            next[key] = Math.min(100, next[key] + (crypto.getRandomValues(new Uint32Array(1))[0] / 0x100000000) * 2)
           }
         }
         return next
