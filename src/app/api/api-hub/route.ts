@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { randomInt } from 'crypto'
 
 const now = new Date()
 const iso = (minutesAgo: number) => new Date(now.getTime() - minutesAgo * 60000).toISOString()
@@ -217,7 +218,7 @@ const usageData = Array.from({ length: 24 }, (_, i) => {
   const hour = (now.getHours() - 23 + i + 24) % 24
   const base = 400
   const peak = (hour >= 18 && hour <= 22) ? 300 : (hour >= 10 && hour <= 14) ? 200 : 0
-  const noise = Math.floor(Math.random() * 100)
+  const noise = randomInt(0, 100)
   return {
     hour: `${hour.toString().padStart(2, '0')}:00`,
     calls: base + peak + noise,

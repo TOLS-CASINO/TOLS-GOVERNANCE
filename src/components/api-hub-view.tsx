@@ -117,11 +117,24 @@ function maskToken(prefix: string): string {
   return `${prefix}...****`
 }
 
+function secureRandIndex(max: number): number {
+  const limit = 0x100000000 - (0x100000000 % max)
+  const buf = new Uint32Array(1)
+  do { crypto.getRandomValues(buf) } while (buf[0] >= limit)
+  return buf[0] % max
+}
+
 function generateFakeToken(): string {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
   let token = 'tols_'
-  for (let i = 0; i < 28; i++) token += chars[Math.floor(Math.random() * chars.length)]
+  for (let i = 0; i < 28; i++) token += chars[secureRandIndex(chars.length)]
   return token
+}
+
+function generateSigningSecret(): string {
+  const a = new Uint8Array(12)
+  crypto.getRandomValues(a)
+  return Array.from(a, b => b.toString(16).padStart(2, '0')).join('')
 }
 
 /* ─── Scope Badge Colors ─── */
@@ -417,7 +430,8 @@ function TokensTab({ tokens }: { tokens: ApiToken[] }) {
 
   function handleAddToken() {
     if (!newTokenName || newTokenScopes.length === 0) return
-    const prefix = `tols_${Math.random().toString(36).substring(2, 6)}`
+    const prefixChars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+    const prefix = `tols_${Array.from({ length: 4 }, () => prefixChars[secureRandIndex(prefixChars.length)]).join('')}`
     const newToken: ApiToken = {
       id: `tok_${Date.now()}`,
       name: newTokenName,
@@ -797,7 +811,7 @@ function WebhooksTab({ webhooks, deliveries }: { webhooks: WebhookItem[]; delive
               </div>
               <div className="p-2.5 rounded-md bg-muted/50 border border-border/50">
                 <p className="text-[10px] text-muted-foreground mb-1">Signing Secret (auto-generated)</p>
-                <code className="text-[10px] font-mono text-primary">whsec_{Math.random().toString(36).substring(2, 18)}...</code>
+                <code className="text-[10px] font-mono text-primary">whsec_{generateSigningSecret()}...</code>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
