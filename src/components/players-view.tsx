@@ -710,7 +710,7 @@ export function PlayersView() {
                   <SelectTrigger className="w-full sm:w-[160px] h-9 text-xs"><SelectValue placeholder="Action Type" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Actions</SelectItem>
-                    {uniqueActionTypes.map((t: string) => (
+                    {(uniqueActionTypes as string[]).map((t: string) => (
                       <SelectItem key={t} value={t}>{t.replace(/_/g, ' ')}</SelectItem>
                     ))}
                   </SelectContent>
@@ -882,7 +882,7 @@ export function PlayersView() {
                   <SelectTrigger className="w-full sm:w-[160px] h-9 text-xs"><SelectValue placeholder="Game" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Games</SelectItem>
-                    {uniqueBetGames.map((g: string) => (
+                    {(uniqueBetGames as string[]).map((g: string) => (
                       <SelectItem key={g} value={g}>{g}</SelectItem>
                     ))}
                   </SelectContent>
@@ -891,7 +891,7 @@ export function PlayersView() {
                   <SelectTrigger className="w-full sm:w-[140px] h-9 text-xs"><SelectValue placeholder="Player" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Players</SelectItem>
-                    {uniqueBetPlayers.map((p: string) => (
+                    {(uniqueBetPlayers as string[]).map((p: string) => (
                       <SelectItem key={p} value={p}>{p}</SelectItem>
                     ))}
                   </SelectContent>

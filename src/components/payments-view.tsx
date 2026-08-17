@@ -394,28 +394,28 @@ export function PaymentsView() {
             <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
-              {allDepStatuses.map((s: string) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              {(allDepStatuses as string[]).map((s: string) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={depMethodFilter} onValueChange={setDepMethodFilter}>
             <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs"><SelectValue placeholder="Method" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Methods</SelectItem>
-              {allMethods.map((m: string) => <SelectItem key={m} value={m}>{m.replace('_', ' ')}</SelectItem>)}
+              {(allMethods as string[]).map((m: string) => <SelectItem key={m} value={m}>{m.replace('_', ' ')}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={depProviderFilter} onValueChange={setDepProviderFilter}>
             <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs"><SelectValue placeholder="Provider" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Providers</SelectItem>
-              {allProviders.map((p: string) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+              {(allProviders as string[]).map((p: string) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={depCurrencyFilter} onValueChange={setDepCurrencyFilter}>
             <SelectTrigger className="w-full sm:w-[110px] h-8 text-xs"><SelectValue placeholder="Currency" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Currencies</SelectItem>
-              {allCurrencies.map((c: string) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              {(allCurrencies as string[]).map((c: string) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -523,14 +523,14 @@ export function PaymentsView() {
             <SelectTrigger className="w-full sm:w-[140px] h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
-              {allWdStatuses.map((s: string) => <SelectItem key={s} value={s}>{s.replace('_', ' ')}</SelectItem>)}
+              {(allWdStatuses as string[]).map((s: string) => <SelectItem key={s} value={s}>{s.replace('_', ' ')}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={wdMethodFilter} onValueChange={setWdMethodFilter}>
             <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs"><SelectValue placeholder="Method" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Methods</SelectItem>
-              {allWdMethods.map((m: string) => <SelectItem key={m} value={m}>{m.replace('_', ' ')}</SelectItem>)}
+              {(allWdMethods as string[]).map((m: string) => <SelectItem key={m} value={m}>{m.replace('_', ' ')}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
