@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { randomInt } from 'crypto'
 
 const games = ['Mega Moolah', 'Starburst', 'Gonzo\'s Quest', 'Book of Dead', 'Lightning Roulette', 'Blackjack VIP', 'Crazy Time', 'Sweet Bonanza', 'Big Bass Bonanza', 'Gates of Olympus']
 const countries = ['US', 'GB', 'DE', 'FR', 'CA', 'AU', 'JP', 'BR', 'IN', 'MX', 'NL', 'SE', 'NO', 'FI', 'DK', 'IT', 'ES', 'PT', 'PL', 'CZ']
@@ -39,9 +40,12 @@ const statuses = ['active', 'active', 'active', 'active', 'idle', 'idle', 'ended
 const playerNames = ['Alex_K', 'LuckyAce99', 'SpinMaster', 'GoldRush_X', 'NeonViper', 'BetKing42', 'MegaSpin', 'JackpotJane', 'PhantomRoll', 'CryptoAce', 'DiamondDave', 'SilverSpin', 'ThunderBet', 'RoyalFlush', 'VegasVixen', 'StarChaser', 'MoonGambler', 'PixelPot', 'ZeroHero', 'BlazeBet']
 const eventTypes = ['player_login', 'game_start', 'big_win', 'jackpot_win', 'deposit', 'withdrawal', 'bonus_claim', 'level_up']
 
-function rand<T>(arr: T[]): T { return arr[Math.floor(Math.random() * arr.length)] }
-function randFloat(min: number, max: number): number { return min + Math.random() * (max - min) }
-function randInt(min: number, max: number): number { return Math.floor(randFloat(min, max + 1)) }
+function rand<T>(arr: T[]): T { return arr[randomInt(arr.length)] }
+function randFloat(min: number, max: number): number {
+  const unit = randomInt(0, 0x100000000) / 0x100000000
+  return min + unit * (max - min)
+}
+function randInt(min: number, max: number): number { return randomInt(min, max + 1) }
 
 function generateSessions() {
   const now = Date.now()
