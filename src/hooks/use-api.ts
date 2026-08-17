@@ -29,10 +29,12 @@ export function useApi<T>(fetcher: () => Promise<T>, _deps: unknown[] = []): Use
     } finally {
       setLoading(false)
     }
-  }, [fetcherRef])
+  }, [])
 
   useEffect(() => {
-    void Promise.resolve().then(fetchData)
+    queueMicrotask(() => {
+      void fetchData()
+    })
   }, [fetchData])
 
   return { data, loading, error, refetch: fetchData }
