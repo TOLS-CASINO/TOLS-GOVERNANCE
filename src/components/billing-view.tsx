@@ -944,7 +944,7 @@ export function BillingView() {
                   Changing from {currentPlanData?.name} to {PLANS.find((p) => p.id === targetPlan)?.name}
                 </p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {PLANS.find((p) => p.id === targetPlan)?.priceValue > (currentPlanData?.priceValue ?? 0)
+                  {(PLANS.find((p) => p.id === targetPlan)?.priceValue ?? 0) > (currentPlanData?.priceValue ?? 0)
                     ? 'Prorated upgrade charges will apply immediately.'
                     : 'Downgrade takes effect at the end of the current billing period.'}
                 </p>

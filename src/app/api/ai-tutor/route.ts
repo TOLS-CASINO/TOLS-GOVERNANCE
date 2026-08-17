@@ -48,8 +48,9 @@ Be concise, professional, and provide actionable insights with specific numbers 
     const systemPrompt = systemPrompts[context] || systemPrompts.general
 
     // Use z-ai-web-dev-sdk for LLM chat
-    const { LLM } = await import('z-ai-web-dev-sdk')
-    const response = await LLM.chat({
+    const { default: ZAI } = await import('z-ai-web-dev-sdk')
+    const zai = await ZAI.create()
+    const response = await zai.chat.completions.create({
       model: 'glm-4-flash',
       messages: [
         { role: 'system', content: systemPrompt },
