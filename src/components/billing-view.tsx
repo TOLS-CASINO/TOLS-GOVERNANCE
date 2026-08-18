@@ -518,6 +518,7 @@ export function BillingView() {
   }
 
   const currentPlanData = PLANS.find((p) => p.id === currentPlan)
+  const targetPlanData = PLANS.find((p) => p.id === targetPlan)
   const usagePercent = (used: number, limit: number) => Math.min(Math.round((used / limit) * 100), 100)
 
   return (
@@ -941,10 +942,10 @@ export function BillingView() {
               <AlertTriangle className="size-5 text-amber-400 shrink-0" />
               <div>
                 <p className="text-xs font-medium text-primary">
-                  Changing from {currentPlanData?.name} to {PLANS.find((p) => p.id === targetPlan)?.name}
+                  Changing from {currentPlanData?.name} to {targetPlanData?.name}
                 </p>
                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {PLANS.find((p) => p.id === targetPlan)?.priceValue > (currentPlanData?.priceValue ?? 0)
+                  {(targetPlanData?.priceValue ?? 0) > (currentPlanData?.priceValue ?? 0)
                     ? 'Prorated upgrade charges will apply immediately.'
                     : 'Downgrade takes effect at the end of the current billing period.'}
                 </p>

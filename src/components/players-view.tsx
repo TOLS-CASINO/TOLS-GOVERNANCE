@@ -317,8 +317,8 @@ export function PlayersView() {
   })
 
   // ─── Bets Filtered ───
-  const uniqueBetGames = [...new Set(bets.map((b: any) => b.gameName))].sort()
-  const uniqueBetPlayers = [...new Set(bets.map((b: any) => b.playerUsername))].sort()
+  const uniqueBetGames = Array.from(new Set<string>(bets.map((b: any) => b.gameName))).sort()
+  const uniqueBetPlayers = Array.from(new Set<string>(bets.map((b: any) => b.playerUsername))).sort()
 
   const filteredBets = bets.filter((b: any) => {
     if (betSearch) {
@@ -351,7 +351,7 @@ export function PlayersView() {
   })
 
   // ─── Unique Action Types ───
-  const uniqueActionTypes = [...new Set(actions.map((a: any) => a.action))].sort()
+  const uniqueActionTypes = Array.from(new Set<string>(actions.map((a: any) => a.action))).sort()
 
   // ─── Loading ───
   if (playersLoading || trackingLoading) {
@@ -710,7 +710,7 @@ export function PlayersView() {
                   <SelectTrigger className="w-full sm:w-[160px] h-9 text-xs"><SelectValue placeholder="Action Type" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Actions</SelectItem>
-                    {uniqueActionTypes.map((t: string) => (
+                    {uniqueActionTypes.map((t) => (
                       <SelectItem key={t} value={t}>{t.replace(/_/g, ' ')}</SelectItem>
                     ))}
                   </SelectContent>
@@ -882,7 +882,7 @@ export function PlayersView() {
                   <SelectTrigger className="w-full sm:w-[160px] h-9 text-xs"><SelectValue placeholder="Game" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Games</SelectItem>
-                    {uniqueBetGames.map((g: string) => (
+                    {uniqueBetGames.map((g) => (
                       <SelectItem key={g} value={g}>{g}</SelectItem>
                     ))}
                   </SelectContent>
@@ -891,7 +891,7 @@ export function PlayersView() {
                   <SelectTrigger className="w-full sm:w-[140px] h-9 text-xs"><SelectValue placeholder="Player" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Players</SelectItem>
-                    {uniqueBetPlayers.map((p: string) => (
+                    {uniqueBetPlayers.map((p) => (
                       <SelectItem key={p} value={p}>{p}</SelectItem>
                     ))}
                   </SelectContent>

@@ -265,12 +265,12 @@ export function PaymentsView() {
   }))
 
   /* unique values for filter dropdowns */
-  const allMethods = [...new Set((deposits || []).map((d: any) => d.method))]
-  const allProviders = [...new Set((deposits || []).map((d: any) => d.provider))]
-  const allCurrencies = [...new Set((deposits || []).map((d: any) => d.currency))]
-  const allDepStatuses = [...new Set((deposits || []).map((d: any) => d.status))]
-  const allWdStatuses = [...new Set((withdrawals || []).map((w: any) => w.status))]
-  const allWdMethods = [...new Set((withdrawals || []).map((w: any) => w.method))]
+  const allMethods = Array.from(new Set<string>((deposits || []).map((d: any) => d.method)))
+  const allProviders = Array.from(new Set<string>((deposits || []).map((d: any) => d.provider)))
+  const allCurrencies = Array.from(new Set<string>((deposits || []).map((d: any) => d.currency)))
+  const allDepStatuses = Array.from(new Set<string>((deposits || []).map((d: any) => d.status)))
+  const allWdStatuses = Array.from(new Set<string>((withdrawals || []).map((w: any) => w.status)))
+  const allWdMethods = Array.from(new Set<string>((withdrawals || []).map((w: any) => w.method)))
 
   /* ─── action handlers (mock) ─── */
 
@@ -394,28 +394,28 @@ export function PaymentsView() {
             <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
-              {allDepStatuses.map((s: string) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              {allDepStatuses.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={depMethodFilter} onValueChange={setDepMethodFilter}>
             <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs"><SelectValue placeholder="Method" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Methods</SelectItem>
-              {allMethods.map((m: string) => <SelectItem key={m} value={m}>{m.replace('_', ' ')}</SelectItem>)}
+              {allMethods.map((m) => <SelectItem key={m} value={m}>{m.replace('_', ' ')}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={depProviderFilter} onValueChange={setDepProviderFilter}>
             <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs"><SelectValue placeholder="Provider" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Providers</SelectItem>
-              {allProviders.map((p: string) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+              {allProviders.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={depCurrencyFilter} onValueChange={setDepCurrencyFilter}>
             <SelectTrigger className="w-full sm:w-[110px] h-8 text-xs"><SelectValue placeholder="Currency" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Currencies</SelectItem>
-              {allCurrencies.map((c: string) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              {allCurrencies.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
@@ -523,14 +523,14 @@ export function PaymentsView() {
             <SelectTrigger className="w-full sm:w-[140px] h-8 text-xs"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
-              {allWdStatuses.map((s: string) => <SelectItem key={s} value={s}>{s.replace('_', ' ')}</SelectItem>)}
+              {allWdStatuses.map((s) => <SelectItem key={s} value={s}>{s.replace('_', ' ')}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={wdMethodFilter} onValueChange={setWdMethodFilter}>
             <SelectTrigger className="w-full sm:w-[130px] h-8 text-xs"><SelectValue placeholder="Method" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Methods</SelectItem>
-              {allWdMethods.map((m: string) => <SelectItem key={m} value={m}>{m.replace('_', ' ')}</SelectItem>)}
+              {allWdMethods.map((m) => <SelectItem key={m} value={m}>{m.replace('_', ' ')}</SelectItem>)}
             </SelectContent>
           </Select>
         </div>
